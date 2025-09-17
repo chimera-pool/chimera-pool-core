@@ -1,0 +1,15 @@
+# Bitcoin Pool Configuration
+pool:
+  name: "Bitcoin Pool"
+  coin: "bitcoin"
+  algorithm: "sha256"
+  stratum_port: 3333
+  difficulty: 1000000
+  payout_threshold: 0.001
+  fee_percentage: 1.0
+  
+network:
+  rpc_host: "localhost"
+  rpc_port: 8332
+  rpc_user: "bitcoin"
+  rpc_password: "password"

@@ -1,0 +1,15 @@
+# BlockDAG Pool Configuration
+pool:
+  name: "BlockDAG Pool"
+  coin: "blockdag"
+  algorithm: "blake3"
+  stratum_port: 3335
+  difficulty: 1000
+  payout_threshold: 1.0
+  fee_percentage: 0.5
+  
+network:
+  rpc_host: "localhost"
+  rpc_port: 8545
+  rpc_user: "blockdag"
+  rpc_password: "password"
