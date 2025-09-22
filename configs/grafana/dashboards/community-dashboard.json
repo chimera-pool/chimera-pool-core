@@ -1,0 +1,447 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Chimera Pool Community Dashboard",
+    "tags": ["chimera", "community", "teams", "competitions"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "1m",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Teams",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(team_total_hashrate > 0)",
+            "legendFormat": "Active Teams"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "green",
+                  "value": 20
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Total Team Members",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(team_member_count)",
+            "legendFormat": "Total Members"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 50
+                },
+                {
+                  "color": "green",
+                  "value": 200
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Active Competitions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "competition_active_count",
+            "legendFormat": "Active Competitions"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "green",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Referrals Completed Today",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(referrals_completed_total[24h])",
+            "legendFormat": "Referrals Today"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "green",
+                  "value": 20
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Top Teams by Hashrate",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, team_total_hashrate)",
+            "legendFormat": "{{team_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "displayMode": "table"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "H/s"
+                },
+                {
+                  "id": "displayName",
+                  "value": "Hashrate"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Team Performance Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "team_total_hashrate",
+            "legendFormat": "{{team_name}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Hashrate (H/s)",
+            "logBase": 1,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "Competition Leaderboard",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(20, competition_participant_hashrate)",
+            "legendFormat": "{{participant_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "displayMode": "table"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "H/s"
+                },
+                {
+                  "id": "displayName",
+                  "value": "Hashrate"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 17
+        }
+      },
+      {
+        "id": 8,
+        "title": "Social Shares by Platform",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (platform) (social_shares_total)",
+            "legendFormat": "{{platform}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "mappings": []
+          }
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 17
+        }
+      },
+      {
+        "id": 9,
+        "title": "Team Growth Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(team_member_count)",
+            "legendFormat": "Total Team Members"
+          },
+          {
+            "expr": "count(team_total_hashrate > 0)",
+            "legendFormat": "Active Teams"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Count",
+            "logBase": 1,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 26
+        }
+      },
+      {
+        "id": 10,
+        "title": "Referral Success Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(referrals_completed_total[1h]) / rate(referrals_created_total[1h]) * 100",
+            "legendFormat": "Success Rate (%)"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Success Rate (%)",
+            "logBase": 1,
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 26
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "allValue": null,
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "prometheus",
+          "definition": "label_values(team_total_hashrate, team_name)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Team",
+          "multi": true,
+          "name": "team",
+          "options": [],
+          "query": "label_values(team_total_hashrate, team_name)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Team Created",
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "changes(teams_created_total[5m]) > 0",
+          "iconColor": "blue",
+          "name": "Team Created",
+          "titleFormat": "New Team",
+          "textFormat": "A new team was created!"
+        },
+        {
+          "name": "Competition Started",
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "changes(competitions_started_total[5m]) > 0",
+          "iconColor": "purple",
+          "name": "Competition Started",
+          "titleFormat": "Competition Started",
+          "textFormat": "A new competition has started!"
+        }
+      ]
+    }
+  }
+}

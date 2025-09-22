@@ -1,0 +1,618 @@
+version: '3.8'
+
+# Chimera Mining Pool - Production Docker Compose Configuration
+# This configuration is optimized for production deployment with high availability,
+# security, monitoring, and scalability features.
+
+services:
+  # =============================================================================
+  # LOAD BALANCER & REVERSE PROXY
+  # =============================================================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: chimera-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - api-server
+      - web-dashboard
+    restart: unless-stopped
+    networks:
+      - chimera-frontend
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # =============================================================================
+  # APPLICATION SERVICES
+  # =============================================================================
+
+  api-server:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile.api
+    container_name: chimera-api-server
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - METRICS_ENABLED=true
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
+
+  stratum-server:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile.stratum
+    container_name: chimera-stratum-server
+    ports:
+      - "${STRATUM_PORT:-18332}:18332"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MAX_CONNECTIONS=${MAX_CONNECTIONS:-2000}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - api-server
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "18332"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '4'
+        reservations:
+          memory: 2G
+          cpus: '2'
+
+  web-dashboard:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile.web
+    container_name: chimera-web-dashboard
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=${PUBLIC_API_URL}
+      - REACT_APP_STRATUM_HOST=${PUBLIC_STRATUM_HOST}
+    volumes:
+      - ./web-logs:/var/log/nginx
+    depends_on:
+      - api-server
+    restart: unless-stopped
+    networks:
+      - chimera-frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # =============================================================================
+  # DATABASE SERVICES
+  # =============================================================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: chimera-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./backups:/backups
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          cpus: '1'
+
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: chimera-postgres-replica
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGUSER=${POSTGRES_USER}
+      - POSTGRES_MASTER_SERVICE=postgres
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres/recovery.conf:/etc/postgresql/recovery.conf:ro
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  redis:
+    image: redis:7-alpine
+    container_name: chimera-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/etc/redis/redis.conf:ro
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  redis-sentinel:
+    image: redis:7-alpine
+    container_name: chimera-redis-sentinel
+    command: redis-sentinel /etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # =============================================================================
+  # MONITORING & OBSERVABILITY
+  # =============================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chimera-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chimera-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: chimera-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: chimera-node-exporter
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # =============================================================================
+  # LOGGING & LOG MANAGEMENT
+  # =============================================================================
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: chimera-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: chimera-logstash
+    volumes:
+      - ./logging/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logging/logstash/config:/usr/share/logstash/config:ro
+      - ./logs:/logs:ro
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: chimera-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # =============================================================================
+  # BACKUP & MAINTENANCE
+  # =============================================================================
+
+  backup-service:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/Dockerfile.backup
+    container_name: chimera-backup
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - BACKUP_S3_BUCKET=${BACKUP_S3_BUCKET}
+      - BACKUP_S3_REGION=${BACKUP_S3_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # =============================================================================
+  # SECURITY SERVICES
+  # =============================================================================
+
+  fail2ban:
+    image: crazymax/fail2ban:latest
+    container_name: chimera-fail2ban
+    environment:
+      - TZ=UTC
+      - F2B_LOG_LEVEL=INFO
+    volumes:
+      - ./security/fail2ban:/data
+      - ./logs:/var/log:ro
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+    networks:
+      - chimera-backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # =============================================================================
+  # VOLUMES
+  # =============================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/postgres
+  
+  postgres_replica_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/postgres-replica
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/redis
+  
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/prometheus
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/grafana
+  
+  alertmanager_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/alertmanager
+  
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/chimera-pool/data/elasticsearch
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+
+networks:
+  chimera-frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  chimera-backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    internal: true
+
+# =============================================================================
+# DEPLOYMENT CONFIGURATION
+# =============================================================================
+
+# This configuration provides:
+# 
+# 1. High Availability:
+#    - Load balancer with multiple API server instances
+#    - Database read replicas
+#    - Redis Sentinel for cache failover
+# 
+# 2. Security:
+#    - Network isolation between frontend and backend
+#    - Fail2ban for intrusion prevention
+#    - SSL/TLS termination at load balancer
+# 
+# 3. Monitoring:
+#    - Prometheus metrics collection
+#    - Grafana dashboards
+#    - Alertmanager for notifications
+#    - ELK stack for log analysis
+# 
+# 4. Backup & Recovery:
+#    - Automated database backups
+#    - S3 backup storage
+#    - Point-in-time recovery capability
+# 
+# 5. Performance:
+#    - Resource limits and reservations
+#    - Connection pooling
+#    - Caching strategies
+# 
+# 6. Scalability:
+#    - Horizontal scaling ready
+#    - Load balancing
+#    - Stateless application design
+# 
+# To deploy this configuration:
+# 
+# 1. Create data directories:
+#    sudo mkdir -p /opt/chimera-pool/data/{postgres,redis,prometheus,grafana}
+#    sudo chown -R 1000:1000 /opt/chimera-pool/data
+# 
+# 2. Copy configuration files:
+#    cp -r spec-kit/examples/configs/* ./
+# 
+# 3. Generate SSL certificates:
+#    ./scripts/generate-ssl-certs.sh
+# 
+# 4. Set environment variables:
+#    cp production.env .env
+#    # Edit .env with your specific values
+# 
+# 5. Deploy:
+#    docker-compose -f docker-compose.production.yml up -d
+# 
+# 6. Initialize database:
+#    ./scripts/init-production-database.sh
+# 
+# 7. Configure monitoring:
+#    ./scripts/setup-monitoring.sh

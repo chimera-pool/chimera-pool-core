@@ -1,0 +1,32 @@
+[package]
+name = "algorithm-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+blake2 = { workspace = true }
+sha2 = { workspace = true }
+proptest = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+criterion = "0.5"
+
+[[bench]]
+name = "algorithm_benchmarks"
+harness = false
+
+[features]
+default = []
+proptest = ["dep:proptest"]
+integration = []
+
+[lib]
+name = "algorithm_engine"
+crate-type = ["cdylib", "rlib"]

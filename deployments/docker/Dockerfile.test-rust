@@ -1,0 +1,35 @@
+FROM rust:1.70-alpine AS test-base
+
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
+    gcc \
+    musl-dev \
+    make
+
+# Install Rust components and tools
+RUN rustup component add rustfmt clippy && \
+    cargo install cargo-audit cargo-tarpaulin
+
+# Set working directory
+WORKDIR /app
+
+# Copy Cargo files
+COPY Cargo.toml Cargo.lock ./
+COPY src/algorithm-engine/Cargo.toml ./src/algorithm-engine/
+
+# Create dummy source files to cache dependencies
+RUN mkdir -p src/algorithm-engine/src && \
+    echo "fn main() {}" > src/algorithm-engine/src/lib.rs
+
+# Build dependencies
+RUN cargo build --workspace
+
+# Remove dummy files
+RUN rm -rf src/algorithm-engine/src
+
+# Copy actual source code
+COPY . .
+
+# Default command runs tests
+CMD ["cargo", "test", "--workspace", "--verbose"]

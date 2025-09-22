@@ -1,0 +1,51 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  - job_name: 'chimera-pool-api'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: 'chimera-pool-stratum'
+    static_configs:
+      - targets: ['host.docker.internal:18332']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 10s
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 10s
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 10s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Test-specific configuration
+storage:
+  tsdb:
+    retention.time: 1h
+    retention.size: 100MB

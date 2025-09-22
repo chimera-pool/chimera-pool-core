@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: chimera_pool_test_postgres
+    environment:
+      POSTGRES_DB: chimera_pool_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d chimera_pool_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chimera_pool_test_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test_network
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: chimera_pool_test_influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: test
+      DOCKER_INFLUXDB_INIT_PASSWORD: testpassword
+      DOCKER_INFLUXDB_INIT_ORG: chimera-pool
+      DOCKER_INFLUXDB_INIT_BUCKET: metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: test-token-for-integration-tests
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_test_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chimera_pool_test_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus-test.yml:/etc/prometheus/prometheus.yml
+      - prometheus_test_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=1h'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - test_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chimera_pool_test_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: test
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_test_data:/var/lib/grafana
+      - ../../configs/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+    depends_on:
+      - prometheus
+
+  # Mock blockchain node for testing
+  mock_blockchain:
+    image: alpine:latest
+    container_name: chimera_pool_test_blockchain
+    command: |
+      sh -c "
+        apk add --no-cache netcat-openbsd &&
+        echo 'Mock blockchain node ready' &&
+        while true; do
+          echo 'HTTP/1.1 200 OK\r\nContent-Length: 44\r\n\r\n{\"result\":\"mock_response\",\"error\":null}' | nc -l -p 8332 -q 1
+        done
+      "
+    ports:
+      - "8332:8332"
+    networks:
+      - test_network
+
+  # Test load balancer (nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: chimera_pool_test_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-test.conf:/etc/nginx/nginx.conf
+    networks:
+      - test_network
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  influxdb_test_data:
+    driver: local
+  prometheus_test_data:
+    driver: local
+  grafana_test_data:
+    driver: local
+
+networks:
+  test_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

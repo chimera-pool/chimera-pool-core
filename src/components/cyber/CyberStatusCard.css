@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+
+.cyber-status-card {
+  background: var(--cyber-dark);
+  border: 1px solid var(--cyber-gray);
+  border-radius: 4px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  color: var(--cyber-text-primary);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.cyber-status-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--cyber-gray);
+  transition: background 0.3s ease;
+}
+
+.cyber-status-card--healthy::before {
+  background: var(--cyber-success);
+}
+
+.cyber-status-card--warning::before {
+  background: var(--cyber-warning);
+}
+
+.cyber-status-card--error::before {
+  background: var(--cyber-error);
+}
+
+.cyber-status-card--unknown::before {
+  background: var(--cyber-text-muted);
+}
+
+.cyber-status-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cyber-status-card__icon {
+  font-size: 16px;
+}
+
+.cyber-status-card__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cyber-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.cyber-status-card__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyber-text-muted);
+}
+
+.cyber-status-card--healthy .cyber-status-card__indicator {
+  background: var(--cyber-success);
+}
+
+.cyber-status-card--warning .cyber-status-card__indicator {
+  background: var(--cyber-warning);
+}
+
+.cyber-status-card--error .cyber-status-card__indicator {
+  background: var(--cyber-error);
+}
+
+.cyber-pulse {
+  animation: cyber-pulse 2s infinite;
+}
+
+.cyber-status-card__content {
+  margin-bottom: 12px;
+}
+
+.cyber-status-card__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cyber-text-primary);
+  word-break: break-word;
+}
+
+.cyber-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.cyber-status-card__footer {
+  border-top: 1px solid var(--cyber-gray);
+  padding-top: 8px;
+}
+
+.cyber-status-card__timestamp {
+  font-size: 10px;
+  color: var(--cyber-text-muted);
+  font-weight: 400;
+}

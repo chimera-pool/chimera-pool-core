@@ -1,0 +1,260 @@
+# Prometheus alert rules for Chimera Pool
+
+groups:
+  - name: chimera_pool_alerts
+    rules:
+      # System Performance Alerts
+      - alert: HighCPUUsage
+        expr: pool_cpu_usage > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% for more than 5 minutes"
+          
+      - alert: CriticalCPUUsage
+        expr: pool_cpu_usage > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical CPU usage detected"
+          description: "CPU usage is {{ $value }}% for more than 2 minutes"
+          
+      - alert: HighMemoryUsage
+        expr: pool_memory_usage > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% for more than 5 minutes"
+          
+      - alert: CriticalMemoryUsage
+        expr: pool_memory_usage > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage is {{ $value }}% for more than 2 minutes"
+          
+      - alert: HighDiskUsage
+        expr: pool_disk_usage > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is {{ $value }}% for more than 10 minutes"
+          
+      - alert: CriticalDiskUsage
+        expr: pool_disk_usage > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical disk usage detected"
+          description: "Disk usage is {{ $value }}% for more than 5 minutes"
+
+  - name: chimera_pool_mining_alerts
+    rules:
+      # Mining Performance Alerts
+      - alert: LowHashrate
+        expr: pool_total_hashrate < 1000000
+        for: 10m
+        labels:
+          severity: warning
+          component: mining
+        annotations:
+          summary: "Pool hashrate is low"
+          description: "Pool hashrate is {{ $value }} H/s, below 1 MH/s for more than 10 minutes"
+          
+      - alert: NoActiveMiners
+        expr: pool_active_miners == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: mining
+        annotations:
+          summary: "No active miners"
+          description: "No miners are currently active for more than 5 minutes"
+          
+      - alert: FewActiveMiners
+        expr: pool_active_miners < 5
+        for: 15m
+        labels:
+          severity: warning
+          component: mining
+        annotations:
+          summary: "Few active miners"
+          description: "Only {{ $value }} miners are active for more than 15 minutes"
+          
+      - alert: HighShareRejectionRate
+        expr: (rate(pool_invalid_shares[5m]) / rate(pool_total_shares[5m])) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: mining
+        annotations:
+          summary: "High share rejection rate"
+          description: "Share rejection rate is {{ $value }}% for more than 5 minutes"
+          
+      - alert: LowPoolEfficiency
+        expr: pool_efficiency < 90
+        for: 15m
+        labels:
+          severity: warning
+          component: mining
+        annotations:
+          summary: "Low pool efficiency"
+          description: "Pool efficiency is {{ $value }}% for more than 15 minutes"
+          
+      - alert: NoBlocksFound
+        expr: increase(pool_blocks_found_total[6h]) == 0
+        for: 0m
+        labels:
+          severity: info
+          component: mining
+        annotations:
+          summary: "No blocks found recently"
+          description: "No blocks have been found in the last 6 hours"
+
+  - name: chimera_pool_community_alerts
+    rules:
+      # Community Feature Alerts
+      - alert: NoTeamActivity
+        expr: sum(team_total_hashrate) == 0
+        for: 1h
+        labels:
+          severity: warning
+          component: community
+        annotations:
+          summary: "No team mining activity"
+          description: "No teams are currently mining for more than 1 hour"
+          
+      - alert: LowReferralActivity
+        expr: increase(referrals_completed_total[24h]) < 5
+        for: 0m
+        labels:
+          severity: info
+          component: community
+        annotations:
+          summary: "Low referral activity"
+          description: "Only {{ $value }} referrals completed in the last 24 hours"
+          
+      - alert: CompetitionEndingSoon
+        expr: (competition_end_time - time()) < 3600
+        for: 0m
+        labels:
+          severity: info
+          component: community
+        annotations:
+          summary: "Competition ending soon"
+          description: "Competition {{ $labels.competition_name }} ends in less than 1 hour"
+
+  - name: chimera_pool_security_alerts
+    rules:
+      # Security Alerts
+      - alert: HighFailedLoginAttempts
+        expr: increase(auth_failed_attempts_total[5m]) > 10
+        for: 0m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "{{ $value }} failed login attempts in the last 5 minutes"
+          
+      - alert: SuspiciousActivity
+        expr: increase(security_suspicious_activity_total[10m]) > 5
+        for: 0m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} suspicious activities detected in the last 10 minutes"
+          
+      - alert: RateLimitExceeded
+        expr: increase(rate_limit_exceeded_total[5m]) > 100
+        for: 0m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Rate limit frequently exceeded"
+          description: "Rate limit exceeded {{ $value }} times in the last 5 minutes"
+
+  - name: chimera_pool_database_alerts
+    rules:
+      # Database Alerts
+      - alert: DatabaseConnectionsHigh
+        expr: pg_stat_database_numbackends > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High number of database connections"
+          description: "{{ $value }} database connections are active"
+          
+      - alert: DatabaseSlowQueries
+        expr: rate(pg_stat_database_tup_fetched[5m]) / rate(pg_stat_database_tup_returned[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database queries are slow"
+          description: "Database query performance is degraded"
+          
+      - alert: DatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database is not responding"
+
+  - name: chimera_pool_service_alerts
+    rules:
+      # Service Health Alerts
+      - alert: ServiceDown
+        expr: up{job="chimera-pool"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+        annotations:
+          summary: "Chimera Pool service is down"
+          description: "The main Chimera Pool service is not responding"
+          
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: service
+        annotations:
+          summary: "High response time"
+          description: "95th percentile response time is {{ $value }}s for more than 5 minutes"
+          
+      - alert: HighErrorRate
+        expr: (rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: service
+        annotations:
+          summary: "High error rate"
+          description: "Error rate is {{ $value }}% for more than 5 minutes"

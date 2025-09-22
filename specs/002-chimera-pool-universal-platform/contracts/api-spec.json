@@ -1,0 +1,853 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Chimera Pool Universal Platform API",
+    "description": "REST API for the Chimera Pool Universal Mining Pool Platform supporting multiple cryptocurrencies with hot-swappable algorithms",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Chimera Pool Team",
+      "url": "https://chimera-pool.com",
+      "email": "api@chimera-pool.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.chimera-pool.com/v1",
+      "description": "Production server"
+    },
+    {
+      "url": "https://staging-api.chimera-pool.com/v1",
+      "description": "Staging server"
+    },
+    {
+      "url": "http://localhost:8081/v1",
+      "description": "Local development server"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Returns the health status of all system components",
+        "tags": ["System"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "System is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User authentication",
+        "description": "Authenticate user and return JWT token",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pools": {
+      "get": {
+        "summary": "List all pools",
+        "description": "Get list of all cryptocurrency pools",
+        "tags": ["Pools"],
+        "responses": {
+          "200": {
+            "description": "List of pools",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Pool"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create new pool",
+        "description": "Create a new cryptocurrency mining pool",
+        "tags": ["Pools"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePoolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pool created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pool"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pools/{poolId}": {
+      "get": {
+        "summary": "Get pool details",
+        "description": "Get detailed information about a specific pool",
+        "tags": ["Pools"],
+        "parameters": [
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pool details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pool"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pools/{poolId}/stats": {
+      "get": {
+        "summary": "Get pool statistics",
+        "description": "Get real-time statistics for a specific pool",
+        "tags": ["Pools"],
+        "parameters": [
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pool statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoolStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/algorithms": {
+      "get": {
+        "summary": "List available algorithms",
+        "description": "Get list of all available mining algorithms",
+        "tags": ["Algorithms"],
+        "responses": {
+          "200": {
+            "description": "List of algorithms",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Algorithm"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/algorithms/status": {
+      "get": {
+        "summary": "Get algorithm engine status",
+        "description": "Get current status of the algorithm engine including active and staged algorithms",
+        "tags": ["Algorithms"],
+        "responses": {
+          "200": {
+            "description": "Algorithm engine status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlgorithmStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/algorithms/stage": {
+      "post": {
+        "summary": "Stage new algorithm",
+        "description": "Stage a new algorithm package for deployment",
+        "tags": ["Algorithms"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "package": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Algorithm package file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Algorithm staged successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StageAlgorithmResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/algorithms/deploy": {
+      "post": {
+        "summary": "Deploy staged algorithm",
+        "description": "Deploy a previously staged algorithm with specified deployment strategy",
+        "tags": ["Algorithms"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeployAlgorithmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Deployment started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployAlgorithmResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miners": {
+      "get": {
+        "summary": "List miners",
+        "description": "Get list of all miners across all pools",
+        "tags": ["Miners"],
+        "parameters": [
+          {
+            "name": "poolId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by pool ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["active", "inactive", "offline"]
+            },
+            "description": "Filter by miner status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of miners",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Miner"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miners/{minerId}": {
+      "get": {
+        "summary": "Get miner details",
+        "description": "Get detailed information about a specific miner",
+        "tags": ["Miners"],
+        "parameters": [
+          {
+            "name": "minerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Miner details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Miner"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payouts": {
+      "get": {
+        "summary": "List payouts",
+        "description": "Get list of payouts for the authenticated user",
+        "tags": ["Payouts"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "processing", "completed", "failed"]
+            }
+          },
+          {
+            "name": "coin",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payouts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Payout"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "degraded", "unhealthy"]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "components": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy"]
+              },
+              "redis": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy"]
+              },
+              "algorithm_engine": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy"]
+              },
+              "stratum_server": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy"]
+              }
+            }
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "mfa_token": {
+            "type": "string",
+            "description": "Multi-factor authentication token (if MFA is enabled)"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT access token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token for obtaining new access tokens"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Token expiration time in seconds"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "operator", "miner"]
+          },
+          "mfa_enabled": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Pool": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "coin": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "stratum_port": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "integer"
+          },
+          "fee_percentage": {
+            "type": "number"
+          },
+          "payout_threshold": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "maintenance"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatePoolRequest": {
+        "type": "object",
+        "required": ["name", "coin", "algorithm"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "coin": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "stratum_port": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "integer"
+          },
+          "fee_percentage": {
+            "type": "number"
+          },
+          "payout_threshold": {
+            "type": "number"
+          }
+        }
+      },
+      "PoolStats": {
+        "type": "object",
+        "properties": {
+          "pool_id": {
+            "type": "string"
+          },
+          "total_hashrate": {
+            "type": "integer"
+          },
+          "active_miners": {
+            "type": "integer"
+          },
+          "blocks_found": {
+            "type": "integer"
+          },
+          "last_block_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "shares_accepted": {
+            "type": "integer"
+          },
+          "shares_rejected": {
+            "type": "integer"
+          },
+          "current_difficulty": {
+            "type": "integer"
+          },
+          "network_difficulty": {
+            "type": "integer"
+          }
+        }
+      },
+      "Algorithm": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "supported_coins": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "performance_score": {
+            "type": "number"
+          },
+          "memory_requirements": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "installed", "active", "deprecated"]
+          }
+        }
+      },
+      "AlgorithmStatus": {
+        "type": "object",
+        "properties": {
+          "active_algorithm": {
+            "$ref": "#/components/schemas/Algorithm"
+          },
+          "staged_algorithm": {
+            "$ref": "#/components/schemas/Algorithm"
+          },
+          "migration_state": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["idle", "staging", "migrating", "completed", "failed"]
+              },
+              "progress": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "phase": {
+                "type": "string"
+              },
+              "started_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "StageAlgorithmResponse": {
+        "type": "object",
+        "properties": {
+          "algorithm_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["staged", "failed"]
+          },
+          "validation_results": {
+            "type": "object",
+            "properties": {
+              "signature_valid": {
+                "type": "boolean"
+              },
+              "compatibility_check": {
+                "type": "boolean"
+              },
+              "performance_score": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "DeployAlgorithmRequest": {
+        "type": "object",
+        "required": ["strategy"],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": ["immediate", "gradual", "scheduled"]
+          },
+          "shadow_duration": {
+            "type": "integer",
+            "description": "Duration in seconds for shadow mode testing"
+          },
+          "phase_duration": {
+            "type": "integer",
+            "description": "Duration in seconds for each migration phase"
+          },
+          "rollback_on_error": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "DeployAlgorithmResponse": {
+        "type": "object",
+        "properties": {
+          "deployment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["in_progress", "completed", "failed"]
+          },
+          "estimated_duration": {
+            "type": "integer"
+          },
+          "monitoring_url": {
+            "type": "string"
+          }
+        }
+      },
+      "Miner": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pool_id": {
+            "type": "string"
+          },
+          "worker_name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "hashrate": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "integer"
+          },
+          "shares_accepted": {
+            "type": "integer"
+          },
+          "shares_rejected": {
+            "type": "integer"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "offline"]
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "mining_software": {
+            "type": "string"
+          }
+        }
+      },
+      "Payout": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "pool_id": {
+            "type": "string"
+          },
+          "coin": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "wallet_address": {
+            "type": "string"
+          },
+          "transaction_hash": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "processed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer"
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
+

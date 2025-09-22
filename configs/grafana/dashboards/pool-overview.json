@@ -1,0 +1,358 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Chimera Pool Overview",
+    "tags": ["chimera", "mining", "pool"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pool Hashrate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pool_total_hashrate",
+            "legendFormat": "Total Hashrate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "H/s",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 1000000
+                },
+                {
+                  "color": "green",
+                  "value": 10000000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Miners",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pool_active_miners",
+            "legendFormat": "Active Miners"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "green",
+                  "value": 50
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Blocks Found",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(pool_blocks_found_total[1h])",
+            "legendFormat": "Blocks/Hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "green",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Pool Efficiency",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pool_efficiency",
+            "legendFormat": "Efficiency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 80
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Hashrate Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pool_total_hashrate",
+            "legendFormat": "Total Hashrate"
+          },
+          {
+            "expr": "pool_network_hashrate",
+            "legendFormat": "Network Hashrate"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Hash Rate (H/s)",
+            "logBase": 1,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Shares Per Second",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pool_shares_per_second",
+            "legendFormat": "Shares/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Shares/sec",
+            "logBase": 1,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "System Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pool_cpu_usage",
+            "legendFormat": "CPU Usage (%)"
+          },
+          {
+            "expr": "pool_memory_usage",
+            "legendFormat": "Memory Usage (%)"
+          },
+          {
+            "expr": "pool_disk_usage",
+            "legendFormat": "Disk Usage (%)"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Percentage",
+            "logBase": 1,
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 17
+        }
+      },
+      {
+        "id": 8,
+        "title": "Top Miners by Hashrate",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, miner_hashrate)",
+            "legendFormat": "{{miner_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "displayMode": "table"
+            }
+          }
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 17
+        }
+      },
+      {
+        "id": 9,
+        "title": "Network vs Pool Difficulty",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pool_network_difficulty",
+            "legendFormat": "Network Difficulty"
+          },
+          {
+            "expr": "pool_difficulty",
+            "legendFormat": "Pool Difficulty"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Difficulty",
+            "logBase": 10,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 26
+        }
+      },
+      {
+        "id": 10,
+        "title": "Pool Luck",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pool_luck",
+            "legendFormat": "Luck (%)"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Luck (%)",
+            "logBase": 1,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 26
+        }
+      }
+    ],
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Block Found",
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "changes(pool_blocks_found_total[5m]) > 0",
+          "iconColor": "green",
+          "name": "Block Found",
+          "titleFormat": "Block Found",
+          "textFormat": "New block found!"
+        }
+      ]
+    }
+  }
+}
