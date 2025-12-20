@@ -58,6 +58,7 @@ function App() {
   const [profileTab, setProfileTab] = useState<'profile' | 'security'>('profile');
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('token');
@@ -154,6 +155,32 @@ function App() {
       } else {
         const data = await response.json();
         showMessage('error', data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!user?.email) {
+      showMessage('error', 'No email address found');
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const response = await fetch('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      if (response.ok) {
+        setForgotPasswordSent(true);
+        showMessage('success', 'Password reset link sent to your email');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to send reset email');
       }
     } catch (error) {
       showMessage('error', 'Network error');
@@ -327,7 +354,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                   <button 
                     style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
-                    onClick={() => { setShowProfileModal(false); setProfileTab('profile'); setPasswordForm({ current_password: '', new_password: '', confirm_password: '' }); }}
+                    onClick={() => { setShowProfileModal(false); setProfileTab('profile'); setPasswordForm({ current_password: '', new_password: '', confirm_password: '' }); setForgotPasswordSent(false); }}
                   >
                     Cancel
                   </button>
@@ -338,6 +365,27 @@ function App() {
                   >
                     {passwordLoading ? 'Changing...' : 'Change Password'}
                   </button>
+                </div>
+
+                {/* Forgot Password Section */}
+                <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #2a2a4a' }}>
+                  <h3 style={{ color: '#e0e0e0', marginBottom: '10px', fontSize: '1.1rem' }}>📧 Forgot Password?</h3>
+                  <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '15px' }}>
+                    If you've forgotten your current password, we can send a reset link to your email address: <strong style={{ color: '#00d4ff' }}>{user?.email}</strong>
+                  </p>
+                  {forgotPasswordSent ? (
+                    <div style={{ padding: '15px', backgroundColor: '#1a4d1a', borderRadius: '6px', color: '#4ade80', textAlign: 'center' }}>
+                      ✓ Password reset link sent! Check your email inbox.
+                    </div>
+                  ) : (
+                    <button 
+                      style={{ width: '100%', padding: '12px', backgroundColor: '#4a1a6b', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer', opacity: passwordLoading ? 0.6 : 1 }}
+                      onClick={handleForgotPassword}
+                      disabled={passwordLoading}
+                    >
+                      {passwordLoading ? 'Sending...' : 'Send Password Reset Email'}
+                    </button>
+                  )}
                 </div>
               </>
             )}
