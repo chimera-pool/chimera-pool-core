@@ -53,6 +53,11 @@ function App() {
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [mainView, setMainView] = useState<MainView>('dashboard');
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({ username: '', payout_address: '' });
+  const [profileTab, setProfileTab] = useState<'profile' | 'security'>('profile');
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('token');
@@ -105,6 +110,58 @@ function App() {
     setShowAdminPanel(false);
   };
 
+  const handleUpdateProfile = async () => {
+    try {
+      const response = await fetch('/api/v1/user/profile', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileForm)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser({ ...user, ...data.user });
+        setShowProfileModal(false);
+        showMessage('success', 'Profile updated successfully');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showMessage('error', 'New passwords do not match');
+      return;
+    }
+    if (passwordForm.new_password.length < 8) {
+      showMessage('error', 'New password must be at least 8 characters');
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const response = await fetch('/api/v1/user/password', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: passwordForm.current_password, new_password: passwordForm.new_password })
+      });
+      if (response.ok) {
+        showMessage('success', 'Password changed successfully');
+        setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        setProfileTab('profile');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
@@ -136,7 +193,7 @@ function App() {
           <div style={styles.authButtons}>
             {token && user ? (
               <div style={styles.userInfo}>
-                <span style={styles.username}>👤 {user.username}</span>
+                <span style={{...styles.username, cursor: 'pointer'}} onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">👤 {user.username}</span>
                 {user.is_admin && (
                   <button style={{...styles.authBtn, backgroundColor: '#4a1a6b', borderColor: '#9b59b6'}} onClick={() => setShowAdminPanel(true)}>
                     🛡️ Admin
@@ -163,6 +220,130 @@ function App() {
       {authView && <AuthModal view={authView} setView={setAuthView} setToken={setToken} showMessage={showMessage} resetToken={resetToken} />}
       
       {showAdminPanel && token && <AdminPanel token={token} onClose={() => setShowAdminPanel(false)} showMessage={showMessage} />}
+
+      {/* Profile Edit Modal */}
+      {showProfileModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '500px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#00d4ff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>👤 Account Settings</h2>
+            
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px' }}>
+              <button 
+                style={{ flex: 1, padding: '10px', backgroundColor: profileTab === 'profile' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: profileTab === 'profile' ? '#0a0a0f' : '#888', fontWeight: profileTab === 'profile' ? 'bold' : 'normal', cursor: 'pointer' }}
+                onClick={() => setProfileTab('profile')}
+              >
+                Profile
+              </button>
+              <button 
+                style={{ flex: 1, padding: '10px', backgroundColor: profileTab === 'security' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: profileTab === 'security' ? '#0a0a0f' : '#888', fontWeight: profileTab === 'security' ? 'bold' : 'normal', cursor: 'pointer' }}
+                onClick={() => setProfileTab('security')}
+              >
+                Security
+              </button>
+            </div>
+
+            {/* Profile Tab */}
+            {profileTab === 'profile' && (
+              <>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Username</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="text" 
+                    value={profileForm.username} 
+                    onChange={e => setProfileForm({...profileForm, username: e.target.value})} 
+                  />
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Payout Address</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="text" 
+                    placeholder="Your mining payout address"
+                    value={profileForm.payout_address} 
+                    onChange={e => setProfileForm({...profileForm, payout_address: e.target.value})} 
+                  />
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Email</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#666', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="email" 
+                    value={user?.email || ''} 
+                    disabled
+                  />
+                  <span style={{ color: '#666', fontSize: '0.8rem' }}>Email cannot be changed</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button 
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                    onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                    onClick={handleUpdateProfile}
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Security Tab */}
+            {profileTab === 'security' && (
+              <>
+                <h3 style={{ color: '#e0e0e0', marginBottom: '15px', fontSize: '1.1rem' }}>🔒 Change Password</h3>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Current Password</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="password" 
+                    value={passwordForm.current_password} 
+                    onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})} 
+                  />
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>New Password</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="password" 
+                    placeholder="Minimum 8 characters"
+                    value={passwordForm.new_password} 
+                    onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})} 
+                  />
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Confirm New Password</label>
+                  <input 
+                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    type="password" 
+                    value={passwordForm.confirm_password} 
+                    onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})} 
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button 
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                    onClick={() => { setShowProfileModal(false); setProfileTab('profile'); setPasswordForm({ current_password: '', new_password: '', confirm_password: '' }); }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', opacity: passwordLoading ? 0.6 : 1 }}
+                    onClick={handleChangePassword}
+                    disabled={passwordLoading}
+                  >
+                    {passwordLoading ? 'Changing...' : 'Change Password'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <main style={mainView === 'community' ? { ...styles.main, maxWidth: '100%', padding: '0' } : styles.main}>
         {/* DASHBOARD VIEW */}
@@ -2706,7 +2887,7 @@ interface AdminPanelProps {
 }
 
 function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'community' | 'roles'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'roles'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -2758,7 +2939,6 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   useEffect(() => { fetchUsers(); }, [page, search]);
   useEffect(() => { if (activeTab === 'algorithm') fetchAlgorithmSettings(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'stats') fetchPoolStats(); }, [activeTab, poolStatsRange]);
-  useEffect(() => { if (activeTab === 'community') fetchChannelsAndCategories(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'roles') fetchRoles(); }, [activeTab]);
 
   const fetchRoles = async () => {
@@ -3151,12 +3331,6 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
             onClick={() => setActiveTab('algorithm')}
           >
             ⚙️ Algorithm Settings
-          </button>
-          <button 
-            style={{...adminStyles.tab, ...(activeTab === 'community' ? adminStyles.tabActive : {})}} 
-            onClick={() => setActiveTab('community')}
-          >
-            💬 Community Channels
           </button>
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'roles' ? adminStyles.tabActive : {})}} 
@@ -3794,189 +3968,6 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Community Channels Tab */}
-        {activeTab === 'community' && (
-          <div style={adminStyles.algorithmContainer}>
-            <div style={adminStyles.algoHeader}>
-              <h3 style={adminStyles.algoTitle}>💬 Community Channel Management</h3>
-              <p style={adminStyles.algoDesc}>
-                Create and manage community chat channels. Organize channels into categories for better navigation.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <button 
-                style={{ ...adminStyles.algoSaveBtn, padding: '12px 24px', fontSize: '1rem' }}
-                onClick={() => setShowCreateCategory(true)}
-              >
-                ➕ New Category
-              </button>
-              <button 
-                style={{ ...adminStyles.algoSaveBtn, padding: '12px 24px', fontSize: '1rem', backgroundColor: '#00d4ff' }}
-                onClick={() => { setShowCreateChannel(true); setEditingChannel(null); setChannelForm({ name: '', description: '', category_id: categories[0]?.id || '', type: 'text', is_read_only: false, admin_only_post: false }); }}
-              >
-                ➕ New Channel
-              </button>
-            </div>
-
-            {channelsLoading ? (
-              <div style={adminStyles.loading}>Loading channels...</div>
-            ) : (
-              <div>
-                {categories.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
-                    <p>No categories yet. Create a category first, then add channels to it.</p>
-                  </div>
-                ) : (
-                  categories.map((category: any) => (
-                    <div key={category.id} style={{ marginBottom: '25px', backgroundColor: '#0a0a15', borderRadius: '8px', border: '1px solid #2a2a4a', overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', backgroundColor: '#1a1a2e', borderBottom: '1px solid #2a2a4a' }}>
-                        <div>
-                          <h4 style={{ margin: 0, color: '#9b59b6' }}>📁 {category.name}</h4>
-                          {category.description && <p style={{ margin: '5px 0 0', color: '#888', fontSize: '0.9rem' }}>{category.description}</p>}
-                        </div>
-                        <button 
-                          style={{ ...adminStyles.actionBtn, color: '#ef4444' }}
-                          onClick={() => handleDeleteCategory(category.id)}
-                          title="Delete Category"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                      <div style={{ padding: '15px 20px' }}>
-                        {channels.filter((ch: any) => ch.category_id === category.id).length === 0 ? (
-                          <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>No channels in this category</p>
-                        ) : (
-                          channels.filter((ch: any) => ch.category_id === category.id).map((channel: any) => (
-                            <div key={channel.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 15px', backgroundColor: '#1a1a2e', borderRadius: '6px', marginBottom: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span style={{ fontSize: '1.2rem' }}>
-                                  {channel.type === 'announcement' ? '📢' : channel.type === 'regional' ? '🌍' : '💬'}
-                                </span>
-                                <div>
-                                  <span style={{ color: '#00d4ff', fontWeight: 'bold' }}># {channel.name}</span>
-                                  {channel.description && <p style={{ margin: '4px 0 0', color: '#888', fontSize: '0.85rem' }}>{channel.description}</p>}
-                                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                    {channel.is_read_only && <span style={{ backgroundColor: '#4d3a1a', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>Read-Only</span>}
-                                    {channel.admin_only_post && <span style={{ backgroundColor: '#4d1a4d', color: '#d946ef', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>Admin Post Only</span>}
-                                  </div>
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button style={adminStyles.actionBtn} onClick={() => openEditChannel(channel)} title="Edit">✏️</button>
-                                <button style={{ ...adminStyles.actionBtn, color: '#ef4444' }} onClick={() => handleDeleteChannel(channel.id)} title="Delete">🗑️</button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Create/Edit Channel Modal */}
-            {(showCreateChannel || editingChannel) && (
-              <div style={adminStyles.editModal}>
-                <h3 style={adminStyles.editTitle}>{editingChannel ? 'Edit Channel' : 'Create New Channel'}</h3>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Channel Name *</label>
-                  <input 
-                    style={adminStyles.formInput} 
-                    type="text" 
-                    placeholder="e.g., general-chat" 
-                    value={channelForm.name} 
-                    onChange={e => setChannelForm({...channelForm, name: e.target.value})} 
-                  />
-                </div>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Description</label>
-                  <input 
-                    style={adminStyles.formInput} 
-                    type="text" 
-                    placeholder="What's this channel for?" 
-                    value={channelForm.description} 
-                    onChange={e => setChannelForm({...channelForm, description: e.target.value})} 
-                  />
-                </div>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Category *</label>
-                  <select 
-                    style={adminStyles.algoSelect} 
-                    value={channelForm.category_id} 
-                    onChange={e => setChannelForm({...channelForm, category_id: e.target.value})}
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Channel Type</label>
-                  <select 
-                    style={adminStyles.algoSelect} 
-                    value={channelForm.type} 
-                    onChange={e => setChannelForm({...channelForm, type: e.target.value})}
-                  >
-                    <option value="text">💬 Text Channel</option>
-                    <option value="announcement">📢 Announcement Channel</option>
-                    <option value="regional">🌍 Regional Channel</option>
-                  </select>
-                </div>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.checkboxLabel}>
-                    <input type="checkbox" checked={channelForm.is_read_only} onChange={e => setChannelForm({...channelForm, is_read_only: e.target.checked})} />
-                    Read-Only (users can view but not post)
-                  </label>
-                  <label style={adminStyles.checkboxLabel}>
-                    <input type="checkbox" checked={channelForm.admin_only_post} onChange={e => setChannelForm({...channelForm, admin_only_post: e.target.checked})} />
-                    Admin-Only Posting
-                  </label>
-                </div>
-                <div style={adminStyles.editActions}>
-                  <button style={adminStyles.cancelBtn} onClick={() => { setShowCreateChannel(false); setEditingChannel(null); }}>Cancel</button>
-                  <button style={adminStyles.saveBtn} onClick={editingChannel ? handleUpdateChannel : handleCreateChannel}>
-                    {editingChannel ? 'Save Changes' : 'Create Channel'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Create Category Modal */}
-            {showCreateCategory && (
-              <div style={adminStyles.editModal}>
-                <h3 style={adminStyles.editTitle}>Create New Category</h3>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Category Name *</label>
-                  <input 
-                    style={adminStyles.formInput} 
-                    type="text" 
-                    placeholder="e.g., General, Mining Talk, Support" 
-                    value={categoryForm.name} 
-                    onChange={e => setCategoryForm({...categoryForm, name: e.target.value})} 
-                  />
-                </div>
-                <div style={adminStyles.formGroup}>
-                  <label style={adminStyles.label}>Description</label>
-                  <input 
-                    style={adminStyles.formInput} 
-                    type="text" 
-                    placeholder="What topics belong in this category?" 
-                    value={categoryForm.description} 
-                    onChange={e => setCategoryForm({...categoryForm, description: e.target.value})} 
-                  />
-                </div>
-                <div style={adminStyles.editActions}>
-                  <button style={adminStyles.cancelBtn} onClick={() => setShowCreateCategory(false)}>Cancel</button>
-                  <button style={adminStyles.saveBtn} onClick={handleCreateCategory}>Create Category</button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
