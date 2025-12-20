@@ -421,11 +421,6 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u your@email.com -p your
               <span style={styles.infoLabel}>Protocol</span>
               <span style={styles.infoValue}>Stratum V1 + V2 Hybrid</span>
             </div>
-            <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>📊</span>
-              <span style={styles.infoLabel}>Pool Fee</span>
-              <span style={styles.infoValue}>1.0%</span>
-            </div>
           </div>
         </section>
           </>
