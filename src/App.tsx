@@ -215,6 +215,19 @@ function App() {
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>🔗 Connect Your Miner</h2>
           
+          {/* Hybrid Protocol Banner */}
+          <div style={instructionStyles.protocolBanner}>
+            <div style={instructionStyles.protocolBadge}>
+              <span style={instructionStyles.v2Badge}>✨ Stratum V2</span>
+              <span style={instructionStyles.plusSign}>+</span>
+              <span style={instructionStyles.v1Badge}>Stratum V1</span>
+            </div>
+            <p style={instructionStyles.protocolText}>
+              <strong>Hybrid Protocol Support:</strong> Our pool automatically detects your miner type.
+              BlockDAG X30/X100 ASICs use encrypted Stratum V2, while GPU miners use standard Stratum V1.
+            </p>
+          </div>
+
           {/* Step by Step Guide */}
           <div style={instructionStyles.stepsContainer}>
             <h3 style={instructionStyles.stepsTitle}>📋 Quick Start Guide</h3>
@@ -222,79 +235,140 @@ function App() {
               <span style={instructionStyles.stepNumber}>1</span>
               <div>
                 <strong>Create an Account</strong>
-                <p style={instructionStyles.stepText}>Register with your email address and create a secure password.</p>
+                <p style={instructionStyles.stepText}>Click "Register" above and create your account with email and password.</p>
               </div>
             </div>
             <div style={instructionStyles.step}>
               <span style={instructionStyles.stepNumber}>2</span>
               <div>
                 <strong>Set Your Wallet Address</strong>
-                <p style={instructionStyles.stepText}>Go to Wallet Settings and enter your BDAG wallet address for payouts.</p>
+                <p style={instructionStyles.stepText}>After logging in, go to "Wallet Settings" and add your BDAG wallet address for payouts.</p>
               </div>
             </div>
             <div style={instructionStyles.step}>
               <span style={instructionStyles.stepNumber}>3</span>
               <div>
                 <strong>Configure Your Miner</strong>
-                <p style={instructionStyles.stepText}>Use the connection details below in your mining software.</p>
+                <p style={instructionStyles.stepText}>Copy the connection details below into your mining software.</p>
               </div>
             </div>
             <div style={instructionStyles.step}>
               <span style={instructionStyles.stepNumber}>4</span>
               <div>
                 <strong>Start Mining!</strong>
-                <p style={instructionStyles.stepText}>Launch your miner and watch your stats appear in the dashboard.</p>
+                <p style={instructionStyles.stepText}>Launch your miner and your stats will appear in the dashboard within minutes.</p>
               </div>
             </div>
           </div>
 
-          {/* Connection Details */}
+          {/* Connection Details - Simplified */}
           <div style={instructionStyles.connectionBox}>
-            <h3 style={instructionStyles.connectionTitle}>⚡ Connection Details</h3>
-            <div style={instructionStyles.detailRow}>
-              <span style={instructionStyles.detailLabel}>Stratum URL:</span>
-              <code style={instructionStyles.detailCode}>stratum+tcp://206.162.80.230:3333</code>
+            <h3 style={instructionStyles.connectionTitle}>⚡ Pool Connection Settings</h3>
+            <div style={instructionStyles.copyableBox}>
+              <div style={instructionStyles.detailRow}>
+                <span style={instructionStyles.detailLabel}>Pool Address:</span>
+                <code style={instructionStyles.detailCode}>stratum+tcp://206.162.80.230:3333</code>
+              </div>
+              <div style={instructionStyles.detailRow}>
+                <span style={instructionStyles.detailLabel}>Username:</span>
+                <code style={instructionStyles.detailCode}>your_email@example.com</code>
+              </div>
+              <div style={instructionStyles.detailRow}>
+                <span style={instructionStyles.detailLabel}>Password:</span>
+                <code style={instructionStyles.detailCode}>your_account_password</code>
+              </div>
+              <div style={instructionStyles.detailRow}>
+                <span style={instructionStyles.detailLabel}>Algorithm:</span>
+                <code style={instructionStyles.detailCode}>scrpy-variant (BlockDAG Custom)</code>
+              </div>
             </div>
-            <div style={instructionStyles.detailRow}>
-              <span style={instructionStyles.detailLabel}>Username:</span>
-              <code style={instructionStyles.detailCode}>Your registered email address</code>
-            </div>
-            <div style={instructionStyles.detailRow}>
-              <span style={instructionStyles.detailLabel}>Password:</span>
-              <code style={instructionStyles.detailCode}>Your account password</code>
-            </div>
+            <p style={instructionStyles.tipText}>💡 <strong>Tip:</strong> Use your Chimera Pool login credentials as username/password</p>
           </div>
 
-          {/* Example Configurations */}
-          <div style={instructionStyles.examplesContainer}>
-            <h3 style={instructionStyles.examplesTitle}>💻 Example Miner Configurations</h3>
+          {/* Hardware-Specific Instructions */}
+          <div style={instructionStyles.hardwareSection}>
+            <h3 style={instructionStyles.examplesTitle}>🖥️ Setup by Hardware Type</h3>
             
-            <div style={instructionStyles.minerExample}>
-              <h4 style={instructionStyles.minerName}>lolMiner</h4>
-              <code style={instructionStyles.commandCode}>
-                lolminer --algo BLAKE3 --pool stratum+tcp://206.162.80.230:3333 --user your@email.com --pass yourpassword
-              </code>
+            {/* Official ASIC Tab */}
+            <div style={instructionStyles.hardwareCard}>
+              <div style={instructionStyles.hardwareHeader}>
+                <span style={instructionStyles.hardwareIcon}>⚡</span>
+                <div>
+                  <h4 style={instructionStyles.hardwareName}>BlockDAG X30 / X100 (Official ASIC)</h4>
+                  <span style={instructionStyles.hardwareTag}>Stratum V2 + Noise Encryption</span>
+                </div>
+              </div>
+              <div style={instructionStyles.hardwareBody}>
+                <p style={instructionStyles.hardwareDesc}>
+                  Official BlockDAG miners connect automatically with encrypted Stratum V2 protocol.
+                </p>
+                <div style={instructionStyles.configBox}>
+                  <strong>Configuration:</strong>
+                  <pre style={instructionStyles.configCode}>
+Pool URL: stratum+tcp://206.162.80.230:3333
+Wallet:   your_email@example.com
+Worker:   x100-rig1 (optional)
+Password: your_account_password</pre>
+                </div>
+                <p style={instructionStyles.noteText}>
+                  🔐 Your connection is automatically encrypted with Noise Protocol for maximum security.
+                </p>
+              </div>
             </div>
 
-            <div style={instructionStyles.minerExample}>
-              <h4 style={instructionStyles.minerName}>BzMiner</h4>
-              <code style={instructionStyles.commandCode}>
-                bzminer -a blake3 -p stratum+tcp://206.162.80.230:3333 -w your@email.com --pass yourpassword
-              </code>
+            {/* GPU Mining Tab */}
+            <div style={instructionStyles.hardwareCard}>
+              <div style={instructionStyles.hardwareHeader}>
+                <span style={instructionStyles.hardwareIcon}>🎮</span>
+                <div>
+                  <h4 style={instructionStyles.hardwareName}>GPU Mining (NVIDIA / AMD)</h4>
+                  <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
+                </div>
+              </div>
+              <div style={instructionStyles.hardwareBody}>
+                <p style={instructionStyles.hardwareDesc}>
+                  Use your favorite GPU mining software with the settings below.
+                </p>
+                
+                <div style={instructionStyles.minerExample}>
+                  <h5 style={instructionStyles.minerName}>🔹 lolMiner (Recommended)</h5>
+                  <code style={instructionStyles.commandCode}>
+lolminer --algo SCRPY --pool stratum+tcp://206.162.80.230:3333 --user your@email.com --pass yourpassword</code>
+                </div>
+
+                <div style={instructionStyles.minerExample}>
+                  <h5 style={instructionStyles.minerName}>🔹 BzMiner</h5>
+                  <code style={instructionStyles.commandCode}>
+bzminer -a scrpy -p stratum+tcp://206.162.80.230:3333 -w your@email.com --pass yourpassword</code>
+                </div>
+
+                <div style={instructionStyles.minerExample}>
+                  <h5 style={instructionStyles.minerName}>🔹 SRBMiner-MULTI</h5>
+                  <code style={instructionStyles.commandCode}>
+SRBMiner-MULTI --algorithm scrpy --pool 206.162.80.230:3333 --wallet your@email.com --password yourpassword</code>
+                </div>
+              </div>
             </div>
 
-            <div style={instructionStyles.minerExample}>
-              <h4 style={instructionStyles.minerName}>Rigel Miner</h4>
-              <code style={instructionStyles.commandCode}>
-                rigel -a blake3 -o stratum+tcp://206.162.80.230:3333 -u your@email.com -p yourpassword
-              </code>
-            </div>
-
-            <div style={instructionStyles.minerExample}>
-              <h4 style={instructionStyles.minerName}>SRBMiner</h4>
-              <code style={instructionStyles.commandCode}>
-                SRBMiner-MULTI --algorithm blake3 --pool 206.162.80.230:3333 --wallet your@email.com --password yourpassword
-              </code>
+            {/* CPU Mining Tab */}
+            <div style={instructionStyles.hardwareCard}>
+              <div style={instructionStyles.hardwareHeader}>
+                <span style={instructionStyles.hardwareIcon}>💻</span>
+                <div>
+                  <h4 style={instructionStyles.hardwareName}>CPU Mining</h4>
+                  <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
+                </div>
+              </div>
+              <div style={instructionStyles.hardwareBody}>
+                <p style={instructionStyles.hardwareDesc}>
+                  CPU mining is supported but yields lower returns than GPU or ASIC mining.
+                </p>
+                <div style={instructionStyles.minerExample}>
+                  <h5 style={instructionStyles.minerName}>🔹 CPUMiner-Multi</h5>
+                  <code style={instructionStyles.commandCode}>
+cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u your@email.com -p yourpassword</code>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -302,28 +376,56 @@ function App() {
           <div style={instructionStyles.troubleshootBox}>
             <h3 style={instructionStyles.troubleshootTitle}>🔧 Troubleshooting</h3>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>Connection Refused:</strong> Check that port 3333 is not blocked by your firewall.
+              <strong>❌ Connection Refused:</strong> Ensure port 3333 is not blocked by your firewall or router.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>Authentication Failed:</strong> Verify your email and password match your Chimera Pool account exactly.
+              <strong>❌ Authentication Failed:</strong> Double-check your email and password match your Chimera Pool account.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>Shares Rejected:</strong> Ensure you're using Blake3 algorithm. Check your miner software is up to date.
+              <strong>❌ Shares Rejected:</strong> Make sure you're using the correct algorithm (scrpy-variant). Update your miner software.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>No Payouts:</strong> Make sure you've set a valid BDAG wallet address in your Wallet Settings.
+              <strong>❌ No Payouts:</strong> Verify you've added a valid BDAG wallet address in your account settings.
+            </div>
+            <div style={instructionStyles.troubleshootItem}>
+              <strong>💡 Need Help?</strong> Join our Community chat for real-time support from other miners!
             </div>
           </div>
         </section>
 
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>📊 Pool Information</h2>
-          <div style={styles.info}>
-            <p>• <strong>Algorithm:</strong> Blake3 (BlockDAG)</p>
-            <p>• <strong>Payout System:</strong> PPLNS (Pay Per Last N Shares)</p>
-            <p>• <strong>Minimum Payout:</strong> 1 BDAG</p>
-            <p>• <strong>Payout Frequency:</strong> Hourly (when minimum reached)</p>
-            <p>• <strong>Pool Wallet:</strong> 0xD393...b66e</p>
+          <div style={styles.infoGrid}>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>⚙️</span>
+              <span style={styles.infoLabel}>Algorithm</span>
+              <span style={styles.infoValue}>Scrpy-Variant (BlockDAG Custom)</span>
+            </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>💰</span>
+              <span style={styles.infoLabel}>Payout System</span>
+              <span style={styles.infoValue}>PPLNS (Pay Per Last N Shares)</span>
+            </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>📤</span>
+              <span style={styles.infoLabel}>Minimum Payout</span>
+              <span style={styles.infoValue}>1.0 BDAG</span>
+            </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>⏰</span>
+              <span style={styles.infoLabel}>Payout Frequency</span>
+              <span style={styles.infoValue}>Hourly (when minimum reached)</span>
+            </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>🔒</span>
+              <span style={styles.infoLabel}>Protocol</span>
+              <span style={styles.infoValue}>Stratum V1 + V2 Hybrid</span>
+            </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoIcon}>📊</span>
+              <span style={styles.infoLabel}>Pool Fee</span>
+              <span style={styles.infoValue}>1.0%</span>
+            </div>
           </div>
         </section>
           </>
@@ -2180,24 +2282,50 @@ const walletStyles: { [key: string]: React.CSSProperties } = {
 };
 
 const instructionStyles: { [key: string]: React.CSSProperties } = {
-  stepsContainer: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', marginBottom: '20px' },
-  stepsTitle: { color: '#00d4ff', fontSize: '1.1rem', marginTop: 0, marginBottom: '20px' },
-  step: { display: 'flex', gap: '15px', marginBottom: '15px', alignItems: 'flex-start' },
-  stepNumber: { backgroundColor: '#00d4ff', color: '#0a0a0f', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem', flexShrink: 0 },
-  stepText: { color: '#888', fontSize: '0.9rem', margin: '4px 0 0' },
-  connectionBox: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #00d4ff' },
-  connectionTitle: { color: '#00d4ff', fontSize: '1.1rem', marginTop: 0, marginBottom: '15px' },
-  detailRow: { display: 'flex', flexDirection: 'column', marginBottom: '12px' },
-  detailLabel: { color: '#888', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase' },
-  detailCode: { backgroundColor: '#1a1a2e', color: '#00ff88', padding: '10px 14px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.95rem', wordBreak: 'break-all' },
+  // Protocol Banner
+  protocolBanner: { backgroundColor: '#0a1520', padding: '20px', borderRadius: '12px', marginBottom: '25px', border: '2px solid #00d4ff', textAlign: 'center' },
+  protocolBadge: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '12px' },
+  v2Badge: { backgroundColor: '#9b59b6', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '1rem' },
+  v1Badge: { backgroundColor: '#3498db', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '1rem' },
+  plusSign: { color: '#00d4ff', fontSize: '1.5rem', fontWeight: 'bold' },
+  protocolText: { color: '#b0b0b0', fontSize: '0.95rem', margin: 0, lineHeight: '1.6' },
+  // Steps
+  stepsContainer: { backgroundColor: '#0a0a15', padding: '25px', borderRadius: '12px', marginBottom: '25px' },
+  stepsTitle: { color: '#00d4ff', fontSize: '1.2rem', marginTop: 0, marginBottom: '20px' },
+  step: { display: 'flex', gap: '15px', marginBottom: '18px', alignItems: 'flex-start' },
+  stepNumber: { backgroundColor: '#00d4ff', color: '#0a0a0f', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0 },
+  stepText: { color: '#888', fontSize: '0.95rem', margin: '4px 0 0', lineHeight: '1.5' },
+  // Connection Box
+  connectionBox: { backgroundColor: '#0a0a15', padding: '25px', borderRadius: '12px', marginBottom: '25px', border: '2px solid #00d4ff' },
+  connectionTitle: { color: '#00d4ff', fontSize: '1.2rem', marginTop: 0, marginBottom: '20px' },
+  copyableBox: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '8px' },
+  detailRow: { display: 'flex', flexDirection: 'column', marginBottom: '15px' },
+  detailLabel: { color: '#888', fontSize: '0.85rem', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  detailCode: { backgroundColor: '#0a0a15', color: '#00ff88', padding: '12px 16px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '1rem', wordBreak: 'break-all', border: '1px solid #2a2a4a' },
+  tipText: { color: '#fbbf24', fontSize: '0.9rem', marginTop: '15px', marginBottom: 0, padding: '10px 15px', backgroundColor: '#2a2a15', borderRadius: '6px' },
+  // Hardware Section
+  hardwareSection: { marginBottom: '25px' },
+  hardwareCard: { backgroundColor: '#0a0a15', borderRadius: '12px', marginBottom: '20px', border: '1px solid #2a2a4a', overflow: 'hidden' },
+  hardwareHeader: { display: 'flex', alignItems: 'center', gap: '15px', padding: '20px', backgroundColor: '#1a1a2e', borderBottom: '1px solid #2a2a4a' },
+  hardwareIcon: { fontSize: '2rem' },
+  hardwareName: { color: '#00d4ff', fontSize: '1.1rem', margin: 0 },
+  hardwareTag: { display: 'inline-block', backgroundColor: '#9b59b6', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', marginTop: '5px' },
+  hardwareTagAlt: { display: 'inline-block', backgroundColor: '#3498db', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', marginTop: '5px' },
+  hardwareBody: { padding: '20px' },
+  hardwareDesc: { color: '#888', fontSize: '0.95rem', margin: '0 0 15px', lineHeight: '1.5' },
+  configBox: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '8px', marginBottom: '15px' },
+  configCode: { color: '#00ff88', fontFamily: 'monospace', fontSize: '0.9rem', margin: '10px 0 0', lineHeight: '1.8', whiteSpace: 'pre-wrap' },
+  noteText: { color: '#4ade80', fontSize: '0.9rem', margin: 0, padding: '10px 15px', backgroundColor: '#0a2a15', borderRadius: '6px' },
+  // Examples
   examplesContainer: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', marginBottom: '20px' },
-  examplesTitle: { color: '#00d4ff', fontSize: '1.1rem', marginTop: 0, marginBottom: '15px' },
-  minerExample: { marginBottom: '15px' },
-  minerName: { color: '#fbbf24', fontSize: '0.95rem', marginTop: 0, marginBottom: '8px' },
-  commandCode: { display: 'block', backgroundColor: '#1a1a2e', color: '#e0e0e0', padding: '12px 14px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.85rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' },
-  troubleshootBox: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', border: '1px solid #4a4a6a' },
-  troubleshootTitle: { color: '#fbbf24', fontSize: '1.1rem', marginTop: 0, marginBottom: '15px' },
-  troubleshootItem: { color: '#e0e0e0', fontSize: '0.9rem', marginBottom: '12px', lineHeight: '1.5' },
+  examplesTitle: { color: '#00d4ff', fontSize: '1.2rem', marginTop: 0, marginBottom: '20px' },
+  minerExample: { marginBottom: '20px' },
+  minerName: { color: '#fbbf24', fontSize: '1rem', marginTop: 0, marginBottom: '10px' },
+  commandCode: { display: 'block', backgroundColor: '#1a1a2e', color: '#e0e0e0', padding: '15px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', border: '1px solid #2a2a4a' },
+  // Troubleshooting
+  troubleshootBox: { backgroundColor: '#0a0a15', padding: '25px', borderRadius: '12px', border: '1px solid #4a4a6a' },
+  troubleshootTitle: { color: '#fbbf24', fontSize: '1.2rem', marginTop: 0, marginBottom: '20px' },
+  troubleshootItem: { color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '15px', lineHeight: '1.6', paddingLeft: '10px', borderLeft: '3px solid #2a2a4a' },
 };
 
 interface AuthModalProps {
@@ -3216,41 +3344,62 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>⚙️ Mining Algorithm Configuration</h3>
               <p style={adminStyles.algoDesc}>
-                Configure the mining algorithm for the pool. Changes may require a stratum server restart.
+                Configure the mining algorithm for the pool. BlockDAG uses a custom Scrpy-variant algorithm.
+                When BlockDAG releases their official algorithm specification, paste it below.
+              </p>
+            </div>
+
+            {/* Custom Algorithm Notice */}
+            <div style={{ backgroundColor: '#1a2a3a', padding: '20px', borderRadius: '12px', marginBottom: '25px', border: '2px solid #00d4ff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔷</span>
+                <h4 style={{ color: '#00d4ff', margin: 0 }}>BlockDAG Custom Algorithm</h4>
+              </div>
+              <p style={{ color: '#b0b0b0', margin: 0, lineHeight: '1.6' }}>
+                This pool supports BlockDAG's proprietary Scrpy-variant algorithm. When BlockDAG releases 
+                the official algorithm specification or updates, use the <strong>"Custom Algorithm Code"</strong> section 
+                below to paste the algorithm definition. The pool will automatically apply the new algorithm.
               </p>
             </div>
 
             <div style={adminStyles.algoGrid}>
               <div style={adminStyles.algoCard}>
-                <label style={adminStyles.algoLabel}>Algorithm</label>
+                <label style={adminStyles.algoLabel}>Algorithm Type</label>
                 <select 
                   style={adminStyles.algoSelect}
                   value={algorithmForm.algorithm}
                   onChange={e => setAlgorithmForm({...algorithmForm, algorithm: e.target.value})}
                 >
+                  <option value="scrpy-variant">Scrpy-Variant (BlockDAG Custom)</option>
+                  <option value="scrypt">Scrypt</option>
+                  <option value="sha256">SHA-256</option>
+                  <option value="blake3">Blake3</option>
+                  <option value="ethash">Ethash</option>
+                  <option value="kawpow">KawPow</option>
+                  <option value="custom">Custom (Define Below)</option>
                   {algorithmData?.supported_algorithms?.map((algo: any) => (
                     <option key={algo.id} value={algo.id}>{algo.name}</option>
                   ))}
                 </select>
                 <p style={adminStyles.algoHint}>
-                  {algorithmData?.supported_algorithms?.find((a: any) => a.id === algorithmForm.algorithm)?.description || ''}
+                  Select "Custom" to define a new algorithm from BlockDAG specifications
                 </p>
               </div>
 
               <div style={adminStyles.algoCard}>
-                <label style={adminStyles.algoLabel}>Algorithm Variant</label>
+                <label style={adminStyles.algoLabel}>Algorithm Variant / Version</label>
                 <input 
                   style={adminStyles.algoInput}
                   type="text"
                   value={algorithmForm.algorithm_variant}
                   onChange={e => setAlgorithmForm({...algorithmForm, algorithm_variant: e.target.value})}
-                  placeholder="e.g., standard, blockdag-custom"
+                  placeholder="e.g., scrpy-v1.0, blockdag-mainnet"
                 />
-                <p style={adminStyles.algoHint}>Variant or specific implementation details</p>
+                <p style={adminStyles.algoHint}>Version identifier for the algorithm variant</p>
               </div>
 
               <div style={adminStyles.algoCard}>
-                <label style={adminStyles.algoLabel}>Difficulty Target</label>
+                <label style={adminStyles.algoLabel}>Base Difficulty</label>
                 <input 
                   style={adminStyles.algoInput}
                   type="text"
@@ -3258,11 +3407,11 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                   onChange={e => setAlgorithmForm({...algorithmForm, difficulty_target: e.target.value})}
                   placeholder="e.g., 1.0"
                 />
-                <p style={adminStyles.algoHint}>Base difficulty for share validation</p>
+                <p style={adminStyles.algoHint}>Starting difficulty for share validation</p>
               </div>
 
               <div style={adminStyles.algoCard}>
-                <label style={adminStyles.algoLabel}>Block Time (seconds)</label>
+                <label style={adminStyles.algoLabel}>Target Block Time (seconds)</label>
                 <input 
                   style={adminStyles.algoInput}
                   type="text"
@@ -3270,7 +3419,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                   onChange={e => setAlgorithmForm({...algorithmForm, block_time: e.target.value})}
                   placeholder="e.g., 10"
                 />
-                <p style={adminStyles.algoHint}>Target block time in seconds</p>
+                <p style={adminStyles.algoHint}>Expected time between blocks</p>
               </div>
 
               <div style={adminStyles.algoCard}>
@@ -3291,10 +3440,131 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                   style={adminStyles.algoTextarea}
                   value={algorithmForm.algorithm_params}
                   onChange={e => setAlgorithmForm({...algorithmForm, algorithm_params: e.target.value})}
-                  placeholder='{"custom_param": "value"}'
+                  placeholder='{"N": 1024, "r": 1, "p": 1, "keyLen": 32}'
                   rows={4}
                 />
-                <p style={adminStyles.algoHint}>Advanced parameters in JSON format for custom algorithm configuration</p>
+                <p style={adminStyles.algoHint}>Scrypt parameters: N (CPU/memory cost), r (block size), p (parallelization), keyLen (output length)</p>
+              </div>
+            </div>
+
+            {/* Custom Algorithm Code Section */}
+            <div style={{ backgroundColor: '#0a1015', padding: '25px', borderRadius: '12px', marginTop: '25px', border: '2px dashed #9b59b6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '15px' }}>
+                <span style={{ fontSize: '1.5rem' }}>📝</span>
+                <h4 style={{ color: '#9b59b6', margin: 0 }}>Custom Algorithm Code (BlockDAG Official)</h4>
+              </div>
+              <p style={{ color: '#888', marginBottom: '15px', lineHeight: '1.6' }}>
+                When BlockDAG releases their official algorithm specification, paste the complete algorithm definition below.
+                This supports Go code, JSON configuration, or algorithm pseudocode that will be compiled into the mining validator.
+              </p>
+              
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', color: '#00d4ff', marginBottom: '8px', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+                  Algorithm Name / Identifier
+                </label>
+                <input 
+                  style={{ ...adminStyles.algoInput, backgroundColor: '#1a1a2e', border: '1px solid #9b59b6' }}
+                  type="text"
+                  placeholder="e.g., blockdag-scrpy-v2, bdag-mainnet-algo"
+                  defaultValue="scrpy-variant"
+                />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', color: '#00d4ff', marginBottom: '8px', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+                  Custom Algorithm Code / Specification
+                </label>
+                <textarea 
+                  style={{ 
+                    width: '100%', 
+                    minHeight: '300px', 
+                    backgroundColor: '#0a0a15', 
+                    border: '1px solid #9b59b6', 
+                    borderRadius: '8px', 
+                    color: '#00ff88', 
+                    fontFamily: 'monospace', 
+                    fontSize: '0.9rem', 
+                    padding: '15px',
+                    boxSizing: 'border-box',
+                    lineHeight: '1.6',
+                    resize: 'vertical'
+                  }}
+                  placeholder={`// Paste BlockDAG's official algorithm specification here
+// Example format:
+
+{
+  "algorithm": "scrpy-variant",
+  "version": "1.0.0",
+  "parameters": {
+    "N": 1024,
+    "r": 1,
+    "p": 1,
+    "keyLen": 32,
+    "salt": "BlockDAG",
+    "hashFunction": "sha256"
+  },
+  "validation": {
+    "targetBits": 24,
+    "difficultyAdjustment": "DAA",
+    "blockTimeTarget": 10
+  },
+  "customCode": "// Go implementation or pseudocode"
+}`}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button 
+                  style={{ 
+                    padding: '12px 24px', 
+                    backgroundColor: '#9b59b6', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    color: '#fff', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  ✅ Validate Algorithm
+                </button>
+                <button 
+                  style={{ 
+                    padding: '12px 24px', 
+                    backgroundColor: '#1a4d4d', 
+                    border: '1px solid #4ade80', 
+                    borderRadius: '8px', 
+                    color: '#4ade80', 
+                    fontWeight: 'bold', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  🧪 Test with Sample Block
+                </button>
+                <button 
+                  style={{ 
+                    padding: '12px 24px', 
+                    backgroundColor: 'transparent', 
+                    border: '1px solid #888', 
+                    borderRadius: '8px', 
+                    color: '#888', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  📋 Load from Clipboard
+                </button>
+              </div>
+
+              <div style={{ marginTop: '15px', padding: '12px', backgroundColor: '#1a2a1a', borderRadius: '6px', border: '1px solid #4ade80' }}>
+                <p style={{ margin: 0, color: '#4ade80', fontSize: '0.9rem' }}>
+                  💡 <strong>Tip:</strong> After pasting the algorithm, click "Validate Algorithm" to check for syntax errors, 
+                  then "Test with Sample Block" to verify it produces valid hashes before saving.
+                </p>
               </div>
             </div>
 
@@ -3311,6 +3581,41 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
             <div style={adminStyles.algoWarning}>
               <strong>⚠️ Important:</strong> After changing algorithm settings, you may need to restart the stratum server 
               for changes to take effect. Notify miners before making algorithm changes as they may need to update their mining software.
+            </div>
+
+            {/* Hardware Difficulty Tiers Info */}
+            <div style={{ backgroundColor: '#0a0a15', padding: '20px', borderRadius: '12px', marginTop: '20px', border: '1px solid #2a2a4a' }}>
+              <h4 style={{ color: '#00d4ff', margin: '0 0 15px' }}>🖥️ Hardware-Aware Difficulty Tiers</h4>
+              <p style={{ color: '#888', marginBottom: '15px', fontSize: '0.9rem' }}>
+                The pool automatically detects miner hardware and applies appropriate difficulty levels:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                <div style={{ backgroundColor: '#1a1a2e', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ display: 'block', fontSize: '1.2rem', marginBottom: '5px' }}>💻</span>
+                  <span style={{ color: '#888', fontSize: '0.8rem' }}>CPU</span>
+                  <span style={{ display: 'block', color: '#00d4ff', fontWeight: 'bold' }}>Base × 1</span>
+                </div>
+                <div style={{ backgroundColor: '#1a1a2e', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ display: 'block', fontSize: '1.2rem', marginBottom: '5px' }}>🎮</span>
+                  <span style={{ color: '#888', fontSize: '0.8rem' }}>GPU</span>
+                  <span style={{ display: 'block', color: '#00d4ff', fontWeight: 'bold' }}>Base × 16</span>
+                </div>
+                <div style={{ backgroundColor: '#1a1a2e', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ display: 'block', fontSize: '1.2rem', marginBottom: '5px' }}>🔧</span>
+                  <span style={{ color: '#888', fontSize: '0.8rem' }}>FPGA</span>
+                  <span style={{ display: 'block', color: '#00d4ff', fontWeight: 'bold' }}>Base × 64</span>
+                </div>
+                <div style={{ backgroundColor: '#1a1a2e', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ display: 'block', fontSize: '1.2rem', marginBottom: '5px' }}>⚡</span>
+                  <span style={{ color: '#888', fontSize: '0.8rem' }}>ASIC</span>
+                  <span style={{ display: 'block', color: '#00d4ff', fontWeight: 'bold' }}>Base × 256</span>
+                </div>
+                <div style={{ backgroundColor: '#1a2a3a', padding: '12px', borderRadius: '8px', textAlign: 'center', border: '1px solid #9b59b6' }}>
+                  <span style={{ display: 'block', fontSize: '1.2rem', marginBottom: '5px' }}>🔷</span>
+                  <span style={{ color: '#9b59b6', fontSize: '0.8rem' }}>X30/X100</span>
+                  <span style={{ display: 'block', color: '#9b59b6', fontWeight: 'bold' }}>Base × 1024</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -3690,6 +3995,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   code: { display: 'block', backgroundColor: '#000', color: '#00ff88', padding: '12px 16px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '1.1rem', margin: '8px 0' },
   hint: { color: '#888', fontSize: '0.9rem', margin: '8px 0 0' },
   info: { lineHeight: '1.8' },
+  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' },
+  infoCard: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '10px', textAlign: 'center', border: '1px solid #2a2a4a', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' },
+  infoIcon: { fontSize: '1.8rem' },
+  infoLabel: { color: '#888', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  infoValue: { color: '#00d4ff', fontSize: '0.95rem', fontWeight: 'bold' },
   footer: { textAlign: 'center', padding: '30px 20px', borderTop: '1px solid #2a2a4a', color: '#666' },
   footerLinks: { marginTop: '10px' },
   link: { color: '#00d4ff', textDecoration: 'none' },
