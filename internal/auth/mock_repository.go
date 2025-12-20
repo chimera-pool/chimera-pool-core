@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -26,41 +27,42 @@ func (r *MockUserRepository) CreateUser(user *User) error {
 	if user == nil {
 		return errors.New("user is required")
 	}
-	
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	
+
 	// Check for duplicate username
 	for _, existingUser := range r.users {
 		if existingUser.Username == user.Username && existingUser.IsActive {
 			return errors.New("username already exists")
 		}
 	}
-	
+
 	// Check for duplicate email
 	for _, existingUser := range r.users {
 		if existingUser.Email == user.Email && existingUser.IsActive {
 			return errors.New("email already exists")
 		}
 	}
-	
+
 	// Assign ID and timestamps
 	user.ID = r.nextID
 	r.nextID++
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
-	
+
 	// Store user
 	r.users[user.ID] = &User{
 		ID:           user.ID,
 		Username:     user.Username,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
+		Role:         user.Role,
 		CreatedAt:    user.CreatedAt,
 		UpdatedAt:    user.UpdatedAt,
 		IsActive:     user.IsActive,
 	}
-	
+
 	return nil
 }
 
@@ -69,10 +71,10 @@ func (r *MockUserRepository) GetUserByUsername(username string) (*User, error) {
 	if username == "" {
 		return nil, errors.New("username is required")
 	}
-	
+
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	
+
 	for _, user := range r.users {
 		if user.Username == username && user.IsActive {
 			return &User{
@@ -80,13 +82,14 @@ func (r *MockUserRepository) GetUserByUsername(username string) (*User, error) {
 				Username:     user.Username,
 				Email:        user.Email,
 				PasswordHash: user.PasswordHash,
+				Role:         user.Role,
 				CreatedAt:    user.CreatedAt,
 				UpdatedAt:    user.UpdatedAt,
 				IsActive:     user.IsActive,
 			}, nil
 		}
 	}
-	
+
 	return nil, nil // User not found
 }
 
@@ -95,10 +98,10 @@ func (r *MockUserRepository) GetUserByEmail(email string) (*User, error) {
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
-	
+
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	
+
 	for _, user := range r.users {
 		if user.Email == email && user.IsActive {
 			return &User{
@@ -106,13 +109,14 @@ func (r *MockUserRepository) GetUserByEmail(email string) (*User, error) {
 				Username:     user.Username,
 				Email:        user.Email,
 				PasswordHash: user.PasswordHash,
+				Role:         user.Role,
 				CreatedAt:    user.CreatedAt,
 				UpdatedAt:    user.UpdatedAt,
 				IsActive:     user.IsActive,
 			}, nil
 		}
 	}
-	
+
 	return nil, nil // User not found
 }
 
@@ -121,20 +125,21 @@ func (r *MockUserRepository) GetUserByID(id int64) (*User, error) {
 	if id <= 0 {
 		return nil, errors.New("valid user ID is required")
 	}
-	
+
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	
+
 	user, exists := r.users[id]
 	if !exists {
 		return nil, nil // User not found
 	}
-	
+
 	return &User{
 		ID:           user.ID,
 		Username:     user.Username,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
+		Role:         user.Role,
 		CreatedAt:    user.CreatedAt,
 		UpdatedAt:    user.UpdatedAt,
 		IsActive:     user.IsActive,
@@ -146,43 +151,44 @@ func (r *MockUserRepository) UpdateUser(user *User) error {
 	if user == nil {
 		return errors.New("user is required")
 	}
-	
+
 	if user.ID <= 0 {
 		return errors.New("valid user ID is required")
 	}
-	
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	
+
 	existingUser, exists := r.users[user.ID]
 	if !exists {
 		return errors.New("user not found")
 	}
-	
+
 	// Check for duplicate username (excluding current user)
 	for id, otherUser := range r.users {
 		if id != user.ID && otherUser.Username == user.Username && otherUser.IsActive {
 			return errors.New("username already exists")
 		}
 	}
-	
+
 	// Check for duplicate email (excluding current user)
 	for id, otherUser := range r.users {
 		if id != user.ID && otherUser.Email == user.Email && otherUser.IsActive {
 			return errors.New("email already exists")
 		}
 	}
-	
+
 	// Update user
 	existingUser.Username = user.Username
 	existingUser.Email = user.Email
 	existingUser.PasswordHash = user.PasswordHash
+	existingUser.Role = user.Role
 	existingUser.UpdatedAt = time.Now()
 	existingUser.IsActive = user.IsActive
-	
+
 	// Update the passed user with new timestamp
 	user.UpdatedAt = existingUser.UpdatedAt
-	
+
 	return nil
 }
 
@@ -191,18 +197,18 @@ func (r *MockUserRepository) DeleteUser(id int64) error {
 	if id <= 0 {
 		return errors.New("valid user ID is required")
 	}
-	
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	
+
 	user, exists := r.users[id]
 	if !exists {
 		return errors.New("user not found")
 	}
-	
+
 	user.IsActive = false
 	user.UpdatedAt = time.Now()
-	
+
 	return nil
 }
 
@@ -210,7 +216,7 @@ func (r *MockUserRepository) DeleteUser(id int64) error {
 func (r *MockUserRepository) Reset() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	
+
 	r.users = make(map[int64]*User)
 	r.nextID = 1
 }
@@ -219,7 +225,7 @@ func (r *MockUserRepository) Reset() {
 func (r *MockUserRepository) GetAllUsers() []*User {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	
+
 	users := make([]*User, 0, len(r.users))
 	for _, user := range r.users {
 		users = append(users, &User{
@@ -227,11 +233,49 @@ func (r *MockUserRepository) GetAllUsers() []*User {
 			Username:     user.Username,
 			Email:        user.Email,
 			PasswordHash: user.PasswordHash,
+			Role:         user.Role,
 			CreatedAt:    user.CreatedAt,
 			UpdatedAt:    user.UpdatedAt,
 			IsActive:     user.IsActive,
 		})
 	}
-	
+
 	return users
+}
+
+// ListUsersByRole returns all users with a specific role
+func (r *MockUserRepository) ListUsersByRole(ctx context.Context, role Role) ([]*User, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var result []*User
+	for _, user := range r.users {
+		if user.Role == role && user.IsActive {
+			result = append(result, &User{
+				ID:           user.ID,
+				Username:     user.Username,
+				Email:        user.Email,
+				PasswordHash: user.PasswordHash,
+				Role:         user.Role,
+				CreatedAt:    user.CreatedAt,
+				UpdatedAt:    user.UpdatedAt,
+				IsActive:     user.IsActive,
+			})
+		}
+	}
+	return result, nil
+}
+
+// CountUsersByRole returns the count of users with a specific role
+func (r *MockUserRepository) CountUsersByRole(ctx context.Context, role Role) (int, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	count := 0
+	for _, user := range r.users {
+		if user.Role == role && user.IsActive {
+			count++
+		}
+	}
+	return count, nil
 }

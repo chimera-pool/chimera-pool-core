@@ -1,0 +1,40 @@
+# Dockerfile for Chimera Pool API Service
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the API binary
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /chimera-api ./cmd/api
+
+# Final stage
+FROM alpine:3.18
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates curl
+
+# Copy binary from builder
+COPY --from=builder /chimera-api /app/chimera-api
+COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/configs /app/configs
+
+# Expose API port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the API
+CMD ["/app/chimera-api"]

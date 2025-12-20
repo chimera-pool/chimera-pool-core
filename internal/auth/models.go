@@ -7,12 +7,61 @@ import (
 	"time"
 )
 
+// Role represents a user's role in the system
+type Role string
+
+const (
+	RoleUser       Role = "user"
+	RoleModerator  Role = "moderator"
+	RoleAdmin      Role = "admin"
+	RoleSuperAdmin Role = "super_admin"
+)
+
+// IsValid checks if the role is a valid role type
+func (r Role) IsValid() bool {
+	switch r {
+	case RoleUser, RoleModerator, RoleAdmin, RoleSuperAdmin:
+		return true
+	}
+	return false
+}
+
+// Level returns the permission level of a role (higher = more permissions)
+func (r Role) Level() int {
+	switch r {
+	case RoleUser:
+		return 1
+	case RoleModerator:
+		return 2
+	case RoleAdmin:
+		return 3
+	case RoleSuperAdmin:
+		return 4
+	}
+	return 0
+}
+
+// CanManageRole checks if this role can manage (promote/demote) the target role
+func (r Role) CanManageRole(target Role) bool {
+	// Super admin can manage anyone
+	if r == RoleSuperAdmin {
+		return true
+	}
+	// Admin can manage moderators and users, but not admins or super_admins
+	if r == RoleAdmin {
+		return target == RoleModerator || target == RoleUser
+	}
+	// Moderators and users cannot manage roles
+	return false
+}
+
 // User represents a user in the system
 type User struct {
 	ID           int64     `json:"id" db:"id"`
 	Username     string    `json:"username" db:"username"`
 	Email        string    `json:"email" db:"email"`
 	PasswordHash string    `json:"-" db:"password_hash"` // Never expose password hash in JSON
+	Role         Role      `json:"role" db:"role"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 	IsActive     bool      `json:"is_active" db:"is_active"`

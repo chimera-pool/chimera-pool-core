@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Build outputs
+node_modules
+build
+dist
+target
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+
+# Test files
+coverage
+*.test.ts
+*.test.tsx
+
+# Documentation
+*.md
+!README.md
+
+# Development files
+.env.local
+.env.development
+.env.test

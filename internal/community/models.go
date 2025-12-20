@@ -95,3 +95,76 @@ type TeamStatistics struct {
 	Earnings      float64   `json:"earnings"`
 	MemberCount   int       `json:"member_count"`
 }
+
+// ChannelType represents the type of a channel
+type ChannelType string
+
+const (
+	ChannelTypeText         ChannelType = "text"
+	ChannelTypeAnnouncement ChannelType = "announcement"
+	ChannelTypeRegional     ChannelType = "regional"
+)
+
+// ChannelCategory represents a category that groups channels
+type ChannelCategory struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Position    int       `json:"position" db:"position"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	CreatedBy   int64     `json:"created_by" db:"created_by"`
+}
+
+// Channel represents a chat channel in the community
+type Channel struct {
+	ID            uuid.UUID   `json:"id" db:"id"`
+	CategoryID    uuid.UUID   `json:"category_id" db:"category_id"`
+	Name          string      `json:"name" db:"name"`
+	Description   string      `json:"description" db:"description"`
+	Type          ChannelType `json:"type" db:"type"`
+	Position      int         `json:"position" db:"position"`
+	IsReadOnly    bool        `json:"is_read_only" db:"is_read_only"`
+	AdminOnlyPost bool        `json:"admin_only_post" db:"admin_only_post"`
+	CreatedAt     time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at" db:"updated_at"`
+	CreatedBy     int64       `json:"created_by" db:"created_by"`
+}
+
+// CreateChannelRequest represents a request to create a new channel
+type CreateChannelRequest struct {
+	CategoryID    uuid.UUID   `json:"category_id"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description"`
+	Type          ChannelType `json:"type"`
+	IsReadOnly    bool        `json:"is_read_only"`
+	AdminOnlyPost bool        `json:"admin_only_post"`
+}
+
+// CreateCategoryRequest represents a request to create a new channel category
+type CreateCategoryRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// UpdateChannelRequest represents a request to update a channel
+type UpdateChannelRequest struct {
+	Name          *string      `json:"name,omitempty"`
+	Description   *string      `json:"description,omitempty"`
+	Type          *ChannelType `json:"type,omitempty"`
+	CategoryID    *uuid.UUID   `json:"category_id,omitempty"`
+	Position      *int         `json:"position,omitempty"`
+	IsReadOnly    *bool        `json:"is_read_only,omitempty"`
+	AdminOnlyPost *bool        `json:"admin_only_post,omitempty"`
+}
+
+// ModerationLogEntry represents an entry in the moderation log
+type ModerationLogEntry struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	ActorID     int64     `json:"actor_id" db:"actor_id"`
+	Action      string    `json:"action" db:"action"`
+	TargetType  string    `json:"target_type" db:"target_type"` // user, channel, message, etc.
+	TargetID    string    `json:"target_id" db:"target_id"`
+	Details     string    `json:"details" db:"details"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}

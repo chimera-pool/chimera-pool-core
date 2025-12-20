@@ -1,0 +1,41 @@
+# Dockerfile for Chimera Pool Web Dashboard
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+
+# Copy public directory
+COPY public/ ./public/
+
+# Copy only essential source files (exclude problematic components)
+COPY src/App.tsx ./src/
+COPY src/index.tsx ./src/
+
+# Copy TypeScript config
+COPY tsconfig.json ./
+
+# Build the React application
+ENV CI=false
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built assets from builder
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY deployments/docker/nginx-web.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
