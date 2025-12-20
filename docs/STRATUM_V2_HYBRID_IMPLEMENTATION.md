@@ -230,8 +230,8 @@ internal/stratum/
 
 | Phase | Status | Tests Written | Tests Passing | Coverage |
 |-------|--------|---------------|---------------|----------|
-| 1. Core Abstractions | ⬜ Not Started | 0 | 0 | 0% |
-| 2. V2 Binary Parser | ⬜ Not Started | 0 | 0 | 0% |
+| 1. Core Abstractions | ✅ Complete | 28 | 28 | 100% |
+| 2. V2 Binary Parser | 🔄 In Progress | 0 | 0 | 0% |
 | 3. Noise Encryption | ⬜ Not Started | 0 | 0 | 0% |
 | 4. Protocol Detector | ⬜ Not Started | 0 | 0 | 0% |
 | 5. BlockDAG Algo | ⬜ Not Started | 0 | 0 | 0% |
