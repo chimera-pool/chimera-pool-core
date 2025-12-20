@@ -1550,7 +1550,27 @@ function CommunitySection({ token, user }: { token: string; user: any }) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardType, setLeaderboardType] = useState('hashrate');
 
+  const fetchChannels = async () => {
+    console.log('[CommunitySection] fetchChannels called');
+    try {
+      const res = await fetch('/api/v1/community/channels', { headers: { Authorization: `Bearer ${token}` } });
+      console.log('[CommunitySection] fetchChannels response:', res.status);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[CommunitySection] fetchChannels data:', data);
+        setCategories(data.categories || []);
+        if (data.categories?.length > 0 && data.categories[0].channels?.length > 0) {
+          setSelectedChannel(data.categories[0].channels[0]);
+        }
+      } else {
+        console.error('[CommunitySection] fetchChannels failed:', res.status);
+      }
+    } catch (e) { console.error('[CommunitySection] fetchChannels error:', e); }
+    setLoading(false);
+  };
+
   useEffect(() => {
+    console.log('[CommunitySection] mounted');
     fetchChannels();
     fetchOnlineUsers();
     const interval = setInterval(fetchOnlineUsers, 30000);
@@ -1565,20 +1585,6 @@ function CommunitySection({ token, user }: { token: string; user: any }) {
     if (activeView === 'forums') fetchForums();
     if (activeView === 'leaderboard') fetchLeaderboard();
   }, [activeView, leaderboardType]);
-
-  const fetchChannels = async () => {
-    try {
-      const res = await fetch('/api/v1/community/channels', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.categories || []);
-        if (data.categories?.length > 0 && data.categories[0].channels?.length > 0) {
-          setSelectedChannel(data.categories[0].channels[0]);
-        }
-      }
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
 
   const fetchMessages = async () => {
     if (!selectedChannel) return;
