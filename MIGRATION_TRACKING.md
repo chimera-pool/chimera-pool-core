@@ -14,7 +14,37 @@
 
 ## Recent Feature Changes
 
-### December 20, 2025 - User Profile Editing
+### December 20, 2025 - Account Settings with Password Change & Forgot Password
+
+**Commits**:
+- `a349b50` - "Add PUT /user/profile endpoint for username and payout_address updates"
+- `001c731` - "Add password change feature with tabbed profile modal"
+- `24d4cea` - "Add forgot password feature to Security tab"
+
+**Backend Changes** (`cmd/api/main.go`):
+- Added `PUT /api/v1/user/profile` route - Update username/payout_address
+- Added `PUT /api/v1/user/password` route - Change password (authenticated)
+- Added `handleChangePassword` function with bcrypt verification
+
+**Frontend Changes** (`src/App.tsx`):
+- Tabbed Account Settings modal (Profile / Security tabs)
+- Profile tab: Edit username, payout address
+- Security tab: Change password, Forgot password email trigger
+
+**API Endpoints**:
+```
+PUT /api/v1/user/password (authenticated)
+{ "current_password": "...", "new_password": "..." }
+
+POST /api/v1/auth/forgot-password (public)
+{ "email": "user@email.com" }
+```
+
+**Next Session TODO**: Configure GoDaddy SMTP for email delivery
+
+---
+
+### December 20, 2025 - User Profile Editing (Initial)
 
 **Commit**: `a349b50` - "Add PUT /user/profile endpoint for username and payout_address updates"
 
