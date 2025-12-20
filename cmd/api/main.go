@@ -2745,67 +2745,83 @@ func generateSampleAdminMinerLocations() []gin.H {
 // Channel handlers
 func handleGetChannels(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rows, err := db.Query(`
-			SELECT c.id, c.name, c.description, c.channel_type, c.is_read_only, c.admin_only_post,
-				   cc.id as category_id, cc.name as category_name, cc.sort_order as category_order,
-				   c.sort_order
-			FROM channels c
-			LEFT JOIN channel_categories cc ON c.category_id = cc.id
-			ORDER BY cc.sort_order, c.sort_order
+		// First, fetch all categories (even those without channels)
+		catRows, err := db.Query(`
+			SELECT id, name, COALESCE(description, ''), position
+			FROM channel_categories
+			ORDER BY position ASC
 		`)
 		if err != nil {
+			log.Printf("Error fetching categories: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+			return
+		}
+		defer catRows.Close()
+
+		categories := make(map[string]gin.H)
+		categoryOrder := []string{}
+
+		for catRows.Next() {
+			var id, name, description string
+			var position int
+			if err := catRows.Scan(&id, &name, &description, &position); err != nil {
+				log.Printf("Error scanning category: %v", err)
+				continue
+			}
+			categories[id] = gin.H{
+				"id":          id,
+				"name":        name,
+				"description": description,
+				"position":    position,
+				"channels":    []gin.H{},
+			}
+			categoryOrder = append(categoryOrder, id)
+		}
+
+		// Now fetch all channels and add them to their categories
+		chanRows, err := db.Query(`
+			SELECT id, category_id, name, COALESCE(description, ''), type, position, is_read_only, admin_only_post
+			FROM channels
+			ORDER BY position ASC
+		`)
+		if err != nil {
+			log.Printf("Error fetching channels: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch channels"})
 			return
 		}
-		defer rows.Close()
+		defer chanRows.Close()
 
-		categories := make(map[int]gin.H)
-		categoryOrder := []int{}
-
-		for rows.Next() {
-			var id int
-			var name, description, channelType string
+		for chanRows.Next() {
+			var id, categoryID, name, description, channelType string
+			var position int
 			var isReadOnly, adminOnlyPost bool
-			var categoryID sql.NullInt64
-			var categoryName sql.NullString
-			var catSortOrder, sortOrder int
-
-			rows.Scan(&id, &name, &description, &channelType, &isReadOnly, &adminOnlyPost,
-				&categoryID, &categoryName, &catSortOrder, &sortOrder)
-
-			catID := 0
-			catName := "Uncategorized"
-			if categoryID.Valid {
-				catID = int(categoryID.Int64)
-				catName = categoryName.String
+			if err := chanRows.Scan(&id, &categoryID, &name, &description, &channelType, &position, &isReadOnly, &adminOnlyPost); err != nil {
+				log.Printf("Error scanning channel: %v", err)
+				continue
 			}
 
-			if _, exists := categories[catID]; !exists {
-				categories[catID] = gin.H{
-					"id":       catID,
-					"name":     catName,
-					"channels": []gin.H{},
-				}
-				categoryOrder = append(categoryOrder, catID)
+			if cat, exists := categories[categoryID]; exists {
+				channels := cat["channels"].([]gin.H)
+				channels = append(channels, gin.H{
+					"id":            id,
+					"name":          name,
+					"description":   description,
+					"type":          channelType,
+					"position":      position,
+					"isReadOnly":    isReadOnly,
+					"adminOnlyPost": adminOnlyPost,
+				})
+				categories[categoryID]["channels"] = channels
 			}
-
-			channels := categories[catID]["channels"].([]gin.H)
-			channels = append(channels, gin.H{
-				"id":            id,
-				"name":          name,
-				"description":   description,
-				"type":          channelType,
-				"isReadOnly":    isReadOnly,
-				"adminOnlyPost": adminOnlyPost,
-			})
-			categories[catID]["channels"] = channels
 		}
 
-		result := []gin.H{}
+		// Build result in order
+		result := make([]gin.H, 0, len(categoryOrder))
 		for _, catID := range categoryOrder {
 			result = append(result, categories[catID])
 		}
 
+		log.Printf("Returning %d categories with channels", len(result))
 		c.JSON(http.StatusOK, gin.H{"categories": result})
 	}
 }
