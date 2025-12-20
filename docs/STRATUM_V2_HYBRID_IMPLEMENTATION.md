@@ -276,8 +276,10 @@ If issues arise:
 
 ## Next Session Resume Point
 
-**Current Phase**: 1 - Core Protocol Abstractions
-**Current Task**: Creating ISP interfaces
-**Next Action**: Write interface definitions and tests
+**Current Phase**: 2 - V2 Binary Protocol Parser
+**Current Task**: Message serialization/deserialization
+**Next Action**: Continue implementing message parsers for SetupConnection, OpenChannel, etc.
+**Last Commit**: `056a7f3` - Phase 2 (partial): V2 Binary Protocol types and frame header parsing
+**Tests Passing**: 42 total (28 interfaces + 14 binary types)
 
 ---
