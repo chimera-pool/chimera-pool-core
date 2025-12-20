@@ -1,0 +1,165 @@
+# Chimeria Pool Migration & Feature Tracking
+
+## Current Database Schema Version: 005
+
+## Applied Migrations
+
+| Migration | File | Description | Status |
+|-----------|------|-------------|--------|
+| 001 | `001_initial_schema.up.sql` | Initial schema: users, miners, shares, blocks, payouts | ✅ Applied |
+| 002 | `002_community_monitoring.up.sql` | Community features, monitoring, user_profiles, badges | ✅ Applied |
+| 003 | `003_roles_channels.up.sql` | Role system (user/moderator/admin/super_admin), channels, categories | ✅ Applied |
+| 004 | `004_user_wallets.up.sql` | Multi-wallet support, wallet_address_history, payout splitting | ✅ Applied |
+| 005 | `005_seed_community_categories.up.sql` | Seed community categories and channels | ✅ Applied |
+
+## Recent Feature Changes
+
+### December 20, 2025 - User Profile Editing
+
+**Commit**: `a349b50` - "Add PUT /user/profile endpoint for username and payout_address updates"
+
+**Files Modified**:
+- `cmd/api/main.go`
+  - Added `PUT /api/v1/user/profile` route (line 90)
+  - Added `handleUpdateUserProfile` function (lines 486-567)
+  - Updated `handleUserProfile` to return `payout_address` (lines 457-484)
+
+**Frontend** (already existed in `src/App.tsx`):
+- Click handler on username (line 162)
+- Profile modal with username/payout_address fields (lines 191-239)
+- `handleUpdateProfile` function (lines 110-130)
+
+**API Endpoint**:
+```
+PUT /api/v1/user/profile
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "username": "new_username",      // optional, 3-50 chars
+  "payout_address": "0x..."        // optional
+}
+
+Response:
+{
+  "message": "Profile updated successfully",
+  "user": {
+    "user_id": 1,
+    "username": "new_username",
+    "email": "user@email.com",
+    "payout_address": "0x...",
+    "is_admin": false
+  }
+}
+```
+
+**Database Columns Used**:
+- `users.username` (VARCHAR 50, UNIQUE)
+- `users.payout_address` (VARCHAR 255, nullable)
+
+---
+
+## Rollback Procedures
+
+### Rollback Migration 005
+```sql
+-- From migrations/005_seed_community_categories.down.sql
+DELETE FROM channel_messages;
+DELETE FROM channels;
+DELETE FROM channel_categories;
+```
+
+### Rollback Migration 004
+```sql
+-- From migrations/004_user_wallets.down.sql
+DROP TABLE IF EXISTS user_wallets CASCADE;
+DROP TABLE IF EXISTS wallet_address_history CASCADE;
+ALTER TABLE payouts DROP COLUMN IF EXISTS wallet_id;
+```
+
+### Rollback Migration 003
+```sql
+-- From migrations/003_roles_channels.down.sql
+DROP TABLE IF EXISTS moderation_log CASCADE;
+DROP TABLE IF EXISTS channel_messages CASCADE;
+DROP TABLE IF EXISTS channels CASCADE;
+DROP TABLE IF EXISTS channel_categories CASCADE;
+ALTER TABLE users DROP COLUMN IF EXISTS role;
+```
+
+---
+
+## Feature Tracking
+
+### Completed Features
+- [x] User registration/login with JWT
+- [x] Pool statistics dashboard
+- [x] Miner management
+- [x] Multi-wallet support with payout splitting
+- [x] Community channels and messaging
+- [x] Admin/Moderator role system
+- [x] User badges and achievements
+- [x] Stratum V2 hybrid protocol
+- [x] User profile editing (username, payout_address)
+
+### In Progress
+- [ ] None currently
+
+### Planned Features
+- [ ] Email verification for profile changes
+- [ ] Profile avatar upload
+- [ ] Two-factor authentication
+
+---
+
+## Key Database Tables
+
+### users
+```sql
+id, username, email, password_hash, payout_address, role, is_admin, 
+is_active, created_at, updated_at
+```
+
+### user_profiles
+```sql
+user_id, avatar_url, bio, country, country_code, show_earnings, 
+show_country, reputation, forum_post_count, lifetime_hashrate, online_status
+```
+
+### user_wallets
+```sql
+id, user_id, address, label, percentage, is_primary, is_active, 
+created_at, updated_at
+```
+
+### channels
+```sql
+id, category_id, name, description, slug, channel_type, is_active,
+created_by, created_at, updated_at
+```
+
+---
+
+## Environment Variables
+
+Key variables in `.env`:
+- `DATABASE_URL` - PostgreSQL connection
+- `JWT_SECRET` - JWT signing key
+- `BLOCKDAG_RPC_URL` - BlockDAG node RPC
+- `SMTP_*` - Email configuration
+- `FRONTEND_URL` - https://206.162.80.230
+
+---
+
+## Testing Commands
+
+```powershell
+# Go tests
+go test ./... -v
+
+# Build API
+go build -o api.exe ./cmd/api
+
+# React tests
+npm test -- --watchAll=false
+```
