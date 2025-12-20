@@ -2814,23 +2814,27 @@ func handleGetChannels(db *sql.DB) gin.HandlerFunc {
 func handleAdminGetCategories(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
-			SELECT id, name, description, position, created_at
+			SELECT id, name, COALESCE(description, ''), position, created_at
 			FROM channel_categories
 			ORDER BY position ASC
 		`)
 		if err != nil {
+			log.Printf("Error fetching categories: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
 			return
 		}
 		defer rows.Close()
 
-		var categories []gin.H
+		categories := make([]gin.H, 0) // Initialize as empty array, not nil
 		for rows.Next() {
 			var id string
 			var name, description string
 			var position int
 			var createdAt time.Time
-			rows.Scan(&id, &name, &description, &position, &createdAt)
+			if err := rows.Scan(&id, &name, &description, &position, &createdAt); err != nil {
+				log.Printf("Error scanning category row: %v", err)
+				continue
+			}
 			categories = append(categories, gin.H{
 				"id":          id,
 				"name":        name,
@@ -2840,6 +2844,7 @@ func handleAdminGetCategories(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
+		log.Printf("Returning %d categories", len(categories))
 		c.JSON(http.StatusOK, gin.H{"categories": categories})
 	}
 }
