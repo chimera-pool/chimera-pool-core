@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -103,6 +104,7 @@ func main() {
 
 			// Community routes (authenticated)
 			protected.GET("/community/channels", handleGetChannels(db))
+			protected.GET("/community/channel-categories", handleAdminGetCategories(db))
 			protected.GET("/community/channels/:id/messages", handleGetChannelMessages(db))
 			protected.POST("/community/channels/:id/messages", handleSendMessage(db))
 			protected.PUT("/community/messages/:id", handleEditMessage(db))
@@ -171,6 +173,14 @@ func main() {
 			admin.DELETE("/community/posts/:id", handleAdminDeletePost(db))
 			admin.PUT("/community/posts/:id/pin", handlePinPost(db))
 			admin.PUT("/community/posts/:id/lock", handleLockPost(db))
+
+			// Admin channel/category management
+			admin.GET("/community/channel-categories", handleAdminGetCategories(db))
+			admin.POST("/community/channel-categories", handleAdminCreateCategory(db))
+			admin.DELETE("/community/channel-categories/:id", handleAdminDeleteCategory(db))
+			admin.POST("/community/channels", handleAdminCreateChannel(db))
+			admin.PUT("/community/channels/:id", handleAdminUpdateChannel(db))
+			admin.DELETE("/community/channels/:id", handleAdminDeleteChannel(db))
 		}
 	}
 
@@ -2797,6 +2807,269 @@ func handleGetChannels(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"categories": result})
+	}
+}
+
+// Admin category/channel management handlers
+func handleAdminGetCategories(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT id, name, description, position, created_at
+			FROM channel_categories
+			ORDER BY position ASC
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+			return
+		}
+		defer rows.Close()
+
+		var categories []gin.H
+		for rows.Next() {
+			var id string
+			var name, description string
+			var position int
+			var createdAt time.Time
+			rows.Scan(&id, &name, &description, &position, &createdAt)
+			categories = append(categories, gin.H{
+				"id":          id,
+				"name":        name,
+				"description": description,
+				"position":    position,
+				"created_at":  createdAt,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"categories": categories})
+	}
+}
+
+func handleAdminCreateCategory(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var req struct {
+			Name        string `json:"name" binding:"required"`
+			Description string `json:"description"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Category name is required"})
+			return
+		}
+
+		// Get next position
+		var maxPosition int
+		db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM channel_categories").Scan(&maxPosition)
+
+		var id string
+		var createdAt time.Time
+		err := db.QueryRow(`
+			INSERT INTO channel_categories (name, description, position, created_by)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id, created_at
+		`, req.Name, req.Description, maxPosition+1, userID).Scan(&id, &createdAt)
+
+		if err != nil {
+			log.Printf("Error creating category: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create category"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"category": gin.H{
+				"id":          id,
+				"name":        req.Name,
+				"description": req.Description,
+				"position":    maxPosition + 1,
+				"created_at":  createdAt,
+			},
+			"message": "Category created successfully",
+		})
+	}
+}
+
+func handleAdminDeleteCategory(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		categoryID := c.Param("id")
+
+		// Check if category has channels
+		var channelCount int
+		db.QueryRow("SELECT COUNT(*) FROM channels WHERE category_id = $1", categoryID).Scan(&channelCount)
+		if channelCount > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete category with channels. Delete channels first."})
+			return
+		}
+
+		result, err := db.Exec("DELETE FROM channel_categories WHERE id = $1", categoryID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete category"})
+			return
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+	}
+}
+
+func handleAdminCreateChannel(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var req struct {
+			CategoryID    string `json:"category_id" binding:"required"`
+			Name          string `json:"name" binding:"required"`
+			Description   string `json:"description"`
+			Type          string `json:"type"`
+			IsReadOnly    bool   `json:"is_read_only"`
+			AdminOnlyPost bool   `json:"admin_only_post"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Channel name and category are required"})
+			return
+		}
+
+		if req.Type == "" {
+			req.Type = "text"
+		}
+
+		// Verify category exists
+		var categoryExists bool
+		db.QueryRow("SELECT EXISTS(SELECT 1 FROM channel_categories WHERE id = $1)", req.CategoryID).Scan(&categoryExists)
+		if !categoryExists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Category not found"})
+			return
+		}
+
+		// Get next position in category
+		var maxPosition int
+		db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM channels WHERE category_id = $1", req.CategoryID).Scan(&maxPosition)
+
+		var id string
+		var createdAt time.Time
+		err := db.QueryRow(`
+			INSERT INTO channels (category_id, name, description, type, position, is_read_only, admin_only_post, created_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			RETURNING id, created_at
+		`, req.CategoryID, req.Name, req.Description, req.Type, maxPosition+1, req.IsReadOnly, req.AdminOnlyPost, userID).Scan(&id, &createdAt)
+
+		if err != nil {
+			log.Printf("Error creating channel: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create channel"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"channel": gin.H{
+				"id":              id,
+				"category_id":     req.CategoryID,
+				"name":            req.Name,
+				"description":     req.Description,
+				"type":            req.Type,
+				"is_read_only":    req.IsReadOnly,
+				"admin_only_post": req.AdminOnlyPost,
+				"created_at":      createdAt,
+			},
+			"message": "Channel created successfully",
+		})
+	}
+}
+
+func handleAdminUpdateChannel(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		channelID := c.Param("id")
+
+		var req struct {
+			Name          *string `json:"name"`
+			Description   *string `json:"description"`
+			Type          *string `json:"type"`
+			IsReadOnly    *bool   `json:"is_read_only"`
+			AdminOnlyPost *bool   `json:"admin_only_post"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Build dynamic update query
+		updates := []string{}
+		args := []interface{}{}
+		argIdx := 1
+
+		if req.Name != nil {
+			updates = append(updates, fmt.Sprintf("name = $%d", argIdx))
+			args = append(args, *req.Name)
+			argIdx++
+		}
+		if req.Description != nil {
+			updates = append(updates, fmt.Sprintf("description = $%d", argIdx))
+			args = append(args, *req.Description)
+			argIdx++
+		}
+		if req.Type != nil {
+			updates = append(updates, fmt.Sprintf("type = $%d", argIdx))
+			args = append(args, *req.Type)
+			argIdx++
+		}
+		if req.IsReadOnly != nil {
+			updates = append(updates, fmt.Sprintf("is_read_only = $%d", argIdx))
+			args = append(args, *req.IsReadOnly)
+			argIdx++
+		}
+		if req.AdminOnlyPost != nil {
+			updates = append(updates, fmt.Sprintf("admin_only_post = $%d", argIdx))
+			args = append(args, *req.AdminOnlyPost)
+			argIdx++
+		}
+
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+			return
+		}
+
+		updates = append(updates, "updated_at = NOW()")
+		args = append(args, channelID)
+
+		query := fmt.Sprintf("UPDATE channels SET %s WHERE id = $%d",
+			strings.Join(updates, ", "), argIdx)
+
+		result, err := db.Exec(query, args...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update channel"})
+			return
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Channel updated successfully"})
+	}
+}
+
+func handleAdminDeleteChannel(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		channelID := c.Param("id")
+
+		result, err := db.Exec("DELETE FROM channels WHERE id = $1", channelID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete channel"})
+			return
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Channel deleted successfully"})
 	}
 }
 
