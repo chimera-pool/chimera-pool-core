@@ -1088,7 +1088,7 @@ const mapStyles: { [key: string]: React.CSSProperties } = {
 
 // Community Section Component
 interface Channel { id: number; name: string; description: string; type: string; isReadOnly: boolean; adminOnlyPost: boolean; }
-interface ChannelCategory { id: number; name: string; channels: Channel[]; }
+interface ChannelCategory { id: number; name: string; description?: string; channels: Channel[]; }
 interface ChatMessage { id: number; content: string; isEdited: boolean; createdAt: string; user: { id: number; username: string; badgeIcon: string; badgeColor: string; }; replyToId?: number; }
 interface ForumCategory { id: number; name: string; description: string; icon: string; postCount: number; }
 interface ForumPost { id: number; title: string; preview: string; tags: string[]; viewCount: number; replyCount: number; upvotes: number; isPinned: boolean; isLocked: boolean; createdAt: string; author: { id: number; username: string; badgeIcon: string; }; }
@@ -1110,6 +1110,10 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
   // Admin channel management state
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [showEditChannel, setShowEditChannel] = useState(false);
+  const [showEditCategory, setShowEditCategory] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+  const [editingCategory, setEditingCategory] = useState<ChannelCategory | null>(null);
   const [channelForm, setChannelForm] = useState({ name: '', description: '', category_id: '', type: 'text', is_read_only: false, admin_only_post: false });
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
 
@@ -1253,6 +1257,91 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
     }
   };
 
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!window.confirm('Delete this category? All channels in it must be deleted first.')) return;
+    try {
+      const response = await fetch(`/api/v1/admin/community/channel-categories/${categoryId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        showMessage('success', 'Category deleted');
+        fetchChannels();
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to delete category');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
+  const handleDeleteChannel = async (channelId: string) => {
+    if (!window.confirm('Delete this channel?')) return;
+    try {
+      const response = await fetch(`/api/v1/admin/community/channels/${channelId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        showMessage('success', 'Channel deleted');
+        if (String(selectedChannel?.id) === channelId) setSelectedChannel(null);
+        fetchChannels();
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to delete channel');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
+  const handleEditCategory = async () => {
+    if (!editingCategory || !categoryForm.name) return;
+    try {
+      const response = await fetch(`/api/v1/admin/community/channel-categories/${editingCategory.id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: categoryForm.name, description: categoryForm.description })
+      });
+      if (response.ok) {
+        showMessage('success', 'Category updated');
+        setShowEditCategory(false);
+        setEditingCategory(null);
+        setCategoryForm({ name: '', description: '' });
+        fetchChannels();
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to update category');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
+  const handleEditChannel = async () => {
+    if (!editingChannel || !channelForm.name) return;
+    try {
+      const response = await fetch(`/api/v1/admin/community/channels/${editingChannel.id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(channelForm)
+      });
+      if (response.ok) {
+        showMessage('success', 'Channel updated');
+        setShowEditChannel(false);
+        setEditingChannel(null);
+        setChannelForm({ name: '', description: '', category_id: '', type: 'text', is_read_only: false, admin_only_post: false });
+        fetchChannels();
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to update channel');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1282,20 +1371,35 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
         ) : (
           categories.map(cat => (
             <div key={cat.id} style={communityPageStyles.category}>
-              <div style={communityPageStyles.categoryHeader} onClick={() => toggleCategory(cat.id)}>
-                <span>{collapsedCategories.has(cat.id) ? '▶' : '▼'}</span>
-                <span style={communityPageStyles.categoryName}>{cat.name}</span>
+              <div style={{ ...communityPageStyles.categoryHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div onClick={() => toggleCategory(cat.id)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }}>
+                  <span>{collapsedCategories.has(cat.id) ? '▶' : '▼'}</span>
+                  <span style={communityPageStyles.categoryName}>{cat.name}</span>
+                </div>
+                {isModerator && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); setCategoryForm({ name: cat.name, description: cat.description || '' }); setShowEditCategory(true); }} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px', padding: '2px' }} title="Edit Category">✏️</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCategory(String(cat.id)); }} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px', padding: '2px' }} title="Delete Category">🗑️</button>
+                  </div>
+                )}
               </div>
               {!collapsedCategories.has(cat.id) && cat.channels?.map(ch => (
                 <div
                   key={ch.id}
-                  onClick={() => setSelectedChannel(ch)}
-                  style={{ ...communityPageStyles.channel, ...(selectedChannel?.id === ch.id ? communityPageStyles.channelActive : {}) }}
+                  style={{ ...communityPageStyles.channel, ...(selectedChannel?.id === ch.id ? communityPageStyles.channelActive : {}), display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <span style={communityPageStyles.channelHash}>#</span>
-                  <span>{ch.name}</span>
-                  {ch.type === 'announcement' && <span style={communityPageStyles.channelBadge}>📢</span>}
-                  {ch.type === 'regional' && <span style={communityPageStyles.channelBadge}>🌍</span>}
+                  <div onClick={() => setSelectedChannel(ch)} style={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }}>
+                    <span style={communityPageStyles.channelHash}>#</span>
+                    <span>{ch.name}</span>
+                    {ch.type === 'announcement' && <span style={communityPageStyles.channelBadge}>📢</span>}
+                    {ch.type === 'regional' && <span style={communityPageStyles.channelBadge}>🌍</span>}
+                  </div>
+                  {isModerator && (
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingChannel(ch); setChannelForm({ name: ch.name, description: ch.description || '', category_id: String(cat.id), type: ch.type || 'text', is_read_only: ch.isReadOnly || false, admin_only_post: ch.adminOnlyPost || false }); setShowEditChannel(true); }} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '10px', padding: '2px' }} title="Edit Channel">✏️</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteChannel(String(ch.id)); }} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '10px', padding: '2px' }} title="Delete Channel">🗑️</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1467,6 +1571,56 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
             <div style={communityPageStyles.modalActions}>
               <button style={communityPageStyles.cancelBtn} onClick={() => setShowCreateCategory(false)}>Cancel</button>
               <button style={communityPageStyles.submitBtn} onClick={handleCreateCategory}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategory && editingCategory && (
+        <div style={communityPageStyles.modalOverlay} onClick={() => { setShowEditCategory(false); setEditingCategory(null); }}>
+          <div style={communityPageStyles.modal} onClick={e => e.stopPropagation()}>
+            <h3 style={communityPageStyles.modalTitle}>Edit Category</h3>
+            <div style={communityPageStyles.formGroup}>
+              <label style={communityPageStyles.label}>Category Name *</label>
+              <input style={communityPageStyles.input} type="text" value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name: e.target.value})} />
+            </div>
+            <div style={communityPageStyles.formGroup}>
+              <label style={communityPageStyles.label}>Description</label>
+              <input style={communityPageStyles.input} type="text" value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description: e.target.value})} />
+            </div>
+            <div style={communityPageStyles.modalActions}>
+              <button style={communityPageStyles.cancelBtn} onClick={() => { setShowEditCategory(false); setEditingCategory(null); }}>Cancel</button>
+              <button style={communityPageStyles.submitBtn} onClick={handleEditCategory}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Channel Modal */}
+      {showEditChannel && editingChannel && (
+        <div style={communityPageStyles.modalOverlay} onClick={() => { setShowEditChannel(false); setEditingChannel(null); }}>
+          <div style={communityPageStyles.modal} onClick={e => e.stopPropagation()}>
+            <h3 style={communityPageStyles.modalTitle}>Edit Channel</h3>
+            <div style={communityPageStyles.formGroup}>
+              <label style={communityPageStyles.label}>Channel Name *</label>
+              <input style={communityPageStyles.input} type="text" value={channelForm.name} onChange={e => setChannelForm({...channelForm, name: e.target.value})} />
+            </div>
+            <div style={communityPageStyles.formGroup}>
+              <label style={communityPageStyles.label}>Description</label>
+              <input style={communityPageStyles.input} type="text" value={channelForm.description} onChange={e => setChannelForm({...channelForm, description: e.target.value})} />
+            </div>
+            <div style={communityPageStyles.formGroup}>
+              <label style={communityPageStyles.label}>Channel Type</label>
+              <select style={communityPageStyles.select} value={channelForm.type} onChange={e => setChannelForm({...channelForm, type: e.target.value})}>
+                <option value="text">💬 Text</option>
+                <option value="announcement">📢 Announcement</option>
+                <option value="regional">🌍 Regional</option>
+              </select>
+            </div>
+            <div style={communityPageStyles.modalActions}>
+              <button style={communityPageStyles.cancelBtn} onClick={() => { setShowEditChannel(false); setEditingChannel(null); }}>Cancel</button>
+              <button style={communityPageStyles.submitBtn} onClick={handleEditChannel}>Save</button>
             </div>
           </div>
         </div>
@@ -2346,6 +2500,8 @@ function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthMod
   const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '', newPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -2476,7 +2632,12 @@ function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthMod
             <h2 style={styles.modalTitle}>Login</h2>
             {error && <div style={styles.errorMsg}>{error}</div>}
             <input style={styles.input} type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required />
-            <input style={styles.input} type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} required />
+            <div style={{ position: 'relative' }}>
+              <input style={styles.input} type={showPassword ? 'text' : 'password'} name="password" placeholder="Password" value={formData.password} onChange={handleChange} required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px' }}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             <button style={styles.submitBtn} type="submit" disabled={loading}>{loading ? 'Logging in...' : 'Login'}</button>
             <div style={styles.authLinks}>
               <span style={styles.authLink} onClick={() => setView('forgot-password')}>Forgot Password?</span>
@@ -2491,8 +2652,18 @@ function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthMod
             {error && <div style={styles.errorMsg}>{error}</div>}
             <input style={styles.input} type="text" name="username" placeholder="Username" value={formData.username} onChange={handleChange} required />
             <input style={styles.input} type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
-            <input style={styles.input} type="password" name="password" placeholder="Password (min 8 characters)" value={formData.password} onChange={handleChange} minLength={8} required />
-            <input style={styles.input} type="password" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required />
+            <div style={{ position: 'relative' }}>
+              <input style={styles.input} type={showPassword ? 'text' : 'password'} name="password" placeholder="Password (min 8 characters)" value={formData.password} onChange={handleChange} minLength={8} required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px' }}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input style={styles.input} type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required />
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px' }}>
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             <button style={styles.submitBtn} type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create Account'}</button>
             <div style={styles.authLinks}>
               <span style={styles.authLink} onClick={() => setView('login')}>Already have an account? Login</span>
