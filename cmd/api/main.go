@@ -177,6 +177,7 @@ func main() {
 			// Admin channel/category management
 			admin.GET("/community/channel-categories", handleAdminGetCategories(db))
 			admin.POST("/community/channel-categories", handleAdminCreateCategory(db))
+			admin.PUT("/community/channel-categories/:id", handleAdminUpdateCategory(db))
 			admin.DELETE("/community/channel-categories/:id", handleAdminDeleteCategory(db))
 			admin.POST("/community/channels", handleAdminCreateChannel(db))
 			admin.PUT("/community/channels/:id", handleAdminUpdateChannel(db))
@@ -2906,6 +2907,70 @@ func handleAdminCreateCategory(db *sql.DB) gin.HandlerFunc {
 			},
 			"message": "Category created successfully",
 		})
+	}
+}
+
+func handleAdminUpdateCategory(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		categoryID := c.Param("id")
+
+		var req struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Position    *int   `json:"position"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// Build dynamic update query
+		updates := []string{}
+		args := []interface{}{}
+		argNum := 1
+
+		if req.Name != "" {
+			updates = append(updates, fmt.Sprintf("name = $%d", argNum))
+			args = append(args, req.Name)
+			argNum++
+		}
+		if req.Description != "" {
+			updates = append(updates, fmt.Sprintf("description = $%d", argNum))
+			args = append(args, req.Description)
+			argNum++
+		}
+		if req.Position != nil {
+			updates = append(updates, fmt.Sprintf("position = $%d", argNum))
+			args = append(args, *req.Position)
+			argNum++
+		}
+
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+			return
+		}
+
+		updates = append(updates, fmt.Sprintf("updated_at = $%d", argNum))
+		args = append(args, time.Now())
+		argNum++
+
+		args = append(args, categoryID)
+		query := fmt.Sprintf("UPDATE channel_categories SET %s WHERE id = $%d", strings.Join(updates, ", "), argNum)
+
+		result, err := db.Exec(query, args...)
+		if err != nil {
+			log.Printf("Error updating category: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update category"})
+			return
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Category updated successfully"})
 	}
 }
 
