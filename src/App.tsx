@@ -1116,6 +1116,25 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
   const isAdmin = user?.is_admin || user?.role === 'admin' || user?.role === 'super_admin';
   const isModerator = isAdmin || user?.role === 'moderator';
 
+  const fetchChannels = async () => {
+    console.log('fetchChannels called');
+    try {
+      const res = await fetch('/api/v1/community/channels', { headers: { Authorization: `Bearer ${token}` } });
+      console.log('fetchChannels response:', res.status);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('fetchChannels data:', data);
+        setCategories(data.categories || []);
+        if (data.categories?.length > 0 && data.categories[0].channels?.length > 0) {
+          setSelectedChannel(data.categories[0].channels[0]);
+        }
+      } else {
+        console.error('fetchChannels failed:', res.status, await res.text());
+      }
+    } catch (e) { console.error('fetchChannels error:', e); }
+    setLoading(false);
+  };
+
   useEffect(() => {
     fetchChannels();
     fetchOnlineUsers();
@@ -1130,20 +1149,6 @@ function CommunityPage({ token, user, showMessage }: { token: string; user: any;
   useEffect(() => {
     if (activeView === 'leaderboard') fetchLeaderboard();
   }, [activeView, leaderboardType]);
-
-  const fetchChannels = async () => {
-    try {
-      const res = await fetch('/api/v1/community/channels', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.categories || []);
-        if (data.categories?.length > 0 && data.categories[0].channels?.length > 0) {
-          setSelectedChannel(data.categories[0].channels[0]);
-        }
-      }
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
 
   const fetchMessages = async () => {
     if (!selectedChannel) return;
