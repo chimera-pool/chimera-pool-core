@@ -87,6 +87,7 @@ func main() {
 		protected.Use(authMiddleware(config.JWTSecret))
 		{
 			protected.GET("/user/profile", handleUserProfile(db))
+			protected.PUT("/user/profile", handleUpdateUserProfile(db))
 			protected.GET("/user/miners", handleUserMiners(db))
 			protected.GET("/user/payouts", handleUserPayouts(db))
 			protected.POST("/user/payout-address", handleSetPayoutAddress(db))
@@ -458,12 +459,13 @@ func handleUserProfile(db *sql.DB) gin.HandlerFunc {
 		userID := c.GetInt64("user_id")
 
 		var username, email string
+		var payoutAddress sql.NullString
 		var isAdmin bool
 		var createdAt time.Time
 		err := db.QueryRow(
-			"SELECT username, email, is_admin, created_at FROM users WHERE id = $1",
+			"SELECT username, email, payout_address, is_admin, created_at FROM users WHERE id = $1",
 			userID,
-		).Scan(&username, &email, &isAdmin, &createdAt)
+		).Scan(&username, &email, &payoutAddress, &isAdmin, &createdAt)
 
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -471,11 +473,97 @@ func handleUserProfile(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"user_id":    userID,
-			"username":   username,
-			"email":      email,
-			"is_admin":   isAdmin,
-			"created_at": createdAt,
+			"user_id":        userID,
+			"username":       username,
+			"email":          email,
+			"payout_address": payoutAddress.String,
+			"is_admin":       isAdmin,
+			"created_at":     createdAt,
+		})
+	}
+}
+
+func handleUpdateUserProfile(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var req struct {
+			Username      string `json:"username"`
+			PayoutAddress string `json:"payout_address"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Validate username if provided
+		if req.Username != "" {
+			if len(req.Username) < 3 || len(req.Username) > 50 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Username must be between 3 and 50 characters"})
+				return
+			}
+
+			// Check if username is already taken by another user
+			var existingID int64
+			err := db.QueryRow("SELECT id FROM users WHERE username = $1 AND id != $2", req.Username, userID).Scan(&existingID)
+			if err == nil {
+				c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
+				return
+			} else if err != sql.ErrNoRows {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check username availability"})
+				return
+			}
+		}
+
+		// Build dynamic update query
+		updates := []string{}
+		args := []interface{}{}
+		argIndex := 1
+
+		if req.Username != "" {
+			updates = append(updates, fmt.Sprintf("username = $%d", argIndex))
+			args = append(args, req.Username)
+			argIndex++
+		}
+
+		if req.PayoutAddress != "" {
+			updates = append(updates, fmt.Sprintf("payout_address = $%d", argIndex))
+			args = append(args, req.PayoutAddress)
+			argIndex++
+		}
+
+		if len(updates) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+			return
+		}
+
+		// Add user ID as the last argument
+		args = append(args, userID)
+		query := fmt.Sprintf("UPDATE users SET %s, updated_at = NOW() WHERE id = $%d",
+			strings.Join(updates, ", "), argIndex)
+
+		_, err := db.Exec(query, args...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			return
+		}
+
+		// Fetch updated user data
+		var username, email string
+		var payoutAddress sql.NullString
+		var isAdmin bool
+		db.QueryRow("SELECT username, email, payout_address, is_admin FROM users WHERE id = $1", userID).Scan(&username, &email, &payoutAddress, &isAdmin)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Profile updated successfully",
+			"user": gin.H{
+				"user_id":        userID,
+				"username":       username,
+				"email":          email,
+				"payout_address": payoutAddress.String,
+				"is_admin":       isAdmin,
+			},
 		})
 	}
 }
