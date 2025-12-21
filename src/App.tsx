@@ -511,8 +511,8 @@ function App() {
 
       {/* Profile Edit Modal */}
       {showProfileModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '500px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '450px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: '#00d4ff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>👤 Account Settings</h2>
             
             {/* Tabs */}
@@ -656,8 +656,8 @@ function App() {
 
       {/* Bug Report Modal */}
       {showBugReportModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowBugReportModal(false)}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '600px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => setShowBugReportModal(false)}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '550px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: '#00d4ff', marginBottom: '20px' }}>🐛 Report a Bug</h2>
             
             <div style={{ marginBottom: '15px' }}>
@@ -748,8 +748,8 @@ function App() {
 
       {/* My Bug Reports Modal */}
       {showMyBugsModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '800px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '750px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
             {selectedBug ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -2002,14 +2002,14 @@ function EquipmentSupportModal({
   if (!show) return null;
 
   const modalStyles: { [key: string]: React.CSSProperties } = {
-    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-    modal: { backgroundColor: '#1a1a2e', padding: '30px', borderRadius: '12px', border: '2px solid #f59e0b', maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto' },
-    label: { display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' },
-    input: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', boxSizing: 'border-box' as const },
-    select: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', cursor: 'pointer' },
-    textarea: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', minHeight: '100px', resize: 'vertical' as const, boxSizing: 'border-box' as const },
-    cancelBtn: { padding: '12px 24px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer' },
-    submitBtn: { padding: '12px 24px', backgroundColor: '#f59e0b', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }
+    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' },
+    modal: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '12px', border: '2px solid #f59e0b', maxWidth: '480px', width: '100%', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' },
+    label: { display: 'block', color: '#888', marginBottom: '4px', fontSize: '0.85rem' },
+    input: { width: '100%', padding: '10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '12px', boxSizing: 'border-box' as const },
+    select: { width: '100%', padding: '10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '12px', cursor: 'pointer', boxSizing: 'border-box' },
+    textarea: { width: '100%', padding: '10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '12px', minHeight: '80px', resize: 'vertical' as const, boxSizing: 'border-box' as const },
+    cancelBtn: { padding: '10px 18px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '0.9rem' },
+    submitBtn: { padding: '10px 18px', backgroundColor: '#f59e0b', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }
   };
 
   return (
@@ -2691,18 +2691,18 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
                   <button style={eqStyles.addBtn} onClick={() => setShowAddWalletModal(true)}>➕ Add Your First Wallet</button>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: '15px' }}>
+                <div style={{ display: 'grid', gap: '12px' }}>
                   {wallets.map(wallet => (
                     <div key={wallet.id} style={eqStyles.walletCard}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h3 style={{ color: '#e0e0e0', margin: '0 0 5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h3 style={{ color: '#e0e0e0', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem', flexWrap: 'wrap' }}>
                             {wallet.label || 'Unnamed Wallet'}
                             {wallet.is_primary && <span style={eqStyles.primaryBadge}>PRIMARY</span>}
                           </h3>
-                          <code style={{ color: '#00d4ff', fontSize: '0.9rem' }}>{wallet.wallet_address}</code>
+                          <code style={{ color: '#00d4ff', fontSize: '0.8rem', wordBreak: 'break-all' }}>{wallet.wallet_address}</code>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                           {!wallet.is_primary && (
                             <button style={eqStyles.smallBtn}>Set Primary</button>
                           )}
@@ -2778,9 +2778,9 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
             <p style={{ color: '#888', marginBottom: '20px' }}>Split earnings from this equipment to multiple wallets. Total must equal 100%.</p>
             
             {editingSplits.splits.map((split, idx) => (
-              <div key={split.id} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
+              <div key={split.id} style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
-                  style={{...eqStyles.input, flex: 2, marginBottom: 0}}
+                  style={{...eqStyles.input, flex: '1 1 150px', marginBottom: 0, minWidth: 0}}
                   type="text"
                   placeholder="Wallet address"
                   value={split.wallet_address}
@@ -2790,30 +2790,32 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
                     setEditingSplits({...editingSplits, splits: newSplits});
                   }}
                 />
-                <input
-                  style={{...eqStyles.input, width: '80px', marginBottom: 0, textAlign: 'center'}}
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={split.percentage}
-                  onChange={e => {
-                    const newSplits = [...editingSplits.splits];
-                    newSplits[idx].percentage = parseInt(e.target.value) || 0;
-                    setEditingSplits({...editingSplits, splits: newSplits});
-                  }}
-                />
-                <span style={{ color: '#888' }}>%</span>
-                {editingSplits.splits.length > 1 && (
-                  <button
-                    style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}
-                    onClick={() => {
-                      const newSplits = editingSplits.splits.filter((_, i) => i !== idx);
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    style={{...eqStyles.input, width: '60px', marginBottom: 0, textAlign: 'center'}}
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={split.percentage}
+                    onChange={e => {
+                      const newSplits = [...editingSplits.splits];
+                      newSplits[idx].percentage = parseInt(e.target.value) || 0;
                       setEditingSplits({...editingSplits, splits: newSplits});
                     }}
-                  >
-                    ✕
-                  </button>
-                )}
+                  />
+                  <span style={{ color: '#888', fontSize: '0.9rem' }}>%</span>
+                  {editingSplits.splits.length > 1 && (
+                    <button
+                      style={{ padding: '4px 8px', backgroundColor: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }}
+                      onClick={() => {
+                        const newSplits = editingSplits.splits.filter((_, i) => i !== idx);
+                        setEditingSplits({...editingSplits, splits: newSplits});
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
 
@@ -2856,11 +2858,11 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
       {/* Equipment Settings Modal */}
       {showSettingsModal && equipmentSettings && (
         <div style={eqStyles.modalOverlay} onClick={() => setShowSettingsModal(null)}>
-          <div style={{...eqStyles.modal, maxWidth: '550px'}} onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: '#f59e0b', marginTop: 0 }}>⚙️ Equipment Settings</h2>
-            <p style={{ color: '#888', marginBottom: '20px' }}>Configure {showSettingsModal.name}</p>
+          <div style={{...eqStyles.modal, maxWidth: '480px'}} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#f59e0b', marginTop: 0, fontSize: '1.2rem' }}>⚙️ Equipment Settings</h2>
+            <p style={{ color: '#888', marginBottom: '15px', fontSize: '0.9rem' }}>Configure {showSettingsModal.name}</p>
             
-            <div style={{ display: 'grid', gap: '15px' }}>
+            <div style={{ display: 'grid', gap: '12px' }}>
               <div>
                 <label style={eqStyles.label}>Equipment Name</label>
                 <input
@@ -2971,28 +2973,29 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
       {/* Equipment Charts Modal */}
       {showChartsModal && (
         <div style={eqStyles.modalOverlay} onClick={() => setShowChartsModal(null)}>
-          <div style={{...eqStyles.modal, maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{...eqStyles.modal, maxWidth: '850px', padding: '15px'}} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <h2 style={{ color: '#00d4ff', margin: 0 }}>📊 {showChartsModal.name} Performance</h2>
-                <p style={{ color: '#888', margin: '5px 0 0' }}>{showChartsModal.model} • {showChartsModal.worker_name}</p>
+                <h2 style={{ color: '#00d4ff', margin: 0, fontSize: '1.2rem' }}>📊 {showChartsModal.name}</h2>
+                <p style={{ color: '#888', margin: '3px 0 0', fontSize: '0.85rem' }}>{showChartsModal.model} • {showChartsModal.worker_name}</p>
               </div>
-              <button style={{ background: 'none', border: 'none', color: '#888', fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => setShowChartsModal(null)}>✕</button>
+              <button style={{ background: 'none', border: 'none', color: '#888', fontSize: '1.3rem', cursor: 'pointer', padding: '0' }} onClick={() => setShowChartsModal(null)}>✕</button>
             </div>
 
             {/* Time Range Selector */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '15px', flexWrap: 'wrap' }}>
               {(['1h', '6h', '24h', '7d', '30d'] as const).map(range => (
                 <button
                   key={range}
                   style={{
-                    padding: '8px 16px',
+                    padding: '6px 12px',
                     backgroundColor: chartTimeRange === range ? '#00d4ff' : '#0a0a15',
                     border: '1px solid #2a2a4a',
                     borderRadius: '6px',
                     color: chartTimeRange === range ? '#0a0a0f' : '#888',
                     cursor: 'pointer',
-                    fontWeight: chartTimeRange === range ? 'bold' : 'normal'
+                    fontWeight: chartTimeRange === range ? 'bold' : 'normal',
+                    fontSize: '0.85rem'
                   }}
                   onClick={() => setChartTimeRange(range)}
                 >
@@ -3002,7 +3005,7 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
             </div>
 
             {/* Charts Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
               {/* Hashrate Chart */}
               <div style={{ backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' }}>
                 <h3 style={{ color: '#e0e0e0', margin: '0 0 15px', fontSize: '1rem' }}>⚡ Hashrate History</h3>
@@ -3110,34 +3113,34 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 }
 
 const eqStyles: { [key: string]: React.CSSProperties } = {
-  statCard: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '10px', border: '2px solid #2a2a4a', textAlign: 'center' },
-  statIcon: { fontSize: '1.5rem', marginBottom: '8px' },
-  statValue: { fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4ff', marginBottom: '5px' },
-  statLabel: { color: '#888', fontSize: '0.85rem' },
-  tab: { padding: '12px 24px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#888', cursor: 'pointer', fontSize: '1rem', transition: 'all 0.2s' },
+  statCard: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '10px', border: '2px solid #2a2a4a', textAlign: 'center' },
+  statIcon: { fontSize: '1.3rem', marginBottom: '6px' },
+  statValue: { fontSize: '1.3rem', fontWeight: 'bold', color: '#00d4ff', marginBottom: '4px' },
+  statLabel: { color: '#888', fontSize: '0.75rem' },
+  tab: { padding: '10px 16px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#888', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s' },
   tabActive: { color: '#00d4ff', borderBottomColor: '#00d4ff' },
-  equipmentCard: { backgroundColor: '#1a1a2e', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a', borderLeft: '4px solid #888', cursor: 'pointer', transition: 'all 0.2s' },
-  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
-  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px' },
-  quickStat: { backgroundColor: '#0a0a15', padding: '10px', borderRadius: '6px', textAlign: 'center' },
-  quickLabel: { display: 'block', color: '#888', fontSize: '0.75rem', marginBottom: '3px' },
-  quickValue: { display: 'block', color: '#e0e0e0', fontWeight: 'bold', fontSize: '0.95rem' },
-  expandedDetails: { marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #2a2a4a' },
-  detailSection: { backgroundColor: '#0a0a15', padding: '15px', borderRadius: '8px' },
-  detailTitle: { color: '#00d4ff', margin: '0 0 12px', fontSize: '0.95rem' },
-  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#888', fontSize: '0.85rem' },
-  editSplitsBtn: { marginTop: '10px', padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #9b59b6', borderRadius: '6px', color: '#9b59b6', cursor: 'pointer', fontSize: '0.85rem' },
-  actionBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '6px', color: '#00d4ff', cursor: 'pointer' },
-  walletCard: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '10px', border: '1px solid #2a2a4a' },
-  primaryBadge: { backgroundColor: '#4ade80', color: '#0a0a0f', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' },
-  smallBtn: { padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '4px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.85rem' },
-  addBtn: { padding: '10px 20px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { backgroundColor: '#1a1a2e', padding: '30px', borderRadius: '12px', border: '2px solid #00d4ff', maxWidth: '400px', width: '90%' },
-  label: { display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' },
-  input: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', boxSizing: 'border-box' },
-  cancelBtn: { padding: '12px 24px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer' },
-  saveBtn: { padding: '12px 24px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' },
+  equipmentCard: { backgroundColor: '#1a1a2e', borderRadius: '10px', padding: '15px', border: '1px solid #2a2a4a', borderLeft: '4px solid #888', cursor: 'pointer', transition: 'all 0.2s' },
+  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' },
+  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' },
+  quickStat: { backgroundColor: '#0a0a15', padding: '8px', borderRadius: '6px', textAlign: 'center' },
+  quickLabel: { display: 'block', color: '#888', fontSize: '0.7rem', marginBottom: '2px' },
+  quickValue: { display: 'block', color: '#e0e0e0', fontWeight: 'bold', fontSize: '0.85rem' },
+  expandedDetails: { marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #2a2a4a' },
+  detailSection: { backgroundColor: '#0a0a15', padding: '12px', borderRadius: '8px' },
+  detailTitle: { color: '#00d4ff', margin: '0 0 10px', fontSize: '0.9rem' },
+  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#888', fontSize: '0.8rem', flexWrap: 'wrap', gap: '5px' },
+  editSplitsBtn: { marginTop: '8px', padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #9b59b6', borderRadius: '6px', color: '#9b59b6', cursor: 'pointer', fontSize: '0.8rem' },
+  actionBtn: { padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '6px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.85rem' },
+  walletCard: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '10px', border: '1px solid #2a2a4a' },
+  primaryBadge: { backgroundColor: '#4ade80', color: '#0a0a0f', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' },
+  smallBtn: { padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '4px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.8rem' },
+  addBtn: { padding: '8px 16px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
+  modal: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '12px', border: '2px solid #00d4ff', maxWidth: '400px', width: '100%', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxSizing: 'border-box' },
+  label: { display: 'block', color: '#888', marginBottom: '4px', fontSize: '0.85rem' },
+  input: { width: '100%', padding: '10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '12px', boxSizing: 'border-box' },
+  cancelBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '0.9rem' },
+  saveBtn: { padding: '10px 20px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' },
 };
 
 const graphStyles: { [key: string]: React.CSSProperties } = {
