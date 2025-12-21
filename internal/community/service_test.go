@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // MockRepository is a mock implementation of Repository
@@ -108,6 +107,7 @@ func TestCommunityService_CreateTeam(t *testing.T) {
 			ownerID:     uuid.New(),
 			setupMock: func(m *MockRepository) {
 				m.On("CreateTeam", mock.Anything, mock.AnythingOfType("*community.Team")).Return(nil)
+				m.On("AddTeamMember", mock.Anything, mock.AnythingOfType("*community.TeamMember")).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -135,11 +135,11 @@ func TestCommunityService_CreateTeam(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			team, err := service.CreateTeam(context.Background(), tt.teamName, tt.description, tt.ownerID)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -151,7 +151,7 @@ func TestCommunityService_CreateTeam(t *testing.T) {
 				assert.Equal(t, tt.description, team.Description)
 				assert.Equal(t, tt.ownerID, team.OwnerID)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -160,7 +160,7 @@ func TestCommunityService_CreateTeam(t *testing.T) {
 func TestCommunityService_JoinTeam(t *testing.T) {
 	teamID := uuid.New()
 	userID := uuid.New()
-	
+
 	tests := []struct {
 		name      string
 		teamID    uuid.UUID
@@ -205,18 +205,18 @@ func TestCommunityService_JoinTeam(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			err := service.JoinTeam(context.Background(), tt.teamID, tt.userID)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -224,7 +224,7 @@ func TestCommunityService_JoinTeam(t *testing.T) {
 
 func TestCommunityService_CreateReferral(t *testing.T) {
 	referrerID := uuid.New()
-	
+
 	tests := []struct {
 		name       string
 		referrerID uuid.UUID
@@ -253,11 +253,11 @@ func TestCommunityService_CreateReferral(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			referral, err := service.CreateReferral(context.Background(), tt.referrerID)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -269,7 +269,7 @@ func TestCommunityService_CreateReferral(t *testing.T) {
 				assert.NotEmpty(t, referral.Code)
 				assert.Equal(t, "pending", referral.Status)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -278,7 +278,7 @@ func TestCommunityService_CreateReferral(t *testing.T) {
 func TestCommunityService_ProcessReferral(t *testing.T) {
 	referralCode := "REF123456"
 	referredID := uuid.New()
-	
+
 	tests := []struct {
 		name         string
 		referralCode string
@@ -319,17 +319,17 @@ func TestCommunityService_ProcessReferral(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			err := service.ProcessReferral(context.Background(), tt.referralCode, tt.referredID)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -338,7 +338,7 @@ func TestCommunityService_ProcessReferral(t *testing.T) {
 func TestCommunityService_CreateCompetition(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour)
 	endTime := startTime.Add(7 * 24 * time.Hour)
-	
+
 	tests := []struct {
 		name        string
 		compName    string
@@ -390,11 +390,11 @@ func TestCommunityService_CreateCompetition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			competition, err := service.CreateCompetition(context.Background(), tt.compName, tt.description, tt.startTime, tt.endTime, tt.prizePool)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -406,7 +406,7 @@ func TestCommunityService_CreateCompetition(t *testing.T) {
 				assert.Equal(t, tt.description, competition.Description)
 				assert.Equal(t, tt.prizePool, competition.PrizePool)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}
@@ -414,7 +414,7 @@ func TestCommunityService_CreateCompetition(t *testing.T) {
 
 func TestCommunityService_RecordSocialShare(t *testing.T) {
 	userID := uuid.New()
-	
+
 	tests := []struct {
 		name      string
 		userID    uuid.UUID
@@ -452,11 +452,11 @@ func TestCommunityService_RecordSocialShare(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
 			tt.setupMock(mockRepo)
-			
+
 			service := NewService(mockRepo)
-			
+
 			share, err := service.RecordSocialShare(context.Background(), tt.userID, tt.platform, tt.content, tt.milestone)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -469,7 +469,7 @@ func TestCommunityService_RecordSocialShare(t *testing.T) {
 				assert.Equal(t, tt.content, share.Content)
 				assert.Equal(t, tt.milestone, share.Milestone)
 			}
-			
+
 			mockRepo.AssertExpectations(t)
 		})
 	}

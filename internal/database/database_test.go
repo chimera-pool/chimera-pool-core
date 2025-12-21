@@ -1,9 +1,7 @@
 package database
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +40,7 @@ func TestDatabase(t *testing.T) {
 
 		// Test invalid connection counts
 		config = &Config{
-			Host: "localhost", Port: 5432, Database: "test", 
+			Host: "localhost", Port: 5432, Database: "test",
 			Username: "user", Password: "pass",
 			MaxConns: 5, MinConns: 10,
 		}
@@ -62,10 +60,10 @@ func TestDatabase(t *testing.T) {
 	t.Run("DefaultConfig", func(t *testing.T) {
 		config := DefaultConfig()
 		require.NotNil(t, config, "default config should not be nil")
-		
+
 		err := validateConfig(config)
 		assert.NoError(t, err, "default config should be valid")
-		
+
 		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, 5432, config.Port)
 		assert.Equal(t, "chimera_pool_dev", config.Database)
@@ -79,7 +77,7 @@ func TestDatabase(t *testing.T) {
 	t.Run("NewDatabase_InvalidConfig", func(t *testing.T) {
 		// Test with invalid config
 		config := &Config{} // Empty config
-		
+
 		db, err := New(config)
 		assert.Error(t, err, "should fail with invalid config")
 		assert.Nil(t, db, "database should be nil on error")
@@ -88,49 +86,49 @@ func TestDatabase(t *testing.T) {
 	// Note: The following tests would require a real database connection
 	// They are commented out since we don't have Go runtime in this environment
 	/*
-	t.Run("NewDatabase_ValidConfig", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		t.Run("NewDatabase_ValidConfig", func(t *testing.T) {
+			config := &Config{
+				Host:     "localhost",
+				Port:     5432,
+				Database: "chimera_pool_dev",
+				Username: "chimera",
+				Password: "dev_password",
+				SSLMode:  "disable",
+				MaxConns: 10,
+				MinConns: 2,
+			}
 
-		db, err := New(config)
-		require.NoError(t, err, "should create database successfully")
-		require.NotNil(t, db, "database should not be nil")
-		defer db.Close()
+			db, err := New(config)
+			require.NoError(t, err, "should create database successfully")
+			require.NotNil(t, db, "database should not be nil")
+			defer db.Close()
 
-		assert.NotNil(t, db.Pool, "connection pool should be initialized")
-		assert.Equal(t, config, db.Config, "config should be stored")
-	})
+			assert.NotNil(t, db.Pool, "connection pool should be initialized")
+			assert.Equal(t, config, db.Config, "config should be stored")
+		})
 
-	t.Run("DatabaseHealthCheck", func(t *testing.T) {
-		config := DefaultConfig()
-		db, err := New(config)
-		require.NoError(t, err)
-		defer db.Close()
+		t.Run("DatabaseHealthCheck", func(t *testing.T) {
+			config := DefaultConfig()
+			db, err := New(config)
+			require.NoError(t, err)
+			defer db.Close()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-		err = db.HealthCheck(ctx)
-		assert.NoError(t, err, "health check should pass")
-	})
+			err = db.HealthCheck(ctx)
+			assert.NoError(t, err, "health check should pass")
+		})
 
-	t.Run("DatabaseStats", func(t *testing.T) {
-		config := DefaultConfig()
-		db, err := New(config)
-		require.NoError(t, err)
-		defer db.Close()
+		t.Run("DatabaseStats", func(t *testing.T) {
+			config := DefaultConfig()
+			db, err := New(config)
+			require.NoError(t, err)
+			defer db.Close()
 
-		stats := db.GetStats()
-		assert.Greater(t, stats.MaxConns, int32(0), "should have max connections")
-	})
+			stats := db.GetStats()
+			assert.Greater(t, stats.MaxConns, int32(0), "should have max connections")
+		})
 	*/
 }
 

@@ -31,8 +31,10 @@ func TestAdminUserWalletVisibility(t *testing.T) {
 			Wallets []WalletInfo `json:"wallets"`
 		}
 
-		// Verify structure is correct
-		response := AdminUserDetailResponse{}
+		// Verify structure is correct - initialize with empty slice
+		response := AdminUserDetailResponse{
+			Wallets: []WalletInfo{},
+		}
 		assert.NotNil(t, response.Wallets)
 	})
 

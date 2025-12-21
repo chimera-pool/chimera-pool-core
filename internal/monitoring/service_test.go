@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // MockRepository is a mock implementation of Repository
@@ -452,7 +451,7 @@ func TestMonitoringService_EvaluateAlertRules(t *testing.T) {
 
 func TestMonitoringService_CreateDashboard(t *testing.T) {
 	userID := uuid.New()
-	
+
 	tests := []struct {
 		name        string
 		dashName    string
