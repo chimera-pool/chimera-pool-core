@@ -5,28 +5,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
 type PoolInstaller struct {
-	systemDetector *SystemDetector
+	systemDetector  *SystemDetector
 	configGenerator *ConfigGenerator
-	dockerComposer *DockerComposer
-	cloudTemplater *CloudTemplater
+	dockerComposer  *DockerComposer
+	cloudTemplater  *CloudTemplater
 }
 
 type SystemSpecs struct {
-	CPU        CPUInfo        `json:"cpu"`
-	Memory     MemoryInfo     `json:"memory"`
-	Storage    StorageInfo    `json:"storage"`
-	Network    NetworkInfo    `json:"network"`
-	OS         string         `json:"os"`
+	CPU        CPUInfo          `json:"cpu"`
+	Memory     MemoryInfo       `json:"memory"`
+	Storage    StorageInfo      `json:"storage"`
+	Network    NetworkInfo      `json:"network"`
+	OS         string           `json:"os"`
 	Containers ContainerSupport `json:"containers"`
 }
 
@@ -43,8 +39,8 @@ type MemoryInfo struct {
 }
 
 type StorageInfo struct {
-	Total     int64 `json:"total"`
-	Available int64 `json:"available"`
+	Total     int64  `json:"total"`
+	Available int64  `json:"available"`
 	Type      string `json:"type"` // ssd, hdd, nvme
 }
 
@@ -100,12 +96,12 @@ type MonitoringConfig struct {
 }
 
 type InstallConfig struct {
-	InstallPath    string `json:"install_path"`
-	AutoStart      bool   `json:"auto_start"`
-	EnableSSL      bool   `json:"enable_ssl"`
-	DomainName     string `json:"domain_name"`
-	AdminEmail     string `json:"admin_email"`
-	WalletAddress  string `json:"wallet_address"`
+	InstallPath   string `json:"install_path"`
+	AutoStart     bool   `json:"auto_start"`
+	EnableSSL     bool   `json:"enable_ssl"`
+	DomainName    string `json:"domain_name"`
+	AdminEmail    string `json:"admin_email"`
+	WalletAddress string `json:"wallet_address"`
 }
 
 type InstallResult struct {
@@ -218,7 +214,7 @@ func (pi *PoolInstaller) configureDatabaseForSpecs(specs SystemSpecs) DatabaseCo
 
 	// Scale based on expected load
 	memoryGB := specs.Memory.Total / (1024 * 1024 * 1024)
-	
+
 	if memoryGB >= 32 {
 		config.MaxConnections = 100
 		config.PoolSize = 50
@@ -239,7 +235,7 @@ func (pi *PoolInstaller) configureRedisForSpecs(specs SystemSpecs) RedisConfig {
 	}
 
 	memoryGB := specs.Memory.Total / (1024 * 1024 * 1024)
-	
+
 	if memoryGB >= 32 {
 		config.MaxConnections = 200
 	} else if memoryGB >= 16 {
@@ -309,7 +305,7 @@ func (pi *PoolInstaller) GenerateDockerCompose(config PoolConfig) (string, error
 
 func (pi *PoolInstaller) OneClickInstall(ctx context.Context, installConfig InstallConfig) (InstallResult, error) {
 	installationID := uuid.New().String()
-	
+
 	result := InstallResult{
 		InstallationID: installationID,
 		Status:         "in_progress",

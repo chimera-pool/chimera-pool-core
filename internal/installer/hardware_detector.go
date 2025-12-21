@@ -78,7 +78,7 @@ func (hd *HardwareDetector) detectCPUsLinux() ([]CPUInfo, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if strings.HasPrefix(line, "processor") {
 			parts := strings.Split(line, ":")
 			if len(parts) > 1 {
@@ -121,7 +121,7 @@ func (hd *HardwareDetector) detectCPUsLinux() ([]CPUInfo, error) {
 	for _, cpu := range cpuMap {
 		if cpu.Model != "" {
 			key := fmt.Sprintf("%s_%d_%d", cpu.Model, cpu.Cores, cpu.Threads)
-			if existing, exists := seenCPUs[key]; exists {
+			if _, exists := seenCPUs[key]; exists {
 				// This is a duplicate, skip
 				continue
 			} else {
@@ -187,7 +187,7 @@ func (hd *HardwareDetector) detectCPUsWindows() ([]CPUInfo, error) {
 
 	var cpus []CPUInfo
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, ",") && !strings.Contains(line, "Node") {
 			parts := strings.Split(line, ",")
@@ -195,7 +195,7 @@ func (hd *HardwareDetector) detectCPUsWindows() ([]CPUInfo, error) {
 				cpu := CPUInfo{
 					Architecture: runtime.GOARCH,
 				}
-				
+
 				cpu.Model = strings.TrimSpace(parts[1])
 				if cores, err := strconv.Atoi(strings.TrimSpace(parts[2])); err == nil {
 					cpu.Cores = cores
@@ -203,7 +203,7 @@ func (hd *HardwareDetector) detectCPUsWindows() ([]CPUInfo, error) {
 				if threads, err := strconv.Atoi(strings.TrimSpace(parts[3])); err == nil {
 					cpu.Threads = threads
 				}
-				
+
 				if cpu.Model != "" {
 					cpus = append(cpus, cpu)
 				}
@@ -270,13 +270,13 @@ func (hd *HardwareDetector) detectNVIDIAGPUs() ([]GPUInfo, error) {
 
 	var gpus []GPUInfo
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Split(line, ",")
 		if len(parts) >= 4 {
 			gpu := GPUInfo{
@@ -285,12 +285,12 @@ func (hd *HardwareDetector) detectNVIDIAGPUs() ([]GPUInfo, error) {
 				Vendor:   "NVIDIA",
 				PCIeSlot: strings.TrimSpace(parts[3]),
 			}
-			
+
 			// Parse memory (in MB)
 			if memMB, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64); err == nil {
 				gpu.Memory = memMB * 1024 * 1024 // Convert to bytes
 			}
-			
+
 			gpus = append(gpus, gpu)
 		}
 	}
@@ -308,7 +308,7 @@ func (hd *HardwareDetector) detectAMDGPUs() ([]GPUInfo, error) {
 
 	var gpus []GPUInfo
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "GPU") && strings.Contains(line, ":") {
 			// This is a simplified parser - real implementation would be more robust
@@ -316,7 +316,7 @@ func (hd *HardwareDetector) detectAMDGPUs() ([]GPUInfo, error) {
 				Vendor: "AMD",
 				Driver: "amdgpu",
 			}
-			
+
 			// Extract GPU name (simplified)
 			if strings.Contains(line, "Radeon") || strings.Contains(line, "RX") {
 				parts := strings.Split(line, ":")
@@ -324,7 +324,7 @@ func (hd *HardwareDetector) detectAMDGPUs() ([]GPUInfo, error) {
 					gpu.Model = strings.TrimSpace(parts[1])
 				}
 			}
-			
+
 			if gpu.Model != "" {
 				gpus = append(gpus, gpu)
 			}
@@ -343,7 +343,7 @@ func (hd *HardwareDetector) detectIntelGPUs() ([]GPUInfo, error) {
 func (hd *HardwareDetector) detectGPUsDarwin() ([]GPUInfo, error) {
 	// Use system_profiler to get GPU information
 	cmd := exec.Command("system_profiler", "SPDisplaysDataType", "-json")
-	output, err := cmd.Output()
+	_, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func (hd *HardwareDetector) detectGPUsWindows() ([]GPUInfo, error) {
 
 	var gpus []GPUInfo
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, ",") && !strings.Contains(line, "Node") {
 			parts := strings.Split(line, ",")
@@ -371,12 +371,12 @@ func (hd *HardwareDetector) detectGPUsWindows() ([]GPUInfo, error) {
 					Model:  strings.TrimSpace(parts[3]),
 					Driver: strings.TrimSpace(parts[2]),
 				}
-				
+
 				// Parse memory
 				if memBytes, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64); err == nil {
 					gpu.Memory = memBytes
 				}
-				
+
 				// Determine vendor from model name
 				modelLower := strings.ToLower(gpu.Model)
 				if strings.Contains(modelLower, "nvidia") || strings.Contains(modelLower, "geforce") || strings.Contains(modelLower, "quadro") {
@@ -386,7 +386,7 @@ func (hd *HardwareDetector) detectGPUsWindows() ([]GPUInfo, error) {
 				} else if strings.Contains(modelLower, "intel") {
 					gpu.Vendor = "Intel"
 				}
-				
+
 				if gpu.Model != "" && gpu.Memory > 0 {
 					gpus = append(gpus, gpu)
 				}

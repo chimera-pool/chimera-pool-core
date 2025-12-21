@@ -5,12 +5,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
@@ -23,11 +19,11 @@ type MinerInstaller struct {
 }
 
 type HardwareInfo struct {
-	CPUs         []CPUInfo   `json:"cpus"`
-	GPUs         []GPUInfo   `json:"gpus"`
-	Memory       MemoryInfo  `json:"memory"`
-	OS           string      `json:"os"`
-	Architecture string      `json:"architecture"`
+	CPUs         []CPUInfo  `json:"cpus"`
+	GPUs         []GPUInfo  `json:"gpus"`
+	Memory       MemoryInfo `json:"memory"`
+	OS           string     `json:"os"`
+	Architecture string     `json:"architecture"`
 }
 
 type GPUInfo struct {
@@ -48,8 +44,8 @@ type MinerConfig struct {
 	GPUEnabled    bool   `yaml:"gpu_enabled"`
 	CPUThreads    int    `yaml:"cpu_threads"`
 	GPUThreads    int    `yaml:"gpu_threads"`
-	PowerLimit    int    `yaml:"power_limit"`   // Percentage
-	TempLimit     int    `yaml:"temp_limit"`    // Celsius
+	PowerLimit    int    `yaml:"power_limit"` // Percentage
+	TempLimit     int    `yaml:"temp_limit"`  // Celsius
 	AutoStart     bool   `yaml:"auto_start"`
 	LogLevel      string `yaml:"log_level"`
 }
@@ -73,12 +69,12 @@ type MinerInstallConfig struct {
 }
 
 type MinerInstallResult struct {
-	InstallationID   string   `json:"installation_id"`
-	Status           string   `json:"status"`
-	MinerExecutable  string   `json:"miner_executable"`
-	ConfigPath       string   `json:"config_path"`
-	NextSteps        []string `json:"next_steps"`
-	Errors           []string `json:"errors,omitempty"`
+	InstallationID  string   `json:"installation_id"`
+	Status          string   `json:"status"`
+	MinerExecutable string   `json:"miner_executable"`
+	ConfigPath      string   `json:"config_path"`
+	NextSteps       []string `json:"next_steps"`
+	Errors          []string `json:"errors,omitempty"`
 }
 
 type DriverInfo struct {
@@ -125,13 +121,13 @@ func (mi *MinerInstaller) GenerateOptimalConfig(hardware HardwareInfo) (MinerCon
 		config.MiningMode = "cpu"
 		config.GPUEnabled = false
 		config.CPUEnabled = true
-		
+
 		// Use most cores but leave some for system
 		totalThreads := 0
 		for _, cpu := range hardware.CPUs {
 			totalThreads += cpu.Threads
 		}
-		
+
 		if totalThreads > 4 {
 			config.CPUThreads = totalThreads - 2 // Leave 2 threads for system
 		} else if totalThreads > 2 {
@@ -227,7 +223,7 @@ func (mi *MinerInstaller) ValidateConfig(config MinerConfig) error {
 
 func (mi *MinerInstaller) OneClickInstall(ctx context.Context, installConfig MinerInstallConfig) (MinerInstallResult, error) {
 	installationID := uuid.New().String()
-	
+
 	result := MinerInstallResult{
 		InstallationID: installationID,
 		Status:         "in_progress",
@@ -238,7 +234,7 @@ func (mi *MinerInstaller) OneClickInstall(ctx context.Context, installConfig Min
 	// Step 1: Detect hardware if auto-detect is enabled
 	var hardware HardwareInfo
 	var err error
-	
+
 	if installConfig.AutoDetect {
 		hardware, err = mi.DetectHardware()
 		if err != nil {
@@ -265,7 +261,7 @@ func (mi *MinerInstaller) OneClickInstall(ctx context.Context, installConfig Min
 			result.Errors = append(result.Errors, fmt.Sprintf("Configuration generation failed: %v", err))
 			return result, err
 		}
-		
+
 		// Merge optimal settings with user preferences
 		config.MiningMode = optimalConfig.MiningMode
 		config.CPUEnabled = optimalConfig.CPUEnabled
@@ -353,7 +349,7 @@ func (mi *MinerInstaller) OneClickInstall(ctx context.Context, installConfig Min
 func (mi *MinerInstaller) downloadMinerExecutable(installPath string) (string, error) {
 	// This would download the appropriate miner executable for the platform
 	// For now, we'll create a placeholder
-	
+
 	var executableName string
 	switch runtime.GOOS {
 	case "windows":
@@ -363,7 +359,7 @@ func (mi *MinerInstaller) downloadMinerExecutable(installPath string) (string, e
 	}
 
 	executablePath := filepath.Join(installPath, executableName)
-	
+
 	// Create a placeholder executable
 	placeholder := `#!/bin/bash
 echo "Chimera Miner v1.0.0"

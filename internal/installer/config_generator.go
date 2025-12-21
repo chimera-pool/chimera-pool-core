@@ -1,5 +1,7 @@
 package installer
 
+import "fmt"
+
 type ConfigGenerator struct{}
 
 func NewConfigGenerator() *ConfigGenerator {
@@ -35,7 +37,7 @@ func (ct *CloudTemplater) Generate(provider CloudProvider, config PoolConfig) (s
 	}
 
 	deployer := NewCloudDeployer()
-	
+
 	switch provider {
 	case CloudProviderAWS:
 		return deployer.GenerateAWSTemplate(cloudConfig)
@@ -59,6 +61,6 @@ func (dm *DriverManager) DetectMissingDrivers() ([]DriverInfo, error) {
 
 	// This would detect missing GPU drivers, mining software dependencies, etc.
 	// For now, return empty list (no missing drivers)
-	
+
 	return drivers, nil
 }
