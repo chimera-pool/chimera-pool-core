@@ -6,6 +6,15 @@ import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 're
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
+// Lazy-loaded components for code splitting
+import {
+  MiningGraphsLazy,
+  GlobalMinerMapLazy,
+  UserDashboardLazy,
+  WalletManagerLazy,
+  AuthModalLazy,
+} from './components/LazyComponents';
+
 // Utility formatters
 import { formatHashrate } from './utils/formatters';
 
@@ -512,7 +521,7 @@ function App() {
         </div>
       )}
 
-      {authView && <AuthModal view={authView} setView={setAuthView} setToken={setToken} showMessage={showMessage} resetToken={resetToken} />}
+      {authView && <AuthModalLazy view={authView} setView={setAuthView} setToken={setToken} showMessage={showMessage} resetToken={resetToken} />}
       
       {showAdminPanel && token && <AdminPanel token={token} onClose={() => setShowAdminPanel(false)} showMessage={showMessage} />}
 
@@ -911,7 +920,7 @@ function App() {
             )}
 
             {/* Mining Graphs - Visible to ALL users (pool-wide for guests, toggleable for members) */}
-            <MiningGraphs token={token || undefined} isLoggedIn={!!token && !!user} />
+            <MiningGraphsLazy token={token || undefined} isLoggedIn={!!token && !!user} />
 
             {/* Call-to-action for non-logged users */}
             {!token && (
@@ -957,11 +966,11 @@ function App() {
             )}
 
             {/* User Dashboard - only shown when logged in */}
-            {token && user && <UserDashboard token={token} />}
-            {token && user && <WalletManager token={token} showMessage={showMessage} />}
+            {token && user && <UserDashboardLazy token={token} />}
+            {token && user && <WalletManagerLazy token={token} showMessage={showMessage} />}
 
             {/* Global Miner Map - visible to all */}
-            <GlobalMinerMap />
+            <GlobalMinerMapLazy />
           </>
         )}
 
