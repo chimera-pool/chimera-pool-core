@@ -1,6 +1,6 @@
 # Chimeria Pool Migration & Feature Tracking
 
-## Current Database Schema Version: 005
+## Current Database Schema Version: 006
 
 ## Applied Migrations
 
@@ -11,8 +11,56 @@
 | 003 | `003_roles_channels.up.sql` | Role system (user/moderator/admin/super_admin), channels, categories | ✅ Applied |
 | 004 | `004_user_wallets.up.sql` | Multi-wallet support, wallet_address_history, payout splitting | ✅ Applied |
 | 005 | `005_seed_community_categories.up.sql` | Seed community categories and channels | ✅ Applied |
+| 006 | `006_bug_reports.up.sql` | Bug reporting system with attachments, comments, email notifications | ✅ Applied |
 
 ## Recent Feature Changes
+
+### December 20, 2025 - Bug Reporting System
+
+**Commit**: `f8ae27f` - "Add bug reporting system with email notifications"
+
+**Database Tables Created** (`migrations/006_bug_reports.up.sql`):
+- `bug_reports` - Main bug report storage with status, priority, category
+- `bug_attachments` - Screenshots and file attachments (stored as BYTEA)
+- `bug_comments` - Threaded conversation with internal notes support
+- `bug_email_notifications` - Email tracking for notifications
+- `bug_subscribers` - Users subscribed to bug updates
+
+**Backend API Endpoints** (`cmd/api/main.go`):
+```
+# User endpoints (authenticated)
+POST /api/v1/bugs                    - Submit bug report
+GET  /api/v1/bugs                    - List user's bug reports
+GET  /api/v1/bugs/:id                - Get bug details with comments
+POST /api/v1/bugs/:id/comments       - Add comment to bug
+POST /api/v1/bugs/:id/attachments    - Upload attachment
+POST /api/v1/bugs/:id/subscribe      - Subscribe to updates
+DELETE /api/v1/bugs/:id/subscribe    - Unsubscribe
+
+# Admin endpoints
+GET  /api/v1/admin/bugs              - List all bugs (filterable)
+GET  /api/v1/admin/bugs/:id          - Get bug with internal comments
+PUT  /api/v1/admin/bugs/:id/status   - Update status (sends email)
+PUT  /api/v1/admin/bugs/:id/priority - Update priority
+PUT  /api/v1/admin/bugs/:id/assign   - Assign to admin
+POST /api/v1/admin/bugs/:id/comments - Add comment (can be internal)
+DELETE /api/v1/admin/bugs/:id        - Delete bug report
+```
+
+**Frontend Changes** (`src/App.tsx`):
+- 🐛 Bug button in header - Opens bug report modal
+- 📋 My Bugs button - View and track submitted bugs
+- Bug report modal with category, description, steps to reproduce
+- Bug details view with comment thread
+- Status and priority badges with color coding
+
+**Email Notifications**:
+- New bug → Admins notified
+- Status change → Subscribers notified
+- New comment → Subscribers notified (except commenter)
+- Bug assigned → Assignee notified
+
+---
 
 ### December 20, 2025 - Account Settings with Password Change & Forgot Password
 
