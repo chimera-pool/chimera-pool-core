@@ -6739,13 +6739,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   );
 }
 
-function formatHashrate(hashrate: number): string {
-  if (hashrate >= 1e12) return (hashrate / 1e12).toFixed(2) + ' TH/s';
-  if (hashrate >= 1e9) return (hashrate / 1e9).toFixed(2) + ' GH/s';
-  if (hashrate >= 1e6) return (hashrate / 1e6).toFixed(2) + ' MH/s';
-  if (hashrate >= 1e3) return (hashrate / 1e3).toFixed(2) + ' KH/s';
-  return hashrate.toFixed(2) + ' H/s';
-}
+// formatHashrate is now imported from './utils/formatters'
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: { minHeight: '100vh', backgroundColor: '#0a0a0f', color: '#e0e0e0', fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
