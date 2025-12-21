@@ -120,18 +120,6 @@ type UserMinersResponse struct {
 	Total  int          `json:"total"`
 }
 
-// AuthService interface for authentication operations
-type AuthService interface {
-	ValidateJWT(token string) (*JWTClaims, error)
-}
-
-// PoolStatsService interface for pool statistics operations
-type PoolStatsService interface {
-	GetPoolStats() (*PoolStats, error)
-	GetMinerStats(userID int64) (*MinerStats, error)
-	GetUserStats(userID int64) (*UserStats, error)
-}
-
 // RealTimeStats represents real-time pool statistics
 type RealTimeStats struct {
 	CurrentHashrate   float64   `json:"current_hashrate"`
@@ -157,27 +145,27 @@ type RealTimeStatsResponse struct {
 
 // BlockMetrics represents block discovery metrics
 type BlockMetrics struct {
-	TotalBlocks       int64         `json:"total_blocks"`
-	BlocksLast24h     int64         `json:"blocks_last_24h"`
-	BlocksLast7d      int64         `json:"blocks_last_7d"`
-	AverageBlockTime  time.Duration `json:"average_block_time"`
-	LastBlockReward   float64       `json:"last_block_reward"`
-	TotalRewards      float64       `json:"total_rewards"`
-	OrphanBlocks      int64         `json:"orphan_blocks"`
-	OrphanRate        float64       `json:"orphan_rate"`
+	TotalBlocks      int64         `json:"total_blocks"`
+	BlocksLast24h    int64         `json:"blocks_last_24h"`
+	BlocksLast7d     int64         `json:"blocks_last_7d"`
+	AverageBlockTime time.Duration `json:"average_block_time"`
+	LastBlockReward  float64       `json:"last_block_reward"`
+	TotalRewards     float64       `json:"total_rewards"`
+	OrphanBlocks     int64         `json:"orphan_blocks"`
+	OrphanRate       float64       `json:"orphan_rate"`
 }
 
 // BlockMetricsResponse represents the block metrics API response
 type BlockMetricsResponse struct {
-	TotalBlocks       int64   `json:"total_blocks"`
-	BlocksLast24h     int64   `json:"blocks_last_24h"`
-	BlocksLast7d      int64   `json:"blocks_last_7d"`
-	AverageBlockTime  int64   `json:"average_block_time_seconds"`
-	LastBlockReward   float64 `json:"last_block_reward"`
-	TotalRewards      float64 `json:"total_rewards"`
-	OrphanBlocks      int64   `json:"orphan_blocks"`
-	OrphanRate        float64 `json:"orphan_rate"`
-	Timestamp         time.Time `json:"timestamp"`
+	TotalBlocks      int64     `json:"total_blocks"`
+	BlocksLast24h    int64     `json:"blocks_last_24h"`
+	BlocksLast7d     int64     `json:"blocks_last_7d"`
+	AverageBlockTime int64     `json:"average_block_time_seconds"`
+	LastBlockReward  float64   `json:"last_block_reward"`
+	TotalRewards     float64   `json:"total_rewards"`
+	OrphanBlocks     int64     `json:"orphan_blocks"`
+	OrphanRate       float64   `json:"orphan_rate"`
+	Timestamp        time.Time `json:"timestamp"`
 }
 
 // MFASetupResponse represents MFA setup response
