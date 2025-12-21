@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"time"
 
+	"context"
+
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"context"
 )
 
 // PrometheusClientImpl implements the PrometheusClient interface
@@ -24,7 +25,7 @@ type PrometheusClientImpl struct {
 // NewPrometheusClient creates a new Prometheus client
 func NewPrometheusClient(prometheusURL string) (*PrometheusClientImpl, error) {
 	registry := prometheus.NewRegistry()
-	
+
 	var queryAPI v1.API
 	if prometheusURL != "" {
 		client, err := api.NewClient(api.Config{
@@ -35,7 +36,7 @@ func NewPrometheusClient(prometheusURL string) (*PrometheusClientImpl, error) {
 		}
 		queryAPI = v1.NewAPI(client)
 	}
-	
+
 	return &PrometheusClientImpl{
 		registry:   registry,
 		counters:   make(map[string]*prometheus.CounterVec),
@@ -54,7 +55,7 @@ func (p *PrometheusClientImpl) RecordCounter(name string, labels map[string]stri
 		for labelName := range labels {
 			labelNames = append(labelNames, labelName)
 		}
-		
+
 		counter = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: name,
@@ -62,7 +63,7 @@ func (p *PrometheusClientImpl) RecordCounter(name string, labels map[string]stri
 			},
 			labelNames,
 		)
-		
+
 		if err := p.registry.Register(counter); err != nil {
 			// If already registered, get the existing one
 			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
@@ -71,10 +72,10 @@ func (p *PrometheusClientImpl) RecordCounter(name string, labels map[string]stri
 				return fmt.Errorf("failed to register counter %s: %w", name, err)
 			}
 		}
-		
+
 		p.counters[name] = counter
 	}
-	
+
 	counter.With(labels).Add(value)
 	return nil
 }
@@ -88,7 +89,7 @@ func (p *PrometheusClientImpl) RecordGauge(name string, labels map[string]string
 		for labelName := range labels {
 			labelNames = append(labelNames, labelName)
 		}
-		
+
 		gauge = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: name,
@@ -96,7 +97,7 @@ func (p *PrometheusClientImpl) RecordGauge(name string, labels map[string]string
 			},
 			labelNames,
 		)
-		
+
 		if err := p.registry.Register(gauge); err != nil {
 			// If already registered, get the existing one
 			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
@@ -105,10 +106,10 @@ func (p *PrometheusClientImpl) RecordGauge(name string, labels map[string]string
 				return fmt.Errorf("failed to register gauge %s: %w", name, err)
 			}
 		}
-		
+
 		p.gauges[name] = gauge
 	}
-	
+
 	gauge.With(labels).Set(value)
 	return nil
 }
@@ -122,16 +123,16 @@ func (p *PrometheusClientImpl) RecordHistogram(name string, labels map[string]st
 		for labelName := range labels {
 			labelNames = append(labelNames, labelName)
 		}
-		
+
 		histogram = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name: name,
-				Help: fmt.Sprintf("Histogram metric for %s", name),
+				Name:    name,
+				Help:    fmt.Sprintf("Histogram metric for %s", name),
 				Buckets: prometheus.DefBuckets,
 			},
 			labelNames,
 		)
-		
+
 		if err := p.registry.Register(histogram); err != nil {
 			// If already registered, get the existing one
 			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
@@ -140,10 +141,10 @@ func (p *PrometheusClientImpl) RecordHistogram(name string, labels map[string]st
 				return fmt.Errorf("failed to register histogram %s: %w", name, err)
 			}
 		}
-		
+
 		p.histograms[name] = histogram
 	}
-	
+
 	histogram.With(labels).Observe(value)
 	return nil
 }
@@ -153,23 +154,24 @@ func (p *PrometheusClientImpl) Query(query string) (float64, error) {
 	if p.queryAPI == nil {
 		return 0, fmt.Errorf("Prometheus query API not configured")
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	result, warnings, err := p.queryAPI.Query(ctx, query, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute query: %w", err)
 	}
-	
+
 	if len(warnings) > 0 {
 		// Log warnings but continue
 		fmt.Printf("Prometheus query warnings: %v\n", warnings)
 	}
-	
+
 	// Extract scalar value from result
 	// This is a simplified implementation - in practice you'd handle different result types
-	switch result.Type() {
+	resultType := result.Type().String()
+	switch resultType {
 	case "scalar":
 		// Handle scalar result
 		return 0, fmt.Errorf("scalar result handling not implemented")
@@ -177,7 +179,7 @@ func (p *PrometheusClientImpl) Query(query string) (float64, error) {
 		// Handle vector result - return first value
 		return 0, fmt.Errorf("vector result handling not implemented")
 	default:
-		return 0, fmt.Errorf("unsupported result type: %s", result.Type())
+		return 0, fmt.Errorf("unsupported result type: %s", resultType)
 	}
 }
 

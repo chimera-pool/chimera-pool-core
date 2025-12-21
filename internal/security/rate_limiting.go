@@ -2,7 +2,6 @@ package security
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"sync"
 	"time"
@@ -118,20 +117,20 @@ type ProgressiveRateLimiter struct {
 }
 
 type progressiveClient struct {
-	bucket           *tokenBucket
-	violations       []time.Time
+	bucket            *tokenBucket
+	violations        []time.Time
 	penaltyMultiplier float64
-	penaltyExpiry    time.Time
+	penaltyExpiry     time.Time
 }
 
 // ClientInfo provides information about a client's rate limiting status
 type ClientInfo struct {
-	RequestsPerMinute   int
-	BurstSize          int
-	PenaltyMultiplier  float64
-	UnderPenalty       bool
-	ViolationCount     int
-	RemainingTokens    float64
+	RequestsPerMinute int
+	BurstSize         int
+	PenaltyMultiplier float64
+	UnderPenalty      bool
+	ViolationCount    int
+	RemainingTokens   float64
 }
 
 // NewProgressiveRateLimiter creates a new progressive rate limiter
@@ -151,7 +150,7 @@ func (prl *ProgressiveRateLimiter) Allow(ctx context.Context, clientID string) (
 	defer prl.mu.Unlock()
 
 	client := prl.getOrCreateClient(clientID)
-	
+
 	// Update penalty status
 	prl.updatePenalty(client)
 
@@ -218,11 +217,11 @@ func (prl *ProgressiveRateLimiter) GetClientInfo(ctx context.Context, clientID s
 	if !exists {
 		return &ClientInfo{
 			RequestsPerMinute: prl.config.BaseRequestsPerMinute,
-			BurstSize:        prl.config.BaseBurstSize,
+			BurstSize:         prl.config.BaseBurstSize,
 			PenaltyMultiplier: 1.0,
-			UnderPenalty:     false,
-			ViolationCount:   0,
-			RemainingTokens:  float64(prl.config.BaseBurstSize),
+			UnderPenalty:      false,
+			ViolationCount:    0,
+			RemainingTokens:   float64(prl.config.BaseBurstSize),
 		}, nil
 	}
 
@@ -230,11 +229,11 @@ func (prl *ProgressiveRateLimiter) GetClientInfo(ctx context.Context, clientID s
 
 	return &ClientInfo{
 		RequestsPerMinute: int(float64(prl.config.BaseRequestsPerMinute) / client.penaltyMultiplier),
-		BurstSize:        int(float64(prl.config.BaseBurstSize) / client.penaltyMultiplier),
+		BurstSize:         int(float64(prl.config.BaseBurstSize) / client.penaltyMultiplier),
 		PenaltyMultiplier: client.penaltyMultiplier,
-		UnderPenalty:     client.penaltyMultiplier > 1.0,
-		ViolationCount:   len(client.violations),
-		RemainingTokens:  client.bucket.tokens,
+		UnderPenalty:      client.penaltyMultiplier > 1.0,
+		ViolationCount:    len(client.violations),
+		RemainingTokens:   client.bucket.tokens,
 	}, nil
 }
 
@@ -248,7 +247,7 @@ func (prl *ProgressiveRateLimiter) getOrCreateClient(clientID string) *progressi
 				maxTokens:  float64(prl.config.BaseBurstSize),
 				refillRate: float64(prl.config.BaseRequestsPerMinute) / 60.0,
 			},
-			violations:       make([]time.Time, 0),
+			violations:        make([]time.Time, 0),
 			penaltyMultiplier: 1.0,
 		}
 		prl.clients[clientID] = client
@@ -258,7 +257,7 @@ func (prl *ProgressiveRateLimiter) getOrCreateClient(clientID string) *progressi
 
 func (prl *ProgressiveRateLimiter) updatePenalty(client *progressiveClient) {
 	now := time.Now()
-	
+
 	// Check if penalty has expired
 	if now.After(client.penaltyExpiry) {
 		client.penaltyMultiplier = 1.0
@@ -300,9 +299,9 @@ type BruteForceProtector struct {
 }
 
 type bruteForceClient struct {
-	attempts      []time.Time
-	lockedUntil   time.Time
-	successfulAt  time.Time
+	attempts     []time.Time
+	lockedUntil  time.Time
+	successfulAt time.Time
 }
 
 // NewBruteForceProtector creates a new brute force protector
@@ -405,7 +404,7 @@ func (bfp *BruteForceProtector) cleanup() {
 		now := time.Now()
 		for clientID, client := range bfp.clients {
 			// Remove clients with no recent activity
-			if len(client.attempts) == 0 && 
+			if len(client.attempts) == 0 &&
 				now.Sub(client.successfulAt) > 2*bfp.config.CleanupInterval &&
 				now.After(client.lockedUntil) {
 				delete(bfp.clients, clientID)
@@ -418,10 +417,10 @@ func (bfp *BruteForceProtector) cleanup() {
 // DDoSConfig holds configuration for DDoS protection
 type DDoSConfig struct {
 	RequestsPerSecond   int
-	BurstSize          int
+	BurstSize           int
 	SuspiciousThreshold int
-	BlockDuration      time.Duration
-	CleanupInterval    time.Duration
+	BlockDuration       time.Duration
+	CleanupInterval     time.Duration
 }
 
 // DDoSProtector protects against DDoS attacks
@@ -441,10 +440,10 @@ type ddosClient struct {
 
 // DDoSClientInfo provides information about a client's DDoS status
 type DDoSClientInfo struct {
-	RequestCount  int
-	IsSuspicious  bool
-	IsBlocked     bool
-	BlockedUntil  time.Time
+	RequestCount int
+	IsSuspicious bool
+	IsBlocked    bool
+	BlockedUntil time.Time
 }
 
 // NewDDoSProtector creates a new DDoS protector
@@ -473,7 +472,7 @@ func (ddp *DDoSProtector) CheckRequest(ctx context.Context, clientID string) (bo
 
 	// Update request count
 	client.requestCount++
-	
+
 	// Check if client is suspicious
 	if client.requestCount > ddp.config.SuspiciousThreshold {
 		client.suspicious = true
@@ -571,7 +570,7 @@ type IntrusionDetector struct {
 }
 
 type intrusionClient struct {
-	violations  []time.Time
+	violations   []time.Time
 	blockedUntil time.Time
 }
 
@@ -628,10 +627,10 @@ func (id *IntrusionDetector) AnalyzeRequest(ctx context.Context, clientID, input
 	// Record violation if malicious
 	if isMalicious {
 		client.violations = append(client.violations, now)
-		
+
 		// Clean old violations
 		id.cleanOldViolations(client, now)
-		
+
 		// Check if should be blocked
 		if len(client.violations) >= id.config.MaxViolationsPerHour {
 			client.blockedUntil = now.Add(id.config.BlockDuration)

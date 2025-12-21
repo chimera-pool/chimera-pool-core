@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"chimera-pool-core/internal/database"
+	"github.com/chimera-pool/chimera-pool-core/internal/database"
 )
 
 // MockMiner represents a simulated miner for testing
@@ -56,7 +56,7 @@ func (m *MockMiner) Connect(address string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
-	
+
 	m.conn = conn
 	m.stats.ConnectedAt = time.Now()
 	return nil
@@ -76,13 +76,13 @@ func (m *MockMiner) Subscribe() error {
 	if m.conn == nil {
 		return fmt.Errorf("not connected")
 	}
-	
+
 	message := fmt.Sprintf(`{"id": 1, "method": "mining.subscribe", "params": ["MockMiner/1.0", null]}%c`, '\n')
 	_, err := m.conn.Write([]byte(message))
 	if err != nil {
 		return fmt.Errorf("failed to send subscribe: %w", err)
 	}
-	
+
 	// Read response (simplified)
 	buffer := make([]byte, 1024)
 	_, err = m.conn.Read(buffer)
@@ -94,13 +94,13 @@ func (m *MockMiner) Authorize(username, password string) error {
 	if m.conn == nil {
 		return fmt.Errorf("not connected")
 	}
-	
+
 	message := fmt.Sprintf(`{"id": 2, "method": "mining.authorize", "params": ["%s", "%s"]}%c`, username, password, '\n')
 	_, err := m.conn.Write([]byte(message))
 	if err != nil {
 		return fmt.Errorf("failed to send authorize: %w", err)
 	}
-	
+
 	// Read response (simplified)
 	buffer := make([]byte, 1024)
 	_, err = m.conn.Read(buffer)
@@ -112,10 +112,10 @@ func (m *MockMiner) StartMining(ctx context.Context, hashrate uint64) error {
 	if m.conn == nil {
 		return fmt.Errorf("not connected")
 	}
-	
+
 	m.mining = true
 	m.hashrate = hashrate
-	
+
 	go m.miningLoop(ctx)
 	return nil
 }
@@ -124,7 +124,7 @@ func (m *MockMiner) StartMining(ctx context.Context, hashrate uint64) error {
 func (m *MockMiner) miningLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -133,7 +133,7 @@ func (m *MockMiner) miningLoop(ctx context.Context) {
 			if !m.mining {
 				return
 			}
-			
+
 			// Simulate share submission based on hashrate
 			if m.hashrate > 0 {
 				// Submit a share every few seconds based on hashrate
@@ -150,12 +150,12 @@ func (m *MockMiner) submitShare() {
 	if m.conn == nil {
 		return
 	}
-	
+
 	// Generate mock share data
 	nonce := time.Now().UnixNano()
 	message := fmt.Sprintf(`{"id": %d, "method": "mining.submit", "params": ["%s", "job_123", "%x", "%x", "%x"]}%c`,
 		nonce%1000, m.ID, nonce, time.Now().Unix(), nonce*2, '\n')
-	
+
 	_, err := m.conn.Write([]byte(message))
 	if err == nil {
 		m.stats.SharesSubmitted++
@@ -193,11 +193,11 @@ func (c *APIClient) Get(path string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
-	
+
 	return c.client.Do(req)
 }
 
@@ -207,17 +207,17 @@ func (c *APIClient) PostJSON(path string, data interface{}) (*http.Response, err
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req, err := http.NewRequest("POST", c.baseURL+path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
-	
+
 	return c.client.Do(req)
 }
 
@@ -257,13 +257,13 @@ func SetupTestDatabase(ctx context.Context) (*database.Database, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
 	}
-	
+
 	// Run migrations
 	err = db.Migrate(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
-	
+
 	return db, nil
 }
 
@@ -274,23 +274,23 @@ func GenerateTOTP(secret string) string {
 	if err != nil {
 		return "000000"
 	}
-	
+
 	// Get current time step
 	timeStep := time.Now().Unix() / 30
-	
+
 	// Convert to bytes
 	timeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(timeBytes, uint64(timeStep))
-	
+
 	// Generate HMAC
 	h := hmac.New(sha1.New, key)
 	h.Write(timeBytes)
 	hash := h.Sum(nil)
-	
+
 	// Extract dynamic binary code
 	offset := hash[len(hash)-1] & 0x0F
 	code := binary.BigEndian.Uint32(hash[offset:offset+4]) & 0x7FFFFFFF
-	
+
 	// Generate 6-digit code
 	return fmt.Sprintf("%06d", code%1000000)
 }
@@ -307,7 +307,7 @@ type MemoryStats struct {
 func GetMemoryStats() MemoryStats {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	return MemoryStats{
 		AllocMB:      int64(m.Alloc / 1024 / 1024),
 		TotalAllocMB: int64(m.TotalAlloc / 1024 / 1024),
@@ -331,7 +331,7 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 // WaitForService waits for a service to become available
 func WaitForService(address string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", address, time.Second)
 		if err == nil {
@@ -340,7 +340,7 @@ func WaitForService(address string, timeout time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	
+
 	return fmt.Errorf("service at %s did not become available within %v", address, timeout)
 }
 
@@ -352,14 +352,14 @@ func CreateTestData(ctx context.Context, db *database.Database) error {
 		{Username: "testuser2", Email: "test2@example.com", Password: "TestPassword123!"},
 		{Username: "testuser3", Email: "test3@example.com", Password: "TestPassword123!"},
 	}
-	
+
 	for _, user := range testUsers {
 		err := db.CreateUser(ctx, &user)
 		if err != nil {
 			return fmt.Errorf("failed to create test user %s: %w", user.Username, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -375,13 +375,13 @@ func CleanupTestData(ctx context.Context, db *database.Database) error {
 		"user_sessions",
 		"users",
 	}
-	
+
 	for _, table := range tables {
 		_, err := db.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE created_at > NOW() - INTERVAL '1 hour'", table))
 		if err != nil {
 			return fmt.Errorf("failed to cleanup table %s: %w", table, err)
 		}
 	}
-	
+
 	return nil
 }

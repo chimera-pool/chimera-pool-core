@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -143,7 +142,7 @@ func (s *MFAService) ValidateTOTP(secret, code string) bool {
 // GenerateTOTPCode generates a TOTP code for a given secret and time
 func (s *MFAService) GenerateTOTPCode(secret string, t time.Time) string {
 	config := DefaultTOTPConfig()
-	
+
 	// Decode base32 secret
 	secretBytes, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(secret)
 	if err != nil {

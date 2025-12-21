@@ -16,6 +16,18 @@ type Share struct {
 	Timestamp  time.Time `json:"timestamp" db:"timestamp"`
 }
 
+// Block represents a found block for payout processing
+type Block struct {
+	ID         int64     `json:"id" db:"id"`
+	Height     int64     `json:"height" db:"height"`
+	Hash       string    `json:"hash" db:"hash"`
+	Reward     int64     `json:"reward" db:"reward"`
+	Difficulty float64   `json:"difficulty" db:"difficulty"`
+	FinderID   int64     `json:"finder_id" db:"finder_id"`
+	Status     string    `json:"status" db:"status"`
+	Timestamp  time.Time `json:"timestamp" db:"timestamp"`
+}
+
 // Payout represents a calculated payout for a user
 type Payout struct {
 	UserID    int64     `json:"user_id" db:"user_id"`
@@ -35,11 +47,11 @@ func NewPPLNSCalculator(windowSize int64, poolFeePercent float64) (*PPLNSCalcula
 	if windowSize <= 0 {
 		return nil, fmt.Errorf("window size must be positive, got %d", windowSize)
 	}
-	
+
 	if poolFeePercent < 0 || poolFeePercent > 100 {
 		return nil, fmt.Errorf("pool fee percent must be between 0 and 100, got %.2f", poolFeePercent)
 	}
-	
+
 	return &PPLNSCalculator{
 		windowSize:     windowSize,
 		poolFeePercent: poolFeePercent,
@@ -51,11 +63,11 @@ func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64,
 	if blockReward <= 0 {
 		return []Payout{}, nil
 	}
-	
+
 	if len(shares) == 0 {
 		return []Payout{}, nil
 	}
-	
+
 	// Filter valid shares and sort by timestamp (newest first)
 	validShares := make([]Share, 0, len(shares))
 	for _, share := range shares {
@@ -63,49 +75,49 @@ func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64,
 			validShares = append(validShares, share)
 		}
 	}
-	
+
 	if len(validShares) == 0 {
 		return []Payout{}, nil
 	}
-	
+
 	// Sort shares by timestamp descending (newest first)
 	sort.Slice(validShares, func(i, j int) bool {
 		return validShares[i].Timestamp.After(validShares[j].Timestamp)
 	})
-	
+
 	// Apply sliding window - collect shares until we reach windowSize difficulty
 	windowShares := calc.applySlidingWindow(validShares)
-	
+
 	if len(windowShares) == 0 {
 		return []Payout{}, nil
 	}
-	
+
 	// Calculate total difficulty in window
 	totalDifficulty := float64(0)
 	for _, share := range windowShares {
 		totalDifficulty += share.Difficulty
 	}
-	
+
 	if totalDifficulty == 0 {
 		return []Payout{}, nil
 	}
-	
+
 	// Calculate net reward after pool fee
 	poolFee := int64(float64(blockReward) * calc.poolFeePercent / 100.0)
 	netReward := blockReward - poolFee
-	
+
 	// Aggregate difficulty by user
 	userDifficulties := make(map[int64]float64)
 	for _, share := range windowShares {
 		userDifficulties[share.UserID] += share.Difficulty
 	}
-	
+
 	// Calculate payouts proportionally
 	payouts := make([]Payout, 0, len(userDifficulties))
 	for userID, userDifficulty := range userDifficulties {
 		proportion := userDifficulty / totalDifficulty
 		amount := int64(float64(netReward) * proportion)
-		
+
 		if amount > 0 {
 			payouts = append(payouts, Payout{
 				UserID:    userID,
@@ -114,7 +126,7 @@ func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64,
 			})
 		}
 	}
-	
+
 	return payouts, nil
 }
 
@@ -122,14 +134,14 @@ func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64,
 func (calc *PPLNSCalculator) applySlidingWindow(sortedShares []Share) []Share {
 	windowShares := make([]Share, 0, len(sortedShares))
 	accumulatedDifficulty := float64(0)
-	
+
 	for _, share := range sortedShares {
 		remainingWindow := float64(calc.windowSize) - accumulatedDifficulty
-		
+
 		if remainingWindow <= 0 {
 			break // Window is full
 		}
-		
+
 		if share.Difficulty <= remainingWindow {
 			// Share fits completely in window
 			windowShares = append(windowShares, share)
@@ -143,7 +155,7 @@ func (calc *PPLNSCalculator) applySlidingWindow(sortedShares []Share) []Share {
 			break // Window is now full
 		}
 	}
-	
+
 	return windowShares
 }
 
@@ -162,10 +174,10 @@ func (calc *PPLNSCalculator) ValidateConfiguration() error {
 	if calc.windowSize <= 0 {
 		return fmt.Errorf("invalid window size: %d", calc.windowSize)
 	}
-	
+
 	if calc.poolFeePercent < 0 || calc.poolFeePercent > 100 {
 		return fmt.Errorf("invalid pool fee percent: %.2f", calc.poolFeePercent)
 	}
-	
+
 	return nil
 }

@@ -46,13 +46,13 @@ func (s *PayoutService) ProcessBlockPayout(ctx context.Context, blockID int64) e
 	}
 
 	// Get shares for payout calculation
-	shares, err := s.db.GetSharesForPayout(ctx, block.Created, s.calculator.GetWindowSize())
+	shares, err := s.db.GetSharesForPayout(ctx, block.Timestamp, s.calculator.GetWindowSize())
 	if err != nil {
 		return fmt.Errorf("failed to get shares: %w", err)
 	}
 
 	// Calculate payouts using PPLNS
-	payouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Created)
+	payouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Timestamp)
 	if err != nil {
 		return fmt.Errorf("failed to calculate payouts: %w", err)
 	}
@@ -122,7 +122,7 @@ func (s *PayoutService) GetPayoutStatistics(ctx context.Context, userID int64, s
 		if payout.Timestamp.After(since) {
 			stats.TotalPayout += payout.Amount
 			stats.PayoutCount++
-			
+
 			if stats.LastPayout.IsZero() || payout.Timestamp.After(stats.LastPayout) {
 				stats.LastPayout = payout.Timestamp
 			}
@@ -145,13 +145,13 @@ func (s *PayoutService) ValidatePayoutFairness(ctx context.Context, blockID int6
 	}
 
 	// Get shares used for this block's payout
-	shares, err := s.db.GetSharesForPayout(ctx, block.Created, s.calculator.GetWindowSize())
+	shares, err := s.db.GetSharesForPayout(ctx, block.Timestamp, s.calculator.GetWindowSize())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shares: %w", err)
 	}
 
 	// Recalculate payouts
-	expectedPayouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Created)
+	expectedPayouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recalculate payouts: %w", err)
 	}
@@ -235,12 +235,12 @@ func (s *PayoutService) ValidatePayoutFairness(ctx context.Context, blockID int6
 
 // PayoutStatistics represents payout statistics for a user
 type PayoutStatistics struct {
-	UserID         int64     `json:"user_id"`
-	TotalPayout    int64     `json:"total_payout"`
-	PayoutCount    int       `json:"payout_count"`
-	AveragePayout  int64     `json:"average_payout"`
-	LastPayout     time.Time `json:"last_payout"`
-	Since          time.Time `json:"since"`
+	UserID        int64     `json:"user_id"`
+	TotalPayout   int64     `json:"total_payout"`
+	PayoutCount   int       `json:"payout_count"`
+	AveragePayout int64     `json:"average_payout"`
+	LastPayout    time.Time `json:"last_payout"`
+	Since         time.Time `json:"since"`
 }
 
 // PayoutValidation represents the result of payout fairness validation
