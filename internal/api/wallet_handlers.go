@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"chimera-pool/internal/payouts"
+	"github.com/chimera-pool/chimera-pool-core/internal/payouts"
 
 	"github.com/gin-gonic/gin"
 )

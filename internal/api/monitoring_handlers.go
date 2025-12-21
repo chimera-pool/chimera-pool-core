@@ -2,12 +2,11 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/chimera-pool/chimera-pool-core/internal/monitoring"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"chimera-pool-core/internal/monitoring"
 )
 
 // MonitoringHandlers handles monitoring-related API endpoints
@@ -24,10 +23,10 @@ func NewMonitoringHandlers(service *monitoring.Service) *MonitoringHandlers {
 
 // RecordMetricRequest represents the request to record a metric
 type RecordMetricRequest struct {
-	Name      string            `json:"name" binding:"required"`
-	Value     float64           `json:"value" binding:"required"`
-	Labels    map[string]string `json:"labels"`
-	Type      string            `json:"type" binding:"required"`
+	Name   string            `json:"name" binding:"required"`
+	Value  float64           `json:"value" binding:"required"`
+	Labels map[string]string `json:"labels"`
+	Type   string            `json:"type" binding:"required"`
 }
 
 // RecordMetric records a new metric
@@ -35,12 +34,12 @@ func (h *MonitoringHandlers) RecordMetric(c *gin.Context) {
 	var req RecordMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	metric := &monitoring.Metric{
 		Name:      req.Name,
 		Value:     req.Value,
@@ -48,19 +47,19 @@ func (h *MonitoringHandlers) RecordMetric(c *gin.Context) {
 		Timestamp: time.Now(),
 		Type:      req.Type,
 	}
-	
+
 	err := h.service.RecordMetric(c.Request.Context(), metric)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to record metric",
+			"error":   "Failed to record metric",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Metric recorded successfully",
-		"metric": metric,
+		"metric":  metric,
 	})
 }
 
@@ -73,43 +72,43 @@ func (h *MonitoringHandlers) GetMetrics(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	startStr := c.DefaultQuery("start", time.Now().Add(-24*time.Hour).Format(time.RFC3339))
 	endStr := c.DefaultQuery("end", time.Now().Format(time.RFC3339))
-	
+
 	start, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid start time format",
+			"error":   "Invalid start time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	end, err := time.Parse(time.RFC3339, endStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid end time format",
+			"error":   "Invalid end time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	metrics, err := h.service.GetMetrics(c.Request.Context(), name, start, end)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get metrics",
+			"error":   "Failed to get metrics",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"metrics": metrics,
-		"name": name,
-		"start": start,
-		"end": end,
-		"count": len(metrics),
+		"name":    name,
+		"start":   start,
+		"end":     end,
+		"count":   len(metrics),
 	})
 }
 
@@ -126,23 +125,23 @@ func (h *MonitoringHandlers) CreateAlert(c *gin.Context) {
 	var req CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	alert, err := h.service.CreateAlert(c.Request.Context(), req.Name, req.Description, req.Severity, req.Labels)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create alert",
+			"error":   "Failed to create alert",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
-		"alert": alert,
+		"alert":   alert,
 		"message": "Alert created successfully",
 	})
 }
@@ -157,18 +156,18 @@ func (h *MonitoringHandlers) ResolveAlert(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	err = h.service.ResolveAlert(c.Request.Context(), alertID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to resolve alert",
+			"error":   "Failed to resolve alert",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Alert resolved successfully",
+		"message":  "Alert resolved successfully",
 		"alert_id": alertID,
 	})
 }
@@ -188,23 +187,23 @@ func (h *MonitoringHandlers) CreateAlertRule(c *gin.Context) {
 	var req CreateAlertRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	rule, err := h.service.CreateAlertRule(c.Request.Context(), req.Name, req.Query, req.Condition, req.Threshold, req.Duration, req.Severity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create alert rule",
+			"error":   "Failed to create alert rule",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
-		"rule": rule,
+		"rule":    rule,
 		"message": "Alert rule created successfully",
 	})
 }
@@ -214,15 +213,15 @@ func (h *MonitoringHandlers) EvaluateAlertRules(c *gin.Context) {
 	alerts, err := h.service.EvaluateAlertRules(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to evaluate alert rules",
+			"error":   "Failed to evaluate alert rules",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"alerts": alerts,
-		"count": len(alerts),
+		"alerts":  alerts,
+		"count":   len(alerts),
 		"message": "Alert rules evaluated successfully",
 	})
 }
@@ -240,12 +239,12 @@ func (h *MonitoringHandlers) CreateDashboard(c *gin.Context) {
 	var req CreateDashboardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -254,7 +253,7 @@ func (h *MonitoringHandlers) CreateDashboard(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	createdBy, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -262,19 +261,19 @@ func (h *MonitoringHandlers) CreateDashboard(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	dashboard, err := h.service.CreateDashboard(c.Request.Context(), req.Name, req.Description, req.Config, req.IsPublic, createdBy)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create dashboard",
+			"error":   "Failed to create dashboard",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"dashboard": dashboard,
-		"message": "Dashboard created successfully",
+		"message":   "Dashboard created successfully",
 	})
 }
 
@@ -297,12 +296,12 @@ func (h *MonitoringHandlers) RecordPerformanceMetrics(c *gin.Context) {
 	var req RecordPerformanceMetricsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	metrics := &monitoring.PerformanceMetrics{
 		Timestamp:       time.Now(),
 		CPUUsage:        req.CPUUsage,
@@ -316,16 +315,16 @@ func (h *MonitoringHandlers) RecordPerformanceMetrics(c *gin.Context) {
 		BlocksFound:     req.BlocksFound,
 		Uptime:          req.Uptime,
 	}
-	
+
 	err := h.service.RecordPerformanceMetrics(c.Request.Context(), metrics)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to record performance metrics",
+			"error":   "Failed to record performance metrics",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Performance metrics recorded successfully",
 		"metrics": metrics,
@@ -349,12 +348,12 @@ func (h *MonitoringHandlers) RecordMinerMetrics(c *gin.Context) {
 	var req RecordMinerMetricsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	metrics := &monitoring.MinerMetrics{
 		MinerID:         req.MinerID,
 		Timestamp:       time.Now(),
@@ -367,16 +366,16 @@ func (h *MonitoringHandlers) RecordMinerMetrics(c *gin.Context) {
 		Difficulty:      req.Difficulty,
 		Earnings:        req.Earnings,
 	}
-	
+
 	err := h.service.RecordMinerMetrics(c.Request.Context(), metrics)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to record miner metrics",
+			"error":   "Failed to record miner metrics",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Miner metrics recorded successfully",
 		"metrics": metrics,
@@ -387,31 +386,31 @@ func (h *MonitoringHandlers) RecordMinerMetrics(c *gin.Context) {
 func (h *MonitoringHandlers) GetPerformanceMetrics(c *gin.Context) {
 	startStr := c.DefaultQuery("start", time.Now().Add(-24*time.Hour).Format(time.RFC3339))
 	endStr := c.DefaultQuery("end", time.Now().Format(time.RFC3339))
-	
+
 	start, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid start time format",
+			"error":   "Invalid start time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	end, err := time.Parse(time.RFC3339, endStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid end time format",
+			"error":   "Invalid end time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// This would typically call a repository method to get performance metrics
 	// For now, we'll return a placeholder response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Performance metrics retrieved successfully",
-		"start": start,
-		"end": end,
+		"start":   start,
+		"end":     end,
 		"metrics": []interface{}{}, // Placeholder
 	})
 }
@@ -426,35 +425,35 @@ func (h *MonitoringHandlers) GetMinerMetrics(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	startStr := c.DefaultQuery("start", time.Now().Add(-24*time.Hour).Format(time.RFC3339))
 	endStr := c.DefaultQuery("end", time.Now().Format(time.RFC3339))
-	
+
 	start, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid start time format",
+			"error":   "Invalid start time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	end, err := time.Parse(time.RFC3339, endStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid end time format",
+			"error":   "Invalid end time format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// This would typically call a repository method to get miner metrics
 	// For now, we'll return a placeholder response
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Miner metrics retrieved successfully",
+		"message":  "Miner metrics retrieved successfully",
 		"miner_id": minerID,
-		"start": start,
-		"end": end,
-		"metrics": []interface{}{}, // Placeholder
+		"start":    start,
+		"end":      end,
+		"metrics":  []interface{}{}, // Placeholder
 	})
 }

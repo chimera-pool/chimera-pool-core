@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chimera-pool/chimera-pool-core/internal/community"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"chimera-pool-core/internal/community"
 )
 
 // CommunityHandlers handles community-related API endpoints
@@ -33,12 +33,12 @@ func (h *CommunityHandlers) CreateTeam(c *gin.Context) {
 	var req CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -47,7 +47,7 @@ func (h *CommunityHandlers) CreateTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	ownerID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -55,18 +55,18 @@ func (h *CommunityHandlers) CreateTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	team, err := h.service.CreateTeam(c.Request.Context(), req.Name, req.Description, ownerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create team",
+			"error":   "Failed to create team",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
-		"team": team,
+		"team":    team,
 		"message": "Team created successfully",
 	})
 }
@@ -81,7 +81,7 @@ func (h *CommunityHandlers) JoinTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -90,7 +90,7 @@ func (h *CommunityHandlers) JoinTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	memberID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -98,16 +98,16 @@ func (h *CommunityHandlers) JoinTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	err = h.service.JoinTeam(c.Request.Context(), teamID, memberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to join team",
+			"error":   "Failed to join team",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully joined team",
 	})
@@ -123,7 +123,7 @@ func (h *CommunityHandlers) LeaveTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -132,7 +132,7 @@ func (h *CommunityHandlers) LeaveTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	memberID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -140,16 +140,16 @@ func (h *CommunityHandlers) LeaveTeam(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	err = h.service.LeaveTeam(c.Request.Context(), teamID, memberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to leave team",
+			"error":   "Failed to leave team",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully left team",
 	})
@@ -165,7 +165,7 @@ func (h *CommunityHandlers) CreateReferral(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	referrerID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -173,19 +173,19 @@ func (h *CommunityHandlers) CreateReferral(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	referral, err := h.service.CreateReferral(c.Request.Context(), referrerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create referral",
+			"error":   "Failed to create referral",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"referral": referral,
-		"message": "Referral code created successfully",
+		"message":  "Referral code created successfully",
 	})
 }
 
@@ -199,12 +199,12 @@ func (h *CommunityHandlers) ProcessReferral(c *gin.Context) {
 	var req ProcessReferralRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -213,7 +213,7 @@ func (h *CommunityHandlers) ProcessReferral(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	referredID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -221,16 +221,16 @@ func (h *CommunityHandlers) ProcessReferral(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	err := h.service.ProcessReferral(c.Request.Context(), req.ReferralCode, referredID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to process referral",
+			"error":   "Failed to process referral",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Referral processed successfully",
 	})
@@ -250,24 +250,24 @@ func (h *CommunityHandlers) CreateCompetition(c *gin.Context) {
 	var req CreateCompetitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	competition, err := h.service.CreateCompetition(c.Request.Context(), req.Name, req.Description, req.StartTime, req.EndTime, req.PrizePool)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create competition",
+			"error":   "Failed to create competition",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"competition": competition,
-		"message": "Competition created successfully",
+		"message":     "Competition created successfully",
 	})
 }
 
@@ -281,7 +281,7 @@ func (h *CommunityHandlers) JoinCompetition(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -290,7 +290,7 @@ func (h *CommunityHandlers) JoinCompetition(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	participantID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -298,7 +298,7 @@ func (h *CommunityHandlers) JoinCompetition(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Optional team ID from query parameter
 	var teamID *uuid.UUID
 	if teamIDStr := c.Query("team_id"); teamIDStr != "" {
@@ -306,16 +306,16 @@ func (h *CommunityHandlers) JoinCompetition(c *gin.Context) {
 			teamID = &parsedTeamID
 		}
 	}
-	
+
 	err = h.service.JoinCompetition(c.Request.Context(), competitionID, participantID, teamID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to join competition",
+			"error":   "Failed to join competition",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Successfully joined competition",
 	})
@@ -333,12 +333,12 @@ func (h *CommunityHandlers) RecordSocialShare(c *gin.Context) {
 	var req RecordSocialShareRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -347,7 +347,7 @@ func (h *CommunityHandlers) RecordSocialShare(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	sharerID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -355,18 +355,18 @@ func (h *CommunityHandlers) RecordSocialShare(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	share, err := h.service.RecordSocialShare(c.Request.Context(), sharerID, req.Platform, req.Content, req.Milestone)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to record social share",
+			"error":   "Failed to record social share",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
-		"share": share,
+		"share":   share,
 		"message": "Social share recorded successfully",
 	})
 }
@@ -381,7 +381,7 @@ func (h *CommunityHandlers) GetTeamStatistics(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	period := c.DefaultQuery("period", "daily")
 	daysStr := c.DefaultQuery("days", "30")
 	days, err := strconv.Atoi(daysStr)
@@ -391,20 +391,20 @@ func (h *CommunityHandlers) GetTeamStatistics(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	stats, err := h.service.GetTeamStatistics(c.Request.Context(), teamID, period, days)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get team statistics",
+			"error":   "Failed to get team statistics",
 			"details": err.Error(),
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"statistics": stats,
-		"team_id": teamID,
-		"period": period,
-		"days": days,
+		"team_id":    teamID,
+		"period":     period,
+		"days":       days,
 	})
 }

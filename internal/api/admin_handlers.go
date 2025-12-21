@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"chimera-pool-core/internal/auth"
-	"chimera-pool-core/internal/community"
+	"github.com/chimera-pool/chimera-pool-core/internal/auth"
+	"github.com/chimera-pool/chimera-pool-core/internal/community"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
