@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+
+// Error Boundary for graceful error handling
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
+
+// Utility formatters
+import { formatHashrate } from './utils/formatters';
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
