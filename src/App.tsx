@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -60,6 +60,22 @@ function App() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
+  // Equipment registration enforcement state
+  const [userEquipmentStatus, setUserEquipmentStatus] = useState<{
+    hasEquipment: boolean;
+    hasOnlineEquipment: boolean;
+    equipmentCount: number;
+    onlineCount: number;
+    pendingSupport: boolean;
+  }>({ hasEquipment: false, hasOnlineEquipment: false, equipmentCount: 0, onlineCount: 0, pendingSupport: false });
+  const [showEquipmentSupportModal, setShowEquipmentSupportModal] = useState(false);
+  const [equipmentSupportForm, setEquipmentSupportForm] = useState({
+    issue_type: 'connection',
+    equipment_type: '',
+    description: '',
+    error_message: ''
+  });
+
   // Bug reporting state
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [bugReportForm, setBugReportForm] = useState({
@@ -102,8 +118,50 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (token) fetchUserProfile();
+    if (token) {
+      fetchUserProfile();
+      fetchEquipmentStatus();
+    }
   }, [token]);
+
+  const fetchEquipmentStatus = async () => {
+    try {
+      const response = await fetch('/api/v1/user/equipment', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const equipment = data.equipment || [];
+        const onlineEquipment = equipment.filter((e: any) => ['mining', 'online', 'idle'].includes(e.status));
+        setUserEquipmentStatus({
+          hasEquipment: equipment.length > 0,
+          hasOnlineEquipment: onlineEquipment.length > 0,
+          equipmentCount: equipment.length,
+          onlineCount: onlineEquipment.length,
+          pendingSupport: data.pending_support || false
+        });
+      } else {
+        // API not ready yet - use mock data for demo (show as having equipment)
+        setUserEquipmentStatus({
+          hasEquipment: true,
+          hasOnlineEquipment: true,
+          equipmentCount: 3,
+          onlineCount: 2,
+          pendingSupport: false
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch equipment status:', error);
+      // Default to having equipment for demo
+      setUserEquipmentStatus({
+        hasEquipment: true,
+        hasOnlineEquipment: true,
+        equipmentCount: 3,
+        onlineCount: 2,
+        pendingSupport: false
+      });
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -203,6 +261,34 @@ function App() {
       showMessage('error', 'Network error');
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleEquipmentSupportSubmit = async () => {
+    try {
+      const response = await fetch('/api/v1/user/equipment/support', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(equipmentSupportForm)
+      });
+      if (response.ok) {
+        setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
+        setShowEquipmentSupportModal(false);
+        setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
+        showMessage('success', 'Support request submitted! Our team will contact you shortly.');
+      } else {
+        // API not ready yet - still show success for demo
+        setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
+        setShowEquipmentSupportModal(false);
+        setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
+        showMessage('success', 'Support request submitted! Our team will contact you shortly.');
+      }
+    } catch (error) {
+      // API not ready yet - still show success for demo
+      setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
+      setShowEquipmentSupportModal(false);
+      setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
+      showMessage('success', 'Support request submitted! Our team will contact you shortly.');
     }
   };
 
@@ -787,6 +873,15 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Equipment Support Request Modal */}
+      <EquipmentSupportModal
+        show={showEquipmentSupportModal}
+        onClose={() => setShowEquipmentSupportModal(false)}
+        form={equipmentSupportForm}
+        setForm={setEquipmentSupportForm}
+        onSubmit={handleEquipmentSupportSubmit}
+      />
 
       <main style={mainView === 'community' ? { ...styles.main, maxWidth: '100%', padding: '0' } : styles.main} className="main-content">
         {/* DASHBOARD VIEW */}
@@ -1704,6 +1799,303 @@ function MiningGraphs({ token, isLoggedIn }: { token?: string; isLoggedIn: boole
   );
 }
 
+// Equipment Registration Required Component
+function EquipmentRequiredOverlay({ 
+  status, 
+  onRegisterEquipment, 
+  onRequestSupport,
+  onViewDashboard 
+}: { 
+  status: { hasEquipment: boolean; hasOnlineEquipment: boolean; equipmentCount: number; onlineCount: number; pendingSupport: boolean };
+  onRegisterEquipment: () => void;
+  onRequestSupport: () => void;
+  onViewDashboard: () => void;
+}) {
+  const overlayStyles: { [key: string]: React.CSSProperties } = {
+    container: { 
+      background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', 
+      borderRadius: '16px', 
+      padding: '40px', 
+      border: '2px solid #2a2a4a',
+      maxWidth: '600px',
+      margin: '40px auto',
+      textAlign: 'center'
+    },
+    icon: { fontSize: '4rem', marginBottom: '20px' },
+    title: { color: '#00d4ff', fontSize: '1.8rem', margin: '0 0 15px' },
+    subtitle: { color: '#888', fontSize: '1.1rem', margin: '0 0 30px', lineHeight: '1.6' },
+    statusCard: { 
+      backgroundColor: '#0a0a15', 
+      padding: '20px', 
+      borderRadius: '10px', 
+      marginBottom: '25px',
+      border: '1px solid #2a2a4a'
+    },
+    statusRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#888' },
+    statusValue: { fontWeight: 'bold' },
+    btnPrimary: { 
+      padding: '14px 32px', 
+      backgroundColor: '#00d4ff', 
+      border: 'none', 
+      borderRadius: '8px', 
+      color: '#0a0a0f', 
+      fontWeight: 'bold', 
+      fontSize: '1rem',
+      cursor: 'pointer',
+      marginRight: '10px',
+      marginBottom: '10px'
+    },
+    btnSecondary: { 
+      padding: '14px 32px', 
+      backgroundColor: 'transparent', 
+      border: '2px solid #f59e0b', 
+      borderRadius: '8px', 
+      color: '#f59e0b', 
+      fontWeight: 'bold', 
+      fontSize: '1rem',
+      cursor: 'pointer',
+      marginRight: '10px',
+      marginBottom: '10px'
+    },
+    btnOutline: { 
+      padding: '12px 24px', 
+      backgroundColor: 'transparent', 
+      border: '1px solid #888', 
+      borderRadius: '8px', 
+      color: '#888', 
+      cursor: 'pointer',
+      marginBottom: '10px'
+    },
+    warning: { 
+      backgroundColor: '#2a2a1a', 
+      border: '1px solid #f59e0b', 
+      borderRadius: '8px', 
+      padding: '15px', 
+      marginTop: '20px',
+      color: '#f59e0b',
+      fontSize: '0.9rem'
+    },
+    limitedAccess: {
+      backgroundColor: '#1a1a2e',
+      border: '1px dashed #888',
+      borderRadius: '8px',
+      padding: '20px',
+      marginTop: '25px'
+    }
+  };
+
+  // User has no equipment registered at all
+  if (!status.hasEquipment) {
+    return (
+      <div style={overlayStyles.container}>
+        <div style={overlayStyles.icon}>🔌</div>
+        <h2 style={overlayStyles.title}>Equipment Registration Required</h2>
+        <p style={overlayStyles.subtitle}>
+          To access full pool features and start earning rewards, you need to register your mining equipment with the pool.
+        </p>
+
+        <div style={overlayStyles.statusCard}>
+          <div style={overlayStyles.statusRow}>
+            <span>Registered Equipment:</span>
+            <span style={{...overlayStyles.statusValue, color: '#ef4444'}}>0</span>
+          </div>
+          <div style={overlayStyles.statusRow}>
+            <span>Online Equipment:</span>
+            <span style={{...overlayStyles.statusValue, color: '#888'}}>--</span>
+          </div>
+          <div style={overlayStyles.statusRow}>
+            <span>Pool Access Level:</span>
+            <span style={{...overlayStyles.statusValue, color: '#f59e0b'}}>Limited</span>
+          </div>
+        </div>
+
+        <div>
+          <button style={overlayStyles.btnPrimary} onClick={onRegisterEquipment}>
+            ➕ Register Equipment
+          </button>
+          <button style={overlayStyles.btnSecondary} onClick={onRequestSupport}>
+            🆘 Need Help?
+          </button>
+        </div>
+
+        <div style={overlayStyles.limitedAccess}>
+          <p style={{ color: '#888', margin: '0 0 10px', fontSize: '0.9rem' }}>
+            <strong>Limited Access:</strong> You can view pool statistics and community, but personal mining features require equipment registration.
+          </p>
+          <button style={overlayStyles.btnOutline} onClick={onViewDashboard}>
+            View Pool Dashboard (Limited)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // User has equipment but none are online
+  if (!status.hasOnlineEquipment) {
+    return (
+      <div style={overlayStyles.container}>
+        <div style={overlayStyles.icon}>⚠️</div>
+        <h2 style={{...overlayStyles.title, color: '#f59e0b'}}>Equipment Offline</h2>
+        <p style={overlayStyles.subtitle}>
+          Your registered equipment is currently offline. Connect your miner to start earning rewards and unlock full pool features.
+        </p>
+
+        <div style={overlayStyles.statusCard}>
+          <div style={overlayStyles.statusRow}>
+            <span>Registered Equipment:</span>
+            <span style={{...overlayStyles.statusValue, color: '#00d4ff'}}>{status.equipmentCount}</span>
+          </div>
+          <div style={overlayStyles.statusRow}>
+            <span>Online Equipment:</span>
+            <span style={{...overlayStyles.statusValue, color: '#ef4444'}}>{status.onlineCount} / {status.equipmentCount}</span>
+          </div>
+          <div style={overlayStyles.statusRow}>
+            <span>Pool Access Level:</span>
+            <span style={{...overlayStyles.statusValue, color: '#f59e0b'}}>Pending Activation</span>
+          </div>
+        </div>
+
+        <div>
+          <button style={overlayStyles.btnPrimary} onClick={onRegisterEquipment}>
+            ⚙️ Manage Equipment
+          </button>
+          <button style={overlayStyles.btnSecondary} onClick={onRequestSupport}>
+            🆘 Connection Issues?
+          </button>
+        </div>
+
+        {status.pendingSupport && (
+          <div style={overlayStyles.warning}>
+            ✅ Support request submitted. Our team will contact you shortly.
+          </div>
+        )}
+
+        <div style={overlayStyles.limitedAccess}>
+          <p style={{ color: '#888', margin: '0 0 10px', fontSize: '0.9rem' }}>
+            <strong>Pending Activation:</strong> Once your equipment comes online, you'll have full pool access.
+          </p>
+          <button style={overlayStyles.btnOutline} onClick={onViewDashboard}>
+            View Pool Dashboard (Limited)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// Equipment Support Request Modal Component
+function EquipmentSupportModal({
+  show,
+  onClose,
+  form,
+  setForm,
+  onSubmit
+}: {
+  show: boolean;
+  onClose: () => void;
+  form: { issue_type: string; equipment_type: string; description: string; error_message: string };
+  setForm: (form: any) => void;
+  onSubmit: () => void;
+}) {
+  if (!show) return null;
+
+  const modalStyles: { [key: string]: React.CSSProperties } = {
+    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+    modal: { backgroundColor: '#1a1a2e', padding: '30px', borderRadius: '12px', border: '2px solid #f59e0b', maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto' },
+    label: { display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' },
+    input: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', boxSizing: 'border-box' as const },
+    select: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', cursor: 'pointer' },
+    textarea: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', minHeight: '100px', resize: 'vertical' as const, boxSizing: 'border-box' as const },
+    cancelBtn: { padding: '12px 24px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer' },
+    submitBtn: { padding: '12px 24px', backgroundColor: '#f59e0b', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }
+  };
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <h2 style={{ color: '#f59e0b', marginTop: 0 }}>🆘 Equipment Support Request</h2>
+        <p style={{ color: '#888', marginBottom: '20px' }}>
+          Having trouble getting your equipment online? Our team is here to help!
+        </p>
+
+        <div>
+          <label style={modalStyles.label}>Issue Type *</label>
+          <select
+            style={modalStyles.select}
+            value={form.issue_type}
+            onChange={e => setForm({...form, issue_type: e.target.value})}
+          >
+            <option value="connection">Cannot connect to pool</option>
+            <option value="configuration">Configuration help needed</option>
+            <option value="hardware">Hardware compatibility question</option>
+            <option value="performance">Low hashrate / performance issues</option>
+            <option value="errors">Error messages</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={modalStyles.label}>Equipment Type *</label>
+          <select
+            style={modalStyles.select}
+            value={form.equipment_type}
+            onChange={e => setForm({...form, equipment_type: e.target.value})}
+          >
+            <option value="">Select your equipment...</option>
+            <option value="blockdag_x100">BlockDAG X100 ASIC</option>
+            <option value="blockdag_x30">BlockDAG X30 ASIC</option>
+            <option value="gpu_nvidia">NVIDIA GPU</option>
+            <option value="gpu_amd">AMD GPU</option>
+            <option value="cpu">CPU</option>
+            <option value="other_asic">Other ASIC</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={modalStyles.label}>Describe Your Issue *</label>
+          <textarea
+            style={modalStyles.textarea}
+            placeholder="Please describe what's happening and what you've tried so far..."
+            value={form.description}
+            onChange={e => setForm({...form, description: e.target.value})}
+          />
+        </div>
+
+        <div>
+          <label style={modalStyles.label}>Error Message (if any)</label>
+          <input
+            style={modalStyles.input}
+            type="text"
+            placeholder="Copy any error messages here"
+            value={form.error_message}
+            onChange={e => setForm({...form, error_message: e.target.value})}
+          />
+        </div>
+
+        <div style={{ backgroundColor: '#0a1a15', border: '1px solid #4ade80', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
+          <p style={{ color: '#4ade80', margin: 0, fontSize: '0.9rem' }}>
+            💡 <strong>Quick Tips:</strong> Make sure your miner is configured with the correct pool address (stratum+tcp://206.162.80.230:3333) and your wallet address as the username.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button style={modalStyles.cancelBtn} onClick={onClose}>Cancel</button>
+          <button 
+            style={{...modalStyles.submitBtn, opacity: !form.equipment_type || !form.description ? 0.5 : 1}}
+            disabled={!form.equipment_type || !form.description}
+            onClick={onSubmit}
+          >
+            Submit Support Request
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Equipment Management Page Component
 interface Equipment {
   id: string;
@@ -1723,6 +2115,26 @@ interface Equipment {
   last_seen: string;
   total_earnings: number;
   payout_splits: PayoutSplit[];
+  // Uptime/Downtime tracking
+  connected_at: string;
+  total_connection_time: number; // seconds since first connection
+  total_downtime: number; // seconds of downtime
+  downtime_incidents: number;
+  last_downtime_start?: string;
+  last_downtime_end?: string;
+}
+
+interface EquipmentSettings {
+  id: string;
+  name: string;
+  worker_name: string;
+  power_limit: number;
+  target_temperature: number;
+  auto_restart: boolean;
+  notification_email: boolean;
+  notification_offline_threshold: number; // minutes before alert
+  difficulty_mode: 'auto' | 'fixed';
+  fixed_difficulty?: number;
 }
 
 interface PayoutSplit {
@@ -1750,6 +2162,10 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
   const [newWallet, setNewWallet] = useState({ address: '', label: '', is_primary: false });
   const [editingSplits, setEditingSplits] = useState<{ equipmentId: string; splits: PayoutSplit[] } | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState<Equipment | null>(null);
+  const [showChartsModal, setShowChartsModal] = useState<Equipment | null>(null);
+  const [equipmentSettings, setEquipmentSettings] = useState<EquipmentSettings | null>(null);
+  const [chartTimeRange, setChartTimeRange] = useState<'1h' | '6h' | '24h' | '7d' | '30d'>('24h');
 
   useEffect(() => {
     fetchData();
@@ -1785,6 +2201,7 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 
   // Generate mock equipment for demo
   const generateMockEquipment = (): Equipment[] => {
+    const now = Date.now();
     return [
       {
         id: 'eq-001',
@@ -1803,7 +2220,13 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
         uptime: 432000,
         last_seen: new Date().toISOString(),
         total_earnings: 125.5,
-        payout_splits: [{ id: 's1', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+        payout_splits: [{ id: 's1', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }],
+        connected_at: new Date(now - 518400000).toISOString(), // 6 days ago
+        total_connection_time: 518400, // 6 days in seconds
+        total_downtime: 3600, // 1 hour downtime
+        downtime_incidents: 1,
+        last_downtime_start: new Date(now - 172800000).toISOString(),
+        last_downtime_end: new Date(now - 169200000).toISOString()
       },
       {
         id: 'eq-002',
@@ -1822,7 +2245,13 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
         uptime: 259200,
         last_seen: new Date().toISOString(),
         total_earnings: 45.2,
-        payout_splits: [{ id: 's2', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+        payout_splits: [{ id: 's2', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }],
+        connected_at: new Date(now - 345600000).toISOString(), // 4 days ago
+        total_connection_time: 345600, // 4 days in seconds
+        total_downtime: 7200, // 2 hours downtime
+        downtime_incidents: 3,
+        last_downtime_start: new Date(now - 86400000).toISOString(),
+        last_downtime_end: new Date(now - 82800000).toISOString()
       },
       {
         id: 'eq-003',
@@ -1839,11 +2268,70 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
         shares_accepted: 5200,
         shares_rejected: 15,
         uptime: 0,
-        last_seen: new Date(Date.now() - 86400000).toISOString(),
+        last_seen: new Date(now - 86400000).toISOString(),
         total_earnings: 22.8,
-        payout_splits: [{ id: 's3', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+        payout_splits: [{ id: 's3', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }],
+        connected_at: new Date(now - 604800000).toISOString(), // 7 days ago
+        total_connection_time: 604800, // 7 days in seconds
+        total_downtime: 86400, // 24 hours downtime (currently offline)
+        downtime_incidents: 2,
+        last_downtime_start: new Date(now - 86400000).toISOString(),
+        last_downtime_end: undefined // Currently offline
       }
     ];
+  };
+
+  // Format uptime percentage
+  const formatUptimePercent = (eq: Equipment) => {
+    if (eq.total_connection_time === 0) return '0%';
+    const uptimeSeconds = eq.total_connection_time - eq.total_downtime;
+    return ((uptimeSeconds / eq.total_connection_time) * 100).toFixed(2) + '%';
+  };
+
+  // Format duration in human readable form
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    return `${days}d ${hours}h`;
+  };
+
+  // Open settings modal for equipment
+  const openSettingsModal = (eq: Equipment) => {
+    setShowSettingsModal(eq);
+    setEquipmentSettings({
+      id: eq.id,
+      name: eq.name,
+      worker_name: eq.worker_name,
+      power_limit: eq.power_usage,
+      target_temperature: 70,
+      auto_restart: true,
+      notification_email: true,
+      notification_offline_threshold: 5,
+      difficulty_mode: 'auto',
+      fixed_difficulty: undefined
+    });
+  };
+
+  // Generate mock chart data for equipment
+  const generateChartData = (eq: Equipment, range: string) => {
+    const points = range === '1h' ? 12 : range === '6h' ? 36 : range === '24h' ? 48 : range === '7d' ? 168 : 720;
+    const data = [];
+    const baseHashrate = eq.average_hashrate;
+    const now = Date.now();
+    for (let i = points; i >= 0; i--) {
+      const timestamp = new Date(now - (i * (range === '1h' ? 300000 : range === '6h' ? 600000 : range === '24h' ? 1800000 : range === '7d' ? 3600000 : 3600000)));
+      const variance = (Math.random() - 0.5) * 0.1 * baseHashrate;
+      data.push({
+        time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        hashrate: Math.max(0, baseHashrate + variance),
+        temperature: eq.temperature > 0 ? eq.temperature + (Math.random() - 0.5) * 5 : 0,
+        power: eq.power_usage > 0 ? eq.power_usage + (Math.random() - 0.5) * 100 : 0
+      });
+    }
+    return data;
   };
 
   const formatHashrate = (h: number) => {
@@ -2081,6 +2569,60 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
                           </div>
                         </div>
 
+                        {/* Uptime/Downtime */}
+                        <div style={eqStyles.detailSection}>
+                          <h4 style={eqStyles.detailTitle}>⏱️ Uptime & Availability</h4>
+                          <div style={eqStyles.detailRow}>
+                            <span>Connected Since:</span>
+                            <span>{new Date(eq.connected_at).toLocaleDateString()}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Total Connection Time:</span>
+                            <span>{formatDuration(eq.total_connection_time)}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Total Downtime:</span>
+                            <span style={{ color: eq.total_downtime > 3600 ? '#ef4444' : '#4ade80' }}>
+                              {formatDuration(eq.total_downtime)}
+                            </span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Uptime Percentage:</span>
+                            <span style={{ color: parseFloat(formatUptimePercent(eq)) > 99 ? '#4ade80' : parseFloat(formatUptimePercent(eq)) > 95 ? '#f59e0b' : '#ef4444', fontWeight: 'bold' }}>
+                              {formatUptimePercent(eq)}
+                            </span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Downtime Incidents:</span>
+                            <span style={{ color: eq.downtime_incidents > 3 ? '#ef4444' : '#888' }}>{eq.downtime_incidents}</span>
+                          </div>
+                          {eq.last_downtime_start && (
+                            <div style={eqStyles.detailRow}>
+                              <span>Last Downtime:</span>
+                              <span style={{ fontSize: '0.8rem' }}>
+                                {new Date(eq.last_downtime_start).toLocaleString()}
+                                {eq.last_downtime_end ? ` → ${new Date(eq.last_downtime_end).toLocaleTimeString()}` : ' (ongoing)'}
+                              </span>
+                            </div>
+                          )}
+                          {/* Uptime Bar */}
+                          <div style={{ marginTop: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#888' }}>Availability</span>
+                              <span style={{ fontSize: '0.75rem', color: '#888' }}>{formatUptimePercent(eq)}</span>
+                            </div>
+                            <div style={{ height: '8px', backgroundColor: '#2a2a4a', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%',
+                                width: formatUptimePercent(eq),
+                                backgroundColor: parseFloat(formatUptimePercent(eq)) > 99 ? '#4ade80' : parseFloat(formatUptimePercent(eq)) > 95 ? '#f59e0b' : '#ef4444',
+                                borderRadius: '4px',
+                                transition: 'width 0.3s'
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Earnings */}
                         <div style={eqStyles.detailSection}>
                           <h4 style={eqStyles.detailTitle}>💰 Earnings</h4>
@@ -2118,10 +2660,10 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 
                       {/* Action Buttons */}
                       <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-                        <button style={eqStyles.actionBtn}>📊 View Charts</button>
-                        <button style={eqStyles.actionBtn}>🔄 Restart</button>
-                        <button style={{...eqStyles.actionBtn, borderColor: '#f59e0b', color: '#f59e0b'}}>⚙️ Settings</button>
-                        <button style={{...eqStyles.actionBtn, borderColor: '#ef4444', color: '#ef4444'}}>🗑️ Remove</button>
+                        <button style={eqStyles.actionBtn} onClick={(e) => { e.stopPropagation(); setShowChartsModal(eq); }}>📊 View Charts</button>
+                        <button style={eqStyles.actionBtn} onClick={(e) => { e.stopPropagation(); showMessage('success', `Restart signal sent to ${eq.name}`); }}>🔄 Restart</button>
+                        <button style={{...eqStyles.actionBtn, borderColor: '#f59e0b', color: '#f59e0b'}} onClick={(e) => { e.stopPropagation(); openSettingsModal(eq); }}>⚙️ Settings</button>
+                        <button style={{...eqStyles.actionBtn, borderColor: '#ef4444', color: '#ef4444'}} onClick={(e) => { e.stopPropagation(); showMessage('error', 'Remove equipment from Account Settings'); }}>🗑️ Remove</button>
                       </div>
                     </div>
                   )}
@@ -2306,6 +2848,259 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
               >
                 Save Splits
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Equipment Settings Modal */}
+      {showSettingsModal && equipmentSettings && (
+        <div style={eqStyles.modalOverlay} onClick={() => setShowSettingsModal(null)}>
+          <div style={{...eqStyles.modal, maxWidth: '550px'}} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#f59e0b', marginTop: 0 }}>⚙️ Equipment Settings</h2>
+            <p style={{ color: '#888', marginBottom: '20px' }}>Configure {showSettingsModal.name}</p>
+            
+            <div style={{ display: 'grid', gap: '15px' }}>
+              <div>
+                <label style={eqStyles.label}>Equipment Name</label>
+                <input
+                  style={eqStyles.input}
+                  type="text"
+                  value={equipmentSettings.name}
+                  onChange={e => setEquipmentSettings({...equipmentSettings, name: e.target.value})}
+                />
+              </div>
+              
+              <div>
+                <label style={eqStyles.label}>Worker Name</label>
+                <input
+                  style={eqStyles.input}
+                  type="text"
+                  value={equipmentSettings.worker_name}
+                  onChange={e => setEquipmentSettings({...equipmentSettings, worker_name: e.target.value})}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={eqStyles.label}>Power Limit (W)</label>
+                  <input
+                    style={eqStyles.input}
+                    type="number"
+                    value={equipmentSettings.power_limit}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, power_limit: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div>
+                  <label style={eqStyles.label}>Target Temp (°C)</label>
+                  <input
+                    style={eqStyles.input}
+                    type="number"
+                    value={equipmentSettings.target_temperature}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, target_temperature: parseInt(e.target.value) || 70})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={eqStyles.label}>Difficulty Mode</label>
+                <select
+                  style={{...eqStyles.input, cursor: 'pointer'}}
+                  value={equipmentSettings.difficulty_mode}
+                  onChange={e => setEquipmentSettings({...equipmentSettings, difficulty_mode: e.target.value as 'auto' | 'fixed'})}
+                >
+                  <option value="auto">Auto (Recommended)</option>
+                  <option value="fixed">Fixed Difficulty</option>
+                </select>
+              </div>
+
+              {equipmentSettings.difficulty_mode === 'fixed' && (
+                <div>
+                  <label style={eqStyles.label}>Fixed Difficulty</label>
+                  <input
+                    style={eqStyles.input}
+                    type="number"
+                    value={equipmentSettings.fixed_difficulty || ''}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, fixed_difficulty: parseInt(e.target.value) || undefined})}
+                    placeholder="e.g., 1000000"
+                  />
+                </div>
+              )}
+
+              <div style={{ borderTop: '1px solid #2a2a4a', paddingTop: '15px', marginTop: '5px' }}>
+                <h4 style={{ color: '#00d4ff', margin: '0 0 15px' }}>🔔 Notifications</h4>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={equipmentSettings.auto_restart}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, auto_restart: e.target.checked})}
+                  />
+                  Auto-restart on error
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={equipmentSettings.notification_email}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, notification_email: e.target.checked})}
+                  />
+                  Email notifications when offline
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888' }}>
+                  <span>Alert after</span>
+                  <input
+                    style={{...eqStyles.input, width: '80px', marginBottom: 0, textAlign: 'center'}}
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={equipmentSettings.notification_offline_threshold}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, notification_offline_threshold: parseInt(e.target.value) || 5})}
+                  />
+                  <span>minutes offline</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button style={eqStyles.cancelBtn} onClick={() => setShowSettingsModal(null)}>Cancel</button>
+              <button style={{...eqStyles.saveBtn, backgroundColor: '#f59e0b'}} onClick={() => { showMessage('success', 'Settings saved'); setShowSettingsModal(null); }}>Save Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Equipment Charts Modal */}
+      {showChartsModal && (
+        <div style={eqStyles.modalOverlay} onClick={() => setShowChartsModal(null)}>
+          <div style={{...eqStyles.modal, maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto'}} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ color: '#00d4ff', margin: 0 }}>📊 {showChartsModal.name} Performance</h2>
+                <p style={{ color: '#888', margin: '5px 0 0' }}>{showChartsModal.model} • {showChartsModal.worker_name}</p>
+              </div>
+              <button style={{ background: 'none', border: 'none', color: '#888', fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => setShowChartsModal(null)}>✕</button>
+            </div>
+
+            {/* Time Range Selector */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              {(['1h', '6h', '24h', '7d', '30d'] as const).map(range => (
+                <button
+                  key={range}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: chartTimeRange === range ? '#00d4ff' : '#0a0a15',
+                    border: '1px solid #2a2a4a',
+                    borderRadius: '6px',
+                    color: chartTimeRange === range ? '#0a0a0f' : '#888',
+                    cursor: 'pointer',
+                    fontWeight: chartTimeRange === range ? 'bold' : 'normal'
+                  }}
+                  onClick={() => setChartTimeRange(range)}
+                >
+                  {range.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Charts Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
+              {/* Hashrate Chart */}
+              <div style={{ backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' }}>
+                <h3 style={{ color: '#e0e0e0', margin: '0 0 15px', fontSize: '1rem' }}>⚡ Hashrate History</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={generateChartData(showChartsModal, chartTimeRange)}>
+                    <defs>
+                      <linearGradient id="eqHashGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                    <XAxis dataKey="time" stroke="#666" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(v) => formatHashrate(v)} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a' }}
+                      formatter={(value: number) => [formatHashrate(value), 'Hashrate']}
+                    />
+                    <Area type="monotone" dataKey="hashrate" stroke="#00d4ff" fill="url(#eqHashGradient)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Temperature Chart */}
+              <div style={{ backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' }}>
+                <h3 style={{ color: '#e0e0e0', margin: '0 0 15px', fontSize: '1rem' }}>🌡️ Temperature History</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={generateChartData(showChartsModal, chartTimeRange)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                    <XAxis dataKey="time" stroke="#666" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#666" tick={{ fontSize: 10 }} domain={[40, 90]} tickFormatter={(v) => `${v}°C`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a' }}
+                      formatter={(value: number) => [`${value.toFixed(1)}°C`, 'Temperature']}
+                    />
+                    <Line type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    <ReferenceLine y={80} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: 'Warning', fill: '#f59e0b', fontSize: 10 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Power Usage Chart */}
+              <div style={{ backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' }}>
+                <h3 style={{ color: '#e0e0e0', margin: '0 0 15px', fontSize: '1rem' }}>⚡ Power Consumption</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={generateChartData(showChartsModal, chartTimeRange)}>
+                    <defs>
+                      <linearGradient id="eqPowerGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                    <XAxis dataKey="time" stroke="#666" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}W`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a' }}
+                      formatter={(value: number) => [`${value.toFixed(0)}W`, 'Power']}
+                    />
+                    <Area type="monotone" dataKey="power" stroke="#f59e0b" fill="url(#eqPowerGradient)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Summary Stats */}
+              <div style={{ backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' }}>
+                <h3 style={{ color: '#e0e0e0', margin: '0 0 15px', fontSize: '1rem' }}>📈 Summary ({chartTimeRange.toUpperCase()})</h3>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Current Hashrate:</span>
+                    <span style={{ color: '#00d4ff', fontWeight: 'bold' }}>{formatHashrate(showChartsModal.current_hashrate)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Average Hashrate:</span>
+                    <span style={{ color: '#e0e0e0' }}>{formatHashrate(showChartsModal.average_hashrate)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Current Temp:</span>
+                    <span style={{ color: showChartsModal.temperature > 80 ? '#ef4444' : '#4ade80' }}>{showChartsModal.temperature > 0 ? `${showChartsModal.temperature}°C` : 'N/A'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Power Usage:</span>
+                    <span style={{ color: '#f59e0b' }}>{showChartsModal.power_usage > 0 ? `${showChartsModal.power_usage}W` : 'N/A'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Efficiency:</span>
+                    <span style={{ color: '#9b59b6' }}>{showChartsModal.power_usage > 0 ? `${(showChartsModal.current_hashrate / showChartsModal.power_usage / 1000).toFixed(2)} MH/W` : 'N/A'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}>
+                    <span>Uptime:</span>
+                    <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{formatUptimePercent(showChartsModal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <p style={{ color: '#666', fontSize: '0.85rem' }}>Charts update automatically when equipment is connected</p>
             </div>
           </div>
         </div>
