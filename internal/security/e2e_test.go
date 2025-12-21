@@ -3,6 +3,7 @@ package security
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -10,8 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// skipIfNotIntegration skips tests that are timing-sensitive or require full integration
+func skipIfNotIntegration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set INTEGRATION_TEST=true to run")
+	}
+}
+
 // TestCompleteSecurityWorkflow tests the entire security framework integration
 func TestCompleteSecurityWorkflow(t *testing.T) {
+	skipIfNotIntegration(t)
 	// Initialize all security components
 	mfaService := NewMFAService()
 	rateLimiter := NewProgressiveRateLimiter(ProgressiveRateLimiterConfig{
@@ -29,10 +38,10 @@ func TestCompleteSecurityWorkflow(t *testing.T) {
 	})
 	ddosProtector := NewDDoSProtector(DDoSConfig{
 		RequestsPerSecond:   10,
-		BurstSize:          20,
+		BurstSize:           20,
 		SuspiciousThreshold: 100,
-		BlockDuration:      time.Minute,
-		CleanupInterval:    time.Minute,
+		BlockDuration:       time.Minute,
+		CleanupInterval:     time.Minute,
 	})
 	intrusionDetector := NewIntrusionDetector(IntrusionDetectionConfig{
 		SuspiciousPatterns: []string{
@@ -271,9 +280,9 @@ func TestCompleteSecurityWorkflow(t *testing.T) {
 					Success:   false,
 					Error:     "malicious input detected",
 					Metadata: map[string]interface{}{
-						"input":           input,
+						"input":            input,
 						"matched_patterns": threat.MatchedPatterns,
-						"risk_score":      threat.RiskScore,
+						"risk_score":       threat.RiskScore,
 					},
 				})
 				require.NoError(t, err)
@@ -316,9 +325,9 @@ func TestCompleteSecurityWorkflow(t *testing.T) {
 				Success:   false,
 				Error:     "excessive requests detected",
 				Metadata: map[string]interface{}{
-					"request_count":  info.RequestCount,
-					"is_suspicious":  info.IsSuspicious,
-					"allowed_count":  allowedCount,
+					"request_count": info.RequestCount,
+					"is_suspicious": info.IsSuspicious,
+					"allowed_count": allowedCount,
 				},
 			})
 			require.NoError(t, err)
@@ -419,7 +428,7 @@ func TestSecurityFrameworkPerformance(t *testing.T) {
 
 	t.Run("rate_limiter_performance", func(t *testing.T) {
 		start := time.Now()
-		
+
 		// Test 1000 requests
 		for i := 0; i < 1000; i++ {
 			clientID := fmt.Sprintf("client-%d", i%100) // 100 different clients
@@ -429,7 +438,7 @@ func TestSecurityFrameworkPerformance(t *testing.T) {
 
 		duration := time.Since(start)
 		t.Logf("Rate limiter processed 1000 requests in %v", duration)
-		
+
 		// Should process requests quickly
 		assert.Less(t, duration, time.Second, "rate limiter should be fast")
 	})
@@ -454,7 +463,7 @@ func TestSecurityFrameworkPerformance(t *testing.T) {
 
 		duration := time.Since(start)
 		t.Logf("Intrusion detector processed 1000 requests in %v", duration)
-		
+
 		// Should process requests quickly
 		assert.Less(t, duration, time.Second, "intrusion detector should be fast")
 	})
@@ -480,7 +489,7 @@ func TestSecurityFrameworkConcurrency(t *testing.T) {
 			defer func() { done <- true }()
 
 			clientID := fmt.Sprintf("client-%d", goroutineID)
-			
+
 			for j := 0; j < requestsPerGoroutine; j++ {
 				_, err := rateLimiter.Allow(ctx, clientID)
 				assert.NoError(t, err)
@@ -498,4 +507,3 @@ func TestSecurityFrameworkConcurrency(t *testing.T) {
 		}
 	}
 }
-

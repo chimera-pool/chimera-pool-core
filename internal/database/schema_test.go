@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"testing"
 
+	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	_ "github.com/lib/pq"
 )
 
 func TestDatabaseSchema(t *testing.T) {
-	// This test will fail initially as we haven't implemented the schema yet
+	skipIfNoDatabase(t)
+
 	db := setupTestDB(t)
 	defer teardownTestDB(t, db)
 
@@ -81,7 +82,8 @@ func TestDatabaseSchema(t *testing.T) {
 }
 
 func TestBasicDatabaseOperations(t *testing.T) {
-	// This test will fail initially as we haven't implemented the operations yet
+	skipIfNoDatabase(t)
+
 	db := setupTestDB(t)
 	defer teardownTestDB(t, db)
 
@@ -185,16 +187,7 @@ func TestBasicDatabaseOperations(t *testing.T) {
 
 // Helper functions for testing
 func setupTestDB(t *testing.T) *sql.DB {
-	config := &Config{
-		Host:     "localhost",
-		Port:     5432,
-		Database: "chimera_pool_dev",
-		Username: "chimera",
-		Password: "dev_password",
-		SSLMode:  "disable",
-		MaxConns: 10,
-		MinConns: 2,
-	}
+	config := getTestConfig()
 
 	// Run migrations first
 	err := RunMigrations(config, "../../migrations")
@@ -203,7 +196,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	// Create connection pool
 	pool, err := NewConnectionPool(config)
 	require.NoError(t, err, "should create connection pool")
-	
+
 	return pool.DB()
 }
 

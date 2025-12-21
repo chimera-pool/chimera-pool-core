@@ -6,11 +6,19 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
+
+// skipIfNotIntegration skips tests that require a real database with test data
+func skipIfNotIntegration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set INTEGRATION_TEST=true to run")
+	}
+}
 
 // Test structures
 type UserListResponse struct {
@@ -95,7 +103,7 @@ func setupTestRouter(db *sql.DB, jwtSecret string) *gin.Engine {
 
 // TestAdminListUsers tests the admin list users endpoint
 func TestAdminListUsers(t *testing.T) {
-	// Skip if no test database
+	skipIfNotIntegration(t)
 	db, err := sql.Open("postgres", "postgres://chimera:Champions$1956@localhost:5432/chimera_pool?sslmode=disable")
 	if err != nil {
 		t.Skip("Test database not available")
@@ -188,6 +196,7 @@ func TestAdminListUsers(t *testing.T) {
 
 // TestAdminGetUser tests getting a single user's details
 func TestAdminGetUser(t *testing.T) {
+	skipIfNotIntegration(t)
 	db, err := sql.Open("postgres", "postgres://chimera:Champions$1956@localhost:5432/chimera_pool?sslmode=disable")
 	if err != nil {
 		t.Skip("Test database not available")
@@ -241,6 +250,7 @@ func TestAdminGetUser(t *testing.T) {
 
 // TestAdminUpdateUser tests updating user settings
 func TestAdminUpdateUser(t *testing.T) {
+	skipIfNotIntegration(t)
 	db, err := sql.Open("postgres", "postgres://chimera:Champions$1956@localhost:5432/chimera_pool?sslmode=disable")
 	if err != nil {
 		t.Skip("Test database not available")
@@ -334,6 +344,7 @@ func TestAdminUpdateUser(t *testing.T) {
 
 // TestAdminUserEarnings tests the user earnings endpoint
 func TestAdminUserEarnings(t *testing.T) {
+	skipIfNotIntegration(t)
 	db, err := sql.Open("postgres", "postgres://chimera:Champions$1956@localhost:5432/chimera_pool?sslmode=disable")
 	if err != nil {
 		t.Skip("Test database not available")
@@ -391,6 +402,7 @@ func TestAdminUserEarnings(t *testing.T) {
 
 // TestAdminRequiresAuth tests that admin endpoints require authentication
 func TestAdminRequiresAuth(t *testing.T) {
+	skipIfNotIntegration(t)
 	db, err := sql.Open("postgres", "postgres://chimera:Champions$1956@localhost:5432/chimera_pool?sslmode=disable")
 	if err != nil {
 		t.Skip("Test database not available")

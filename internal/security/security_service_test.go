@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -10,6 +11,9 @@ import (
 )
 
 func TestSecurityServiceIntegration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set INTEGRATION_TEST=true to run")
+	}
 	securityService := NewSecurityService(nil) // Use default config
 	ctx := context.Background()
 

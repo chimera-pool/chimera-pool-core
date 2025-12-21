@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -9,19 +10,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// skipIfNoDatabase skips integration tests when no database is available
+func skipIfNoDatabase(t *testing.T) {
+	if os.Getenv("INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set INTEGRATION_TEST=true to run")
+	}
+}
+
+// getTestConfig returns a database config for testing
+func getTestConfig() *Config {
+	return &Config{
+		Host:     getEnvOrDefault("TEST_DB_HOST", "localhost"),
+		Port:     5432,
+		Database: getEnvOrDefault("TEST_DB_NAME", "chimera_pool_test"),
+		Username: getEnvOrDefault("TEST_DB_USER", "chimera"),
+		Password: getEnvOrDefault("TEST_DB_PASSWORD", "test_password"),
+		SSLMode:  "disable",
+		MaxConns: 10,
+		MinConns: 2,
+	}
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 func TestDatabaseConnection(t *testing.T) {
-	// This test will fail initially as we haven't implemented the connection pool yet
+	skipIfNoDatabase(t)
+
 	t.Run("CreateConnectionPool", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		config := getTestConfig()
 
 		pool, err := NewConnectionPool(config)
 		require.NoError(t, err, "should create connection pool without error")
@@ -31,16 +52,7 @@ func TestDatabaseConnection(t *testing.T) {
 	})
 
 	t.Run("ConnectionPoolHealthCheck", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		config := getTestConfig()
 
 		pool, err := NewConnectionPool(config)
 		require.NoError(t, err)
@@ -55,16 +67,7 @@ func TestDatabaseConnection(t *testing.T) {
 	})
 
 	t.Run("ConnectionPoolStats", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		config := getTestConfig()
 
 		pool, err := NewConnectionPool(config)
 		require.NoError(t, err)
@@ -76,16 +79,7 @@ func TestDatabaseConnection(t *testing.T) {
 	})
 
 	t.Run("BasicQuery", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		config := getTestConfig()
 
 		pool, err := NewConnectionPool(config)
 		require.NoError(t, err)
@@ -102,16 +96,7 @@ func TestDatabaseConnection(t *testing.T) {
 	})
 
 	t.Run("TransactionSupport", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-			MaxConns: 10,
-			MinConns: 2,
-		}
+		config := getTestConfig()
 
 		pool, err := NewConnectionPool(config)
 		require.NoError(t, err)
@@ -131,30 +116,17 @@ func TestDatabaseConnection(t *testing.T) {
 }
 
 func TestMigrations(t *testing.T) {
-	// This test will fail initially as we haven't implemented migrations yet
+	skipIfNoDatabase(t)
+
 	t.Run("RunMigrations", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-		}
+		config := getTestConfig()
 
 		err := RunMigrations(config, "../../migrations")
 		require.NoError(t, err, "should run migrations without error")
 	})
 
 	t.Run("MigrationStatus", func(t *testing.T) {
-		config := &Config{
-			Host:     "localhost",
-			Port:     5432,
-			Database: "chimera_pool_dev",
-			Username: "chimera",
-			Password: "dev_password",
-			SSLMode:  "disable",
-		}
+		config := getTestConfig()
 
 		status, err := GetMigrationStatus(config)
 		require.NoError(t, err, "should get migration status")
