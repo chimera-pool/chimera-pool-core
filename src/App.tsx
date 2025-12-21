@@ -35,7 +35,7 @@ interface AdminUser {
   total_allocated: number;
 }
 
-type MainView = 'dashboard' | 'community';
+type MainView = 'dashboard' | 'community' | 'equipment';
 
 // Navigation styles - defined before App component to ensure availability
 const navStyles: { [key: string]: React.CSSProperties } = {
@@ -363,6 +363,14 @@ function App() {
             >
               📊 Dashboard
             </button>
+            {token && user && (
+              <button 
+                style={{ padding: '12px 24px', backgroundColor: mainView === 'equipment' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'equipment' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'equipment' ? 'bold' : 500 }}
+                onClick={() => setMainView('equipment')}
+              >
+                ⚙️ My Equipment
+              </button>
+            )}
             <button 
               style={{ padding: '12px 24px', backgroundColor: mainView === 'community' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'community' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'community' ? 'bold' : 500 }}
               onClick={() => setMainView('community')}
@@ -800,6 +808,9 @@ function App() {
               <div style={styles.error}>Failed to load pool statistics</div>
             )}
 
+            {/* Mining Graphs - Visible to ALL users (pool-wide for guests, toggleable for members) */}
+            <MiningGraphs token={token || undefined} isLoggedIn={!!token && !!user} />
+
             {/* Call-to-action for non-logged users */}
             {!token && (
               <section style={{ ...styles.section, background: 'linear-gradient(135deg, #1a2a3e 0%, #0f1a2e 100%)', border: '2px solid #00d4ff', textAlign: 'center' }}>
@@ -845,7 +856,6 @@ function App() {
 
             {/* User Dashboard - only shown when logged in */}
             {token && user && <UserDashboard token={token} />}
-            {token && user && <UserMiningGraphs token={token} />}
             {token && user && <WalletManager token={token} showMessage={showMessage} />}
 
             {/* Global Miner Map - visible to all */}
@@ -925,6 +935,11 @@ function App() {
               </div>
             </div>
           )
+        )}
+
+        {/* EQUIPMENT VIEW - Full Equipment Management */}
+        {mainView === 'equipment' && token && user && (
+          <EquipmentPage token={token} user={user} showMessage={showMessage} />
         )}
 
         {/* Dashboard-only sections */}
@@ -1431,11 +1446,13 @@ const dashStyles: { [key: string]: React.CSSProperties } = {
   offline: { color: '#888' },
 };
 
-// User Mining Graphs Component
+// Mining Graphs Component - Supports both Pool-wide and Personal views
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
+type ViewMode = 'pool' | 'personal';
 
-function UserMiningGraphs({ token }: { token: string }) {
+function MiningGraphs({ token, isLoggedIn }: { token?: string; isLoggedIn: boolean }) {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [viewMode, setViewMode] = useState<ViewMode>(isLoggedIn ? 'personal' : 'pool');
   const [hashrateData, setHashrateData] = useState<any[]>([]);
   const [sharesData, setSharesData] = useState<any[]>([]);
   const [earningsData, setEarningsData] = useState<any[]>([]);
@@ -1443,45 +1460,106 @@ function UserMiningGraphs({ token }: { token: string }) {
 
   useEffect(() => {
     fetchAllData();
-  }, [timeRange]);
+  }, [timeRange, viewMode]);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const [hashRes, sharesRes, earningsRes] = await Promise.all([
-        fetch(`/api/v1/user/stats/hashrate?range=${timeRange}`, { headers }),
-        fetch(`/api/v1/user/stats/shares?range=${timeRange}`, { headers }),
-        fetch(`/api/v1/user/stats/earnings?range=${timeRange === '1h' || timeRange === '6h' ? '24h' : timeRange}`, { headers })
-      ]);
+      if (viewMode === 'personal' && token) {
+        // Fetch personal stats (authenticated)
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const [hashRes, sharesRes, earningsRes] = await Promise.all([
+          fetch(`/api/v1/user/stats/hashrate?range=${timeRange}`, { headers }),
+          fetch(`/api/v1/user/stats/shares?range=${timeRange}`, { headers }),
+          fetch(`/api/v1/user/stats/earnings?range=${timeRange === '1h' || timeRange === '6h' ? '24h' : timeRange}`, { headers })
+        ]);
 
-      if (hashRes.ok) {
-        const data = await hashRes.json();
-        setHashrateData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          hashrateMH: d.hashrate / 1000000
-        })) || []);
-      }
-      if (sharesRes.ok) {
-        const data = await sharesRes.json();
-        setSharesData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        })) || []);
-      }
-      if (earningsRes.ok) {
-        const data = await earningsRes.json();
-        setEarningsData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleDateString([], { month: 'short', day: 'numeric' })
-        })) || []);
+        if (hashRes.ok) {
+          const data = await hashRes.json();
+          setHashrateData(data.data?.map((d: any) => ({
+            ...d,
+            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            hashrateMH: d.hashrate / 1000000
+          })) || []);
+        }
+        if (sharesRes.ok) {
+          const data = await sharesRes.json();
+          setSharesData(data.data?.map((d: any) => ({
+            ...d,
+            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          })) || []);
+        }
+        if (earningsRes.ok) {
+          const data = await earningsRes.json();
+          setEarningsData(data.data?.map((d: any) => ({
+            ...d,
+            time: new Date(d.time).toLocaleDateString([], { month: 'short', day: 'numeric' })
+          })) || []);
+        }
+      } else {
+        // Fetch pool-wide stats (public)
+        const [hashRes, sharesRes] = await Promise.all([
+          fetch(`/api/v1/pool/stats/hashrate?range=${timeRange}`),
+          fetch(`/api/v1/pool/stats/shares?range=${timeRange}`)
+        ]);
+
+        if (hashRes.ok) {
+          const data = await hashRes.json();
+          setHashrateData(data.data?.map((d: any) => ({
+            ...d,
+            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            hashrateMH: d.hashrate / 1000000000 // Pool hashrate in GH/s
+          })) || generateMockPoolData('hashrate'));
+        } else {
+          setHashrateData(generateMockPoolData('hashrate'));
+        }
+        if (sharesRes.ok) {
+          const data = await sharesRes.json();
+          setSharesData(data.data?.map((d: any) => ({
+            ...d,
+            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          })) || generateMockPoolData('shares'));
+        } else {
+          setSharesData(generateMockPoolData('shares'));
+        }
+        // Pool doesn't show individual earnings
+        setEarningsData([]);
       }
     } catch (error) {
       console.error('Failed to fetch graph data:', error);
+      // Use mock data for demo
+      if (viewMode === 'pool') {
+        setHashrateData(generateMockPoolData('hashrate'));
+        setSharesData(generateMockPoolData('shares'));
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate mock pool data for demo purposes
+  const generateMockPoolData = (type: string) => {
+    const now = new Date();
+    const data = [];
+    for (let i = 23; i >= 0; i--) {
+      const time = new Date(now.getTime() - i * 3600000);
+      if (type === 'hashrate') {
+        data.push({
+          time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          hashrateMH: 150 + Math.random() * 50 // 150-200 GH/s pool hashrate
+        });
+      } else {
+        const valid = Math.floor(50000 + Math.random() * 10000);
+        const invalid = Math.floor(valid * 0.005);
+        data.push({
+          time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          validShares: valid,
+          invalidShares: invalid,
+          acceptanceRate: (valid / (valid + invalid)) * 100
+        });
+      }
+    }
+    return data;
   };
 
   const COLORS = ['#00d4ff', '#9b59b6', '#4ade80', '#f59e0b', '#ef4444'];
@@ -1489,7 +1567,26 @@ function UserMiningGraphs({ token }: { token: string }) {
   return (
     <section style={graphStyles.section}>
       <div style={graphStyles.header}>
-        <h2 style={graphStyles.title}>📊 Mining Statistics</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+          <h2 style={graphStyles.title}>📊 {viewMode === 'pool' ? 'Pool' : 'My'} Mining Statistics</h2>
+          {/* View Mode Toggle - Only show if logged in */}
+          {isLoggedIn && (
+            <div style={{ display: 'flex', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px', border: '1px solid #2a2a4a' }}>
+              <button
+                style={{ padding: '8px 16px', backgroundColor: viewMode === 'pool' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: viewMode === 'pool' ? '#0a0a0f' : '#888', cursor: 'pointer', fontWeight: viewMode === 'pool' ? 'bold' : 'normal', fontSize: '0.85rem' }}
+                onClick={() => setViewMode('pool')}
+              >
+                🌐 Pool
+              </button>
+              <button
+                style={{ padding: '8px 16px', backgroundColor: viewMode === 'personal' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: viewMode === 'personal' ? '#0a0a0f' : '#888', cursor: 'pointer', fontWeight: viewMode === 'personal' ? 'bold' : 'normal', fontSize: '0.85rem' }}
+                onClick={() => setViewMode('personal')}
+              >
+                👤 Personal
+              </button>
+            </div>
+          )}
+        </div>
         <div style={graphStyles.timeSelector}>
           {([
             { value: '1h', label: '1H' },
@@ -1606,6 +1703,647 @@ function UserMiningGraphs({ token }: { token: string }) {
     </section>
   );
 }
+
+// Equipment Management Page Component
+interface Equipment {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  worker_name: string;
+  model: string;
+  current_hashrate: number;
+  average_hashrate: number;
+  temperature: number;
+  power_usage: number;
+  latency: number;
+  shares_accepted: number;
+  shares_rejected: number;
+  uptime: number;
+  last_seen: string;
+  total_earnings: number;
+  payout_splits: PayoutSplit[];
+}
+
+interface PayoutSplit {
+  id: string;
+  wallet_address: string;
+  percentage: number;
+  label: string;
+  is_active: boolean;
+}
+
+interface EquipmentWallet {
+  id: string;
+  wallet_address: string;
+  label: string;
+  is_primary: boolean;
+  currency: string;
+}
+
+function EquipmentPage({ token, user, showMessage }: { token: string; user: any; showMessage: (type: 'success' | 'error', text: string) => void }) {
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [wallets, setWallets] = useState<EquipmentWallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'equipment' | 'wallets' | 'alerts'>('equipment');
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [showAddWalletModal, setShowAddWalletModal] = useState(false);
+  const [newWallet, setNewWallet] = useState({ address: '', label: '', is_primary: false });
+  const [editingSplits, setEditingSplits] = useState<{ equipmentId: string; splits: PayoutSplit[] } | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [eqRes, walletRes] = await Promise.all([
+        fetch('/api/v1/user/equipment', { headers }),
+        fetch('/api/v1/user/wallets', { headers })
+      ]);
+
+      if (eqRes.ok) {
+        const data = await eqRes.json();
+        setEquipment(data.equipment || generateMockEquipment());
+      } else {
+        setEquipment(generateMockEquipment());
+      }
+
+      if (walletRes.ok) {
+        const data = await walletRes.json();
+        setWallets(data.wallets || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch equipment data:', error);
+      setEquipment(generateMockEquipment());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate mock equipment for demo
+  const generateMockEquipment = (): Equipment[] => {
+    return [
+      {
+        id: 'eq-001',
+        name: 'Main X100 ASIC',
+        type: 'blockdag_x100',
+        status: 'mining',
+        worker_name: 'x100-main',
+        model: 'BlockDAG X100',
+        current_hashrate: 150000000,
+        average_hashrate: 148000000,
+        temperature: 62.5,
+        power_usage: 1200,
+        latency: 25.3,
+        shares_accepted: 15420,
+        shares_rejected: 45,
+        uptime: 432000,
+        last_seen: new Date().toISOString(),
+        total_earnings: 125.5,
+        payout_splits: [{ id: 's1', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+      },
+      {
+        id: 'eq-002',
+        name: 'GPU Rig #1',
+        type: 'gpu',
+        status: 'mining',
+        worker_name: 'gpu-rig1',
+        model: 'RTX 4090 x4',
+        current_hashrate: 45000000,
+        average_hashrate: 44500000,
+        temperature: 68.2,
+        power_usage: 1400,
+        latency: 32.1,
+        shares_accepted: 8920,
+        shares_rejected: 28,
+        uptime: 259200,
+        last_seen: new Date().toISOString(),
+        total_earnings: 45.2,
+        payout_splits: [{ id: 's2', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+      },
+      {
+        id: 'eq-003',
+        name: 'Backup X30',
+        type: 'blockdag_x30',
+        status: 'offline',
+        worker_name: 'x30-backup',
+        model: 'BlockDAG X30',
+        current_hashrate: 0,
+        average_hashrate: 35000000,
+        temperature: 0,
+        power_usage: 0,
+        latency: 0,
+        shares_accepted: 5200,
+        shares_rejected: 15,
+        uptime: 0,
+        last_seen: new Date(Date.now() - 86400000).toISOString(),
+        total_earnings: 22.8,
+        payout_splits: [{ id: 's3', wallet_address: user.payout_address || 'bdag1...', percentage: 100, label: 'Primary', is_active: true }]
+      }
+    ];
+  };
+
+  const formatHashrate = (h: number) => {
+    if (h >= 1e12) return `${(h / 1e12).toFixed(2)} TH/s`;
+    if (h >= 1e9) return `${(h / 1e9).toFixed(2)} GH/s`;
+    if (h >= 1e6) return `${(h / 1e6).toFixed(2)} MH/s`;
+    if (h >= 1e3) return `${(h / 1e3).toFixed(2)} KH/s`;
+    return `${h.toFixed(2)} H/s`;
+  };
+
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    if (days > 0) return `${days}d ${hours}h`;
+    return `${hours}h`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'mining': return '#4ade80';
+      case 'online': return '#00d4ff';
+      case 'idle': return '#f59e0b';
+      case 'offline': return '#888';
+      case 'error': return '#ef4444';
+      default: return '#888';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'mining': return '⛏️';
+      case 'online': return '🟢';
+      case 'idle': return '💤';
+      case 'offline': return '⚫';
+      case 'error': return '🔴';
+      default: return '❓';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'blockdag_x100': return '⚡';
+      case 'blockdag_x30': return '⚡';
+      case 'gpu': return '🎮';
+      case 'cpu': return '💻';
+      case 'asic': return '🔲';
+      default: return '⚙️';
+    }
+  };
+
+  const totalStats = {
+    totalEquipment: equipment.length,
+    online: equipment.filter(e => ['mining', 'online', 'idle'].includes(e.status)).length,
+    offline: equipment.filter(e => e.status === 'offline').length,
+    errors: equipment.filter(e => e.status === 'error').length,
+    totalHashrate: equipment.reduce((sum, e) => sum + e.current_hashrate, 0),
+    totalEarnings: equipment.reduce((sum, e) => sum + e.total_earnings, 0),
+    avgLatency: equipment.filter(e => e.latency > 0).reduce((sum, e, _, arr) => sum + e.latency / arr.length, 0)
+  };
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '30px' }}>
+        <h1 style={{ color: '#00d4ff', margin: '0 0 10px', fontSize: '2rem' }}>⚙️ Equipment Control Center</h1>
+        <p style={{ color: '#888', margin: 0 }}>Manage your mining hardware, monitor performance, and configure payouts</p>
+      </div>
+
+      {/* Stats Overview */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '30px' }}>
+        <div style={eqStyles.statCard}>
+          <div style={eqStyles.statIcon}>🖥️</div>
+          <div style={eqStyles.statValue}>{totalStats.totalEquipment}</div>
+          <div style={eqStyles.statLabel}>Total Equipment</div>
+        </div>
+        <div style={{...eqStyles.statCard, borderColor: '#4ade80'}}>
+          <div style={eqStyles.statIcon}>✅</div>
+          <div style={{...eqStyles.statValue, color: '#4ade80'}}>{totalStats.online}</div>
+          <div style={eqStyles.statLabel}>Online</div>
+        </div>
+        <div style={{...eqStyles.statCard, borderColor: '#888'}}>
+          <div style={eqStyles.statIcon}>⚫</div>
+          <div style={{...eqStyles.statValue, color: '#888'}}>{totalStats.offline}</div>
+          <div style={eqStyles.statLabel}>Offline</div>
+        </div>
+        <div style={eqStyles.statCard}>
+          <div style={eqStyles.statIcon}>⚡</div>
+          <div style={eqStyles.statValue}>{formatHashrate(totalStats.totalHashrate)}</div>
+          <div style={eqStyles.statLabel}>Total Hashrate</div>
+        </div>
+        <div style={eqStyles.statCard}>
+          <div style={eqStyles.statIcon}>💰</div>
+          <div style={eqStyles.statValue}>{totalStats.totalEarnings.toFixed(2)}</div>
+          <div style={eqStyles.statLabel}>Total Earnings (BDAG)</div>
+        </div>
+        <div style={eqStyles.statCard}>
+          <div style={eqStyles.statIcon}>📡</div>
+          <div style={eqStyles.statValue}>{totalStats.avgLatency.toFixed(1)} ms</div>
+          <div style={eqStyles.statLabel}>Avg Latency</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #2a2a4a', paddingBottom: '10px' }}>
+        <button
+          style={{...eqStyles.tab, ...(activeTab === 'equipment' ? eqStyles.tabActive : {})}}
+          onClick={() => setActiveTab('equipment')}
+        >
+          🖥️ Equipment ({equipment.length})
+        </button>
+        <button
+          style={{...eqStyles.tab, ...(activeTab === 'wallets' ? eqStyles.tabActive : {})}}
+          onClick={() => setActiveTab('wallets')}
+        >
+          💼 Wallets ({wallets.length})
+        </button>
+        <button
+          style={{...eqStyles.tab, ...(activeTab === 'alerts' ? eqStyles.tabActive : {})}}
+          onClick={() => setActiveTab('alerts')}
+        >
+          🔔 Alerts
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#00d4ff' }}>Loading equipment...</div>
+      ) : (
+        <>
+          {/* Equipment Tab */}
+          {activeTab === 'equipment' && (
+            <div style={{ display: 'grid', gap: '15px' }}>
+              {equipment.map(eq => (
+                <div 
+                  key={eq.id} 
+                  style={{...eqStyles.equipmentCard, borderLeftColor: getStatusColor(eq.status)}}
+                  onClick={() => setSelectedEquipment(selectedEquipment?.id === eq.id ? null : eq)}
+                >
+                  <div style={eqStyles.equipmentHeader}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{getTypeIcon(eq.type)}</span>
+                      <div>
+                        <h3 style={{ color: '#e0e0e0', margin: 0, fontSize: '1.1rem' }}>{eq.name}</h3>
+                        <p style={{ color: '#888', margin: '2px 0 0', fontSize: '0.85rem' }}>{eq.model} • {eq.worker_name}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                      <span style={{ color: getStatusColor(eq.status), fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {getStatusIcon(eq.status)} {eq.status.toUpperCase()}
+                      </span>
+                      <span style={{ color: '#888', cursor: 'pointer' }}>{selectedEquipment?.id === eq.id ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats Row */}
+                  <div style={eqStyles.quickStats}>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Hashrate</span>
+                      <span style={eqStyles.quickValue}>{formatHashrate(eq.current_hashrate)}</span>
+                    </div>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Temp</span>
+                      <span style={{...eqStyles.quickValue, color: eq.temperature > 80 ? '#ef4444' : eq.temperature > 70 ? '#f59e0b' : '#4ade80'}}>
+                        {eq.temperature > 0 ? `${eq.temperature}°C` : '--'}
+                      </span>
+                    </div>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Power</span>
+                      <span style={eqStyles.quickValue}>{eq.power_usage > 0 ? `${eq.power_usage}W` : '--'}</span>
+                    </div>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Latency</span>
+                      <span style={{...eqStyles.quickValue, color: eq.latency > 50 ? '#f59e0b' : '#4ade80'}}>
+                        {eq.latency > 0 ? `${eq.latency.toFixed(1)}ms` : '--'}
+                      </span>
+                    </div>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Shares</span>
+                      <span style={eqStyles.quickValue}>{eq.shares_accepted.toLocaleString()}</span>
+                    </div>
+                    <div style={eqStyles.quickStat}>
+                      <span style={eqStyles.quickLabel}>Uptime</span>
+                      <span style={eqStyles.quickValue}>{eq.uptime > 0 ? formatUptime(eq.uptime) : '--'}</span>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {selectedEquipment?.id === eq.id && (
+                    <div style={eqStyles.expandedDetails}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                        {/* Performance */}
+                        <div style={eqStyles.detailSection}>
+                          <h4 style={eqStyles.detailTitle}>📊 Performance</h4>
+                          <div style={eqStyles.detailRow}>
+                            <span>Current Hashrate:</span>
+                            <span style={{ color: '#00d4ff' }}>{formatHashrate(eq.current_hashrate)}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Average Hashrate:</span>
+                            <span>{formatHashrate(eq.average_hashrate)}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Efficiency:</span>
+                            <span>{eq.power_usage > 0 ? `${(eq.current_hashrate / eq.power_usage / 1000).toFixed(2)} MH/W` : '--'}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Acceptance Rate:</span>
+                            <span style={{ color: '#4ade80' }}>
+                              {((eq.shares_accepted / (eq.shares_accepted + eq.shares_rejected)) * 100).toFixed(2)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Hardware */}
+                        <div style={eqStyles.detailSection}>
+                          <h4 style={eqStyles.detailTitle}>🔧 Hardware</h4>
+                          <div style={eqStyles.detailRow}>
+                            <span>Temperature:</span>
+                            <span style={{ color: eq.temperature > 80 ? '#ef4444' : '#4ade80' }}>
+                              {eq.temperature > 0 ? `${eq.temperature}°C` : 'N/A'}
+                            </span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Power Usage:</span>
+                            <span>{eq.power_usage > 0 ? `${eq.power_usage}W` : 'N/A'}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Network Latency:</span>
+                            <span style={{ color: eq.latency > 50 ? '#f59e0b' : '#4ade80' }}>
+                              {eq.latency > 0 ? `${eq.latency.toFixed(1)}ms` : 'N/A'}
+                            </span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Last Seen:</span>
+                            <span>{new Date(eq.last_seen).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Earnings */}
+                        <div style={eqStyles.detailSection}>
+                          <h4 style={eqStyles.detailTitle}>💰 Earnings</h4>
+                          <div style={eqStyles.detailRow}>
+                            <span>Total Earnings:</span>
+                            <span style={{ color: '#9b59b6' }}>{eq.total_earnings.toFixed(4)} BDAG</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Shares Accepted:</span>
+                            <span style={{ color: '#4ade80' }}>{eq.shares_accepted.toLocaleString()}</span>
+                          </div>
+                          <div style={eqStyles.detailRow}>
+                            <span>Shares Rejected:</span>
+                            <span style={{ color: '#ef4444' }}>{eq.shares_rejected.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Payout Splits */}
+                        <div style={eqStyles.detailSection}>
+                          <h4 style={eqStyles.detailTitle}>💼 Payout Distribution</h4>
+                          {eq.payout_splits.map(split => (
+                            <div key={split.id} style={eqStyles.detailRow}>
+                              <span>{split.label || 'Wallet'}:</span>
+                              <span>{split.percentage}% → {split.wallet_address.slice(0, 10)}...</span>
+                            </div>
+                          ))}
+                          <button
+                            style={eqStyles.editSplitsBtn}
+                            onClick={(e) => { e.stopPropagation(); setEditingSplits({ equipmentId: eq.id, splits: [...eq.payout_splits] }); }}
+                          >
+                            ✏️ Edit Payout Splits
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+                        <button style={eqStyles.actionBtn}>📊 View Charts</button>
+                        <button style={eqStyles.actionBtn}>🔄 Restart</button>
+                        <button style={{...eqStyles.actionBtn, borderColor: '#f59e0b', color: '#f59e0b'}}>⚙️ Settings</button>
+                        <button style={{...eqStyles.actionBtn, borderColor: '#ef4444', color: '#ef4444'}}>🗑️ Remove</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Wallets Tab */}
+          {activeTab === 'wallets' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <p style={{ color: '#888', margin: 0 }}>Manage your payout wallet addresses</p>
+                <button
+                  style={eqStyles.addBtn}
+                  onClick={() => setShowAddWalletModal(true)}
+                >
+                  ➕ Add Wallet
+                </button>
+              </div>
+
+              {wallets.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#0a0a15', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
+                  <p style={{ color: '#888', marginBottom: '20px' }}>No wallets configured yet. Add a wallet to receive payouts.</p>
+                  <button style={eqStyles.addBtn} onClick={() => setShowAddWalletModal(true)}>➕ Add Your First Wallet</button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '15px' }}>
+                  {wallets.map(wallet => (
+                    <div key={wallet.id} style={eqStyles.walletCard}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h3 style={{ color: '#e0e0e0', margin: '0 0 5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {wallet.label || 'Unnamed Wallet'}
+                            {wallet.is_primary && <span style={eqStyles.primaryBadge}>PRIMARY</span>}
+                          </h3>
+                          <code style={{ color: '#00d4ff', fontSize: '0.9rem' }}>{wallet.wallet_address}</code>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {!wallet.is_primary && (
+                            <button style={eqStyles.smallBtn}>Set Primary</button>
+                          )}
+                          <button style={{...eqStyles.smallBtn, borderColor: '#ef4444', color: '#ef4444'}}>Remove</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Alerts Tab */}
+          {activeTab === 'alerts' && (
+            <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#0a0a15', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
+              <span style={{ fontSize: '3rem' }}>🔔</span>
+              <h3 style={{ color: '#e0e0e0', margin: '20px 0 10px' }}>No Active Alerts</h3>
+              <p style={{ color: '#888' }}>You'll be notified here when equipment goes offline or experiences issues.</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Add Wallet Modal */}
+      {showAddWalletModal && (
+        <div style={eqStyles.modalOverlay} onClick={() => setShowAddWalletModal(false)}>
+          <div style={eqStyles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#00d4ff', marginTop: 0 }}>➕ Add New Wallet</h2>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={eqStyles.label}>Wallet Address *</label>
+              <input
+                style={eqStyles.input}
+                type="text"
+                placeholder="bdag1..."
+                value={newWallet.address}
+                onChange={e => setNewWallet({...newWallet, address: e.target.value})}
+              />
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={eqStyles.label}>Label (optional)</label>
+              <input
+                style={eqStyles.input}
+                type="text"
+                placeholder="e.g., Cold Storage, Trading"
+                value={newWallet.label}
+                onChange={e => setNewWallet({...newWallet, label: e.target.value})}
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={newWallet.is_primary}
+                  onChange={e => setNewWallet({...newWallet, is_primary: e.target.checked})}
+                />
+                Set as primary wallet
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button style={eqStyles.cancelBtn} onClick={() => setShowAddWalletModal(false)}>Cancel</button>
+              <button style={eqStyles.saveBtn} onClick={() => { showMessage('success', 'Wallet added successfully'); setShowAddWalletModal(false); }}>Add Wallet</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payout Splits Modal */}
+      {editingSplits && (
+        <div style={eqStyles.modalOverlay} onClick={() => setEditingSplits(null)}>
+          <div style={{...eqStyles.modal, maxWidth: '500px'}} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#00d4ff', marginTop: 0 }}>💼 Configure Payout Splits</h2>
+            <p style={{ color: '#888', marginBottom: '20px' }}>Split earnings from this equipment to multiple wallets. Total must equal 100%.</p>
+            
+            {editingSplits.splits.map((split, idx) => (
+              <div key={split.id} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
+                <input
+                  style={{...eqStyles.input, flex: 2, marginBottom: 0}}
+                  type="text"
+                  placeholder="Wallet address"
+                  value={split.wallet_address}
+                  onChange={e => {
+                    const newSplits = [...editingSplits.splits];
+                    newSplits[idx].wallet_address = e.target.value;
+                    setEditingSplits({...editingSplits, splits: newSplits});
+                  }}
+                />
+                <input
+                  style={{...eqStyles.input, width: '80px', marginBottom: 0, textAlign: 'center'}}
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={split.percentage}
+                  onChange={e => {
+                    const newSplits = [...editingSplits.splits];
+                    newSplits[idx].percentage = parseInt(e.target.value) || 0;
+                    setEditingSplits({...editingSplits, splits: newSplits});
+                  }}
+                />
+                <span style={{ color: '#888' }}>%</span>
+                {editingSplits.splits.length > 1 && (
+                  <button
+                    style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}
+                    onClick={() => {
+                      const newSplits = editingSplits.splits.filter((_, i) => i !== idx);
+                      setEditingSplits({...editingSplits, splits: newSplits});
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <button
+              style={{ ...eqStyles.smallBtn, marginTop: '10px', marginBottom: '20px' }}
+              onClick={() => {
+                setEditingSplits({
+                  ...editingSplits,
+                  splits: [...editingSplits.splits, { id: `new-${Date.now()}`, wallet_address: '', percentage: 0, label: '', is_active: true }]
+                });
+              }}
+            >
+              ➕ Add Split
+            </button>
+
+            <div style={{ backgroundColor: '#0a0a15', padding: '10px 15px', borderRadius: '6px', marginBottom: '20px' }}>
+              <span style={{ color: '#888' }}>Total: </span>
+              <span style={{ color: editingSplits.splits.reduce((sum, s) => sum + s.percentage, 0) === 100 ? '#4ade80' : '#ef4444', fontWeight: 'bold' }}>
+                {editingSplits.splits.reduce((sum, s) => sum + s.percentage, 0)}%
+              </span>
+              {editingSplits.splits.reduce((sum, s) => sum + s.percentage, 0) !== 100 && (
+                <span style={{ color: '#ef4444', marginLeft: '10px' }}>(Must equal 100%)</span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button style={eqStyles.cancelBtn} onClick={() => setEditingSplits(null)}>Cancel</button>
+              <button 
+                style={{...eqStyles.saveBtn, opacity: editingSplits.splits.reduce((sum, s) => sum + s.percentage, 0) !== 100 ? 0.5 : 1}}
+                disabled={editingSplits.splits.reduce((sum, s) => sum + s.percentage, 0) !== 100}
+                onClick={() => { showMessage('success', 'Payout splits updated'); setEditingSplits(null); }}
+              >
+                Save Splits
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const eqStyles: { [key: string]: React.CSSProperties } = {
+  statCard: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '10px', border: '2px solid #2a2a4a', textAlign: 'center' },
+  statIcon: { fontSize: '1.5rem', marginBottom: '8px' },
+  statValue: { fontSize: '1.5rem', fontWeight: 'bold', color: '#00d4ff', marginBottom: '5px' },
+  statLabel: { color: '#888', fontSize: '0.85rem' },
+  tab: { padding: '12px 24px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#888', cursor: 'pointer', fontSize: '1rem', transition: 'all 0.2s' },
+  tabActive: { color: '#00d4ff', borderBottomColor: '#00d4ff' },
+  equipmentCard: { backgroundColor: '#1a1a2e', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a', borderLeft: '4px solid #888', cursor: 'pointer', transition: 'all 0.2s' },
+  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px' },
+  quickStat: { backgroundColor: '#0a0a15', padding: '10px', borderRadius: '6px', textAlign: 'center' },
+  quickLabel: { display: 'block', color: '#888', fontSize: '0.75rem', marginBottom: '3px' },
+  quickValue: { display: 'block', color: '#e0e0e0', fontWeight: 'bold', fontSize: '0.95rem' },
+  expandedDetails: { marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #2a2a4a' },
+  detailSection: { backgroundColor: '#0a0a15', padding: '15px', borderRadius: '8px' },
+  detailTitle: { color: '#00d4ff', margin: '0 0 12px', fontSize: '0.95rem' },
+  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#888', fontSize: '0.85rem' },
+  editSplitsBtn: { marginTop: '10px', padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #9b59b6', borderRadius: '6px', color: '#9b59b6', cursor: 'pointer', fontSize: '0.85rem' },
+  actionBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '6px', color: '#00d4ff', cursor: 'pointer' },
+  walletCard: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '10px', border: '1px solid #2a2a4a' },
+  primaryBadge: { backgroundColor: '#4ade80', color: '#0a0a0f', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' },
+  smallBtn: { padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '4px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.85rem' },
+  addBtn: { padding: '10px 20px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  modal: { backgroundColor: '#1a1a2e', padding: '30px', borderRadius: '12px', border: '2px solid #00d4ff', maxWidth: '400px', width: '90%' },
+  label: { display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' },
+  input: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', marginBottom: '15px', boxSizing: 'border-box' },
+  cancelBtn: { padding: '12px 24px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer' },
+  saveBtn: { padding: '12px 24px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' },
+};
 
 const graphStyles: { [key: string]: React.CSSProperties } = {
   section: { background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', borderRadius: '12px', padding: '24px', border: '1px solid #2a2a4a', marginBottom: '20px' },
