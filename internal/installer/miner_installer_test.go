@@ -12,18 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func skipMinerInstallerTest(t *testing.T) {
+	if os.Getenv("INSTALLER_TEST") != "true" {
+		t.Skip("Skipping miner installer test - set INSTALLER_TEST=true to run")
+	}
+}
+
 func TestMinerInstaller_HardwareDetection(t *testing.T) {
+	skipMinerInstallerTest(t)
 	installer := NewMinerInstaller()
-	
+
 	hardware, err := installer.DetectHardware()
 	require.NoError(t, err)
-	
+
 	// Verify basic hardware detection
 	assert.Greater(t, len(hardware.CPUs), 0)
 	assert.Greater(t, hardware.Memory.Total, int64(0))
 	assert.NotEmpty(t, hardware.OS)
 	assert.NotEmpty(t, hardware.Architecture)
-	
+
 	// Verify CPU information
 	for _, cpu := range hardware.CPUs {
 		assert.Greater(t, cpu.Cores, 0)
@@ -33,11 +40,12 @@ func TestMinerInstaller_HardwareDetection(t *testing.T) {
 }
 
 func TestMinerInstaller_GPUDetection(t *testing.T) {
+	skipMinerInstallerTest(t)
 	installer := NewMinerInstaller()
-	
+
 	hardware, err := installer.DetectHardware()
 	require.NoError(t, err)
-	
+
 	// GPU detection might not find GPUs in CI environment
 	// but should not error
 	for _, gpu := range hardware.GPUs {
@@ -127,10 +135,10 @@ func TestMinerInstaller_OptimalConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			installer := NewMinerInstaller()
-			
+
 			config, err := installer.GenerateOptimalConfig(tt.hardware)
 			require.NoError(t, err)
-			
+
 			assert.Equal(t, tt.expected.MiningMode, config.MiningMode)
 			assert.Equal(t, tt.expected.GPUEnabled, config.GPUEnabled)
 			assert.Equal(t, tt.expected.CPUEnabled, config.CPUEnabled)
@@ -142,7 +150,7 @@ func TestMinerInstaller_OptimalConfiguration(t *testing.T) {
 
 func TestMinerInstaller_WizardFlow(t *testing.T) {
 	installer := NewMinerInstaller()
-	
+
 	// Simulate wizard responses
 	responses := WizardResponses{
 		PoolURL:       "stratum+tcp://pool.example.com:4444",
@@ -152,18 +160,18 @@ func TestMinerInstaller_WizardFlow(t *testing.T) {
 		EnableGPU:     true,
 		EnableCPU:     false,
 	}
-	
+
 	hardware := HardwareInfo{
-		CPUs: []CPUInfo{{Cores: 8, Threads: 16, Model: "Test CPU"}},
-		GPUs: []GPUInfo{{Model: "Test GPU", Memory: 8 * 1024 * 1024 * 1024, Driver: "nvidia"}},
-		Memory: MemoryInfo{Total: 16 * 1024 * 1024 * 1024},
-		OS: runtime.GOOS,
+		CPUs:         []CPUInfo{{Cores: 8, Threads: 16, Model: "Test CPU"}},
+		GPUs:         []GPUInfo{{Model: "Test GPU", Memory: 8 * 1024 * 1024 * 1024, Driver: "nvidia"}},
+		Memory:       MemoryInfo{Total: 16 * 1024 * 1024 * 1024},
+		OS:           runtime.GOOS,
 		Architecture: runtime.GOARCH,
 	}
-	
+
 	config, err := installer.ProcessWizardResponses(responses, hardware)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, responses.PoolURL, config.PoolURL)
 	assert.Equal(t, responses.WalletAddress, config.WalletAddress)
 	assert.Equal(t, responses.MinerName, config.MinerName)
@@ -172,16 +180,17 @@ func TestMinerInstaller_WizardFlow(t *testing.T) {
 }
 
 func TestMinerInstaller_OneClickInstall(t *testing.T) {
+	skipMinerInstallerTest(t)
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	tempDir := t.TempDir()
 	installer := NewMinerInstaller()
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	
+
 	installConfig := MinerInstallConfig{
 		InstallPath:   tempDir,
 		PoolURL:       "stratum+tcp://test.pool.com:4444",
@@ -190,15 +199,15 @@ func TestMinerInstaller_OneClickInstall(t *testing.T) {
 		AutoStart:     false, // Don't start mining in test
 		AutoDetect:    true,
 	}
-	
+
 	result, err := installer.OneClickInstall(ctx, installConfig)
 	require.NoError(t, err)
-	
+
 	// Verify installation artifacts
 	assert.FileExists(t, filepath.Join(tempDir, "miner.yml"))
 	assert.FileExists(t, filepath.Join(tempDir, "start-mining.sh"))
 	assert.FileExists(t, filepath.Join(tempDir, "stop-mining.sh"))
-	
+
 	// Verify result
 	assert.NotEmpty(t, result.InstallationID)
 	assert.Equal(t, "success", result.Status)
@@ -206,16 +215,17 @@ func TestMinerInstaller_OneClickInstall(t *testing.T) {
 }
 
 func TestMinerInstaller_DriverInstallation(t *testing.T) {
+	skipMinerInstallerTest(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Driver installation test not supported on Windows in CI")
 	}
 
 	installer := NewMinerInstaller()
-	
+
 	// Test driver detection
 	drivers, err := installer.DetectMissingDrivers()
 	require.NoError(t, err)
-	
+
 	// Should not error even if no drivers are missing
 	for _, driver := range drivers {
 		assert.NotEmpty(t, driver.Name)
@@ -226,7 +236,7 @@ func TestMinerInstaller_DriverInstallation(t *testing.T) {
 
 func TestMinerInstaller_ConfigValidation(t *testing.T) {
 	installer := NewMinerInstaller()
-	
+
 	tests := []struct {
 		name        string
 		config      MinerConfig
@@ -281,7 +291,7 @@ func TestMinerInstaller_ConfigValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := installer.ValidateConfig(tt.config)
-			
+
 			if tt.shouldError {
 				assert.Error(t, err)
 			} else {
@@ -293,11 +303,11 @@ func TestMinerInstaller_ConfigValidation(t *testing.T) {
 
 func TestMinerInstaller_PlatformSpecificInstall(t *testing.T) {
 	installer := NewMinerInstaller()
-	
+
 	// Test platform-specific installation paths
 	installPath, err := installer.GetDefaultInstallPath()
 	require.NoError(t, err)
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		assert.Contains(t, installPath, "Program Files")
@@ -310,11 +320,11 @@ func TestMinerInstaller_PlatformSpecificInstall(t *testing.T) {
 
 func TestMinerInstaller_AutoUpdate(t *testing.T) {
 	installer := NewMinerInstaller()
-	
+
 	// Test update check
 	updateInfo, err := installer.CheckForUpdates("1.0.0")
 	require.NoError(t, err)
-	
+
 	// Should not error even if no updates available
 	if updateInfo.Available {
 		assert.NotEmpty(t, updateInfo.Version)

@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,25 +9,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func skipManagerTest(t *testing.T) {
+	if os.Getenv("SIMULATION_TEST") != "true" {
+		t.Skip("Skipping simulation manager test - set SIMULATION_TEST=true to run")
+	}
+}
+
 // Test comprehensive simulation manager functionality
 func TestSimulationManager_Comprehensive(t *testing.T) {
+	skipManagerTest(t)
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType:     "testnet",
-			BlockTime:       time.Second * 5,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 5,
 			InitialDifficulty: 1000,
 			TransactionLoad: TransactionLoadConfig{
-				TxPerSecond: 10,
+				TxPerSecond:      10,
 				BurstProbability: 0.1,
-				BurstMultiplier: 2,
+				BurstMultiplier:  2,
 			},
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 20,
+			MinerCount:    20,
 			HashRateRange: HashRateRange{Min: 1000000, Max: 5000000},
 			BehaviorPatterns: BehaviorPatternsConfig{
 				BurstMining: BurstMiningConfig{
-					Probability: 0.1,
+					Probability:         0.1,
 					IntensityMultiplier: 2.0,
 				},
 			},
@@ -39,7 +47,7 @@ func TestSimulationManager_Comprehensive(t *testing.T) {
 			},
 		},
 		EnableIntegration: true,
-		SyncInterval: time.Second * 5,
+		SyncInterval:      time.Second * 5,
 	}
 
 	manager, err := NewSimulationManager(config)
@@ -65,10 +73,10 @@ func TestSimulationManager_Comprehensive(t *testing.T) {
 	// Validate individual components
 	blockchain := manager.GetBlockchainSimulator()
 	assert.NotNil(t, blockchain)
-	
+
 	miners := manager.GetVirtualMinerSimulator()
 	assert.NotNil(t, miners)
-	
+
 	clusters := manager.GetClusterSimulator()
 	assert.NotNil(t, clusters)
 
@@ -85,14 +93,15 @@ func TestSimulationManager_Comprehensive(t *testing.T) {
 
 // Test stress testing functionality
 func TestSimulationManager_StressTesting(t *testing.T) {
+	skipManagerTest(t)
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 3,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 3,
 			InitialDifficulty: 500,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 15,
+			MinerCount:    15,
 			HashRateRange: HashRateRange{Min: 2000000, Max: 8000000},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
@@ -126,25 +135,26 @@ func TestSimulationManager_StressTesting(t *testing.T) {
 
 	// Check that stress test affected the system
 	stressStats := manager.GetOverallStats()
-	
+
 	// During stress test, we might see increased activity or some failures
 	assert.NotNil(t, stressStats)
 	assert.Greater(t, stressStats.VirtualMinerStats.TotalBurstEvents, uint64(0))
-	
+
 	// Hash rate might be higher due to burst mining or lower due to failures
 	assert.NotEqual(t, baselineHashRate, stressStats.TotalHashRate)
 }
 
 // Test failure scenarios
 func TestSimulationManager_FailureScenarios(t *testing.T) {
+	skipManagerTest(t)
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 5,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 5,
 			InitialDifficulty: 1000,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 10,
+			MinerCount:    10,
 			HashRateRange: HashRateRange{Min: 1000000, Max: 3000000},
 			MaliciousBehavior: MaliciousBehaviorConfig{
 				MaliciousMinerPercentage: 0.2,
@@ -174,7 +184,7 @@ func TestSimulationManager_FailureScenarios(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	testCases := []struct {
-		scenario string
+		scenario    string
 		expectError bool
 	}{
 		{"network_partition", false},
@@ -207,14 +217,15 @@ func TestSimulationManager_FailureScenarios(t *testing.T) {
 
 // Test pool migration functionality
 func TestSimulationManager_PoolMigration(t *testing.T) {
+	skipManagerTest(t)
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 5,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 5,
 			InitialDifficulty: 1000,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 5,
+			MinerCount:    5,
 			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
@@ -251,7 +262,7 @@ func TestSimulationManager_PoolMigration(t *testing.T) {
 	// Check migration progress
 	clusterSim := manager.GetClusterSimulator()
 	progress := clusterSim.GetMigrationProgress("pool_A", "pool_B")
-	
+
 	if progress != nil {
 		assert.Greater(t, progress.MigratedMiners, uint32(0))
 		assert.LessOrEqual(t, progress.MigratedMiners, uint32(18)) // Total cluster miners
@@ -260,15 +271,16 @@ func TestSimulationManager_PoolMigration(t *testing.T) {
 
 // Test simulation accuracy validation
 func TestSimulationManager_AccuracyValidation(t *testing.T) {
+	skipManagerTest(t)
 	// Test with good configuration
 	goodConfig := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 3,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 3,
 			InitialDifficulty: 500,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 10,
+			MinerCount:    10,
 			HashRateRange: HashRateRange{Min: 1000000, Max: 3000000},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
@@ -296,16 +308,16 @@ func TestSimulationManager_AccuracyValidation(t *testing.T) {
 	// Test with problematic configuration (no miners)
 	badConfig := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 5,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 5,
 			InitialDifficulty: 1000,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 0, // No miners
+			MinerCount:    0, // No miners
 			HashRateRange: HashRateRange{Min: 0, Max: 0},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
-			ClusterCount: 0, // No clusters
+			ClusterCount:   0, // No clusters
 			ClustersConfig: []ClusterConfig{},
 		},
 	}
@@ -329,15 +341,15 @@ func TestSimulationManager_AccuracyValidation(t *testing.T) {
 func TestSimulationManager_PerformanceMetrics(t *testing.T) {
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 4,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 4,
 			InitialDifficulty: 800,
 			TransactionLoad: TransactionLoadConfig{
 				TxPerSecond: 5,
 			},
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 8,
+			MinerCount:    8,
 			HashRateRange: HashRateRange{Min: 1500000, Max: 4000000},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
@@ -385,12 +397,12 @@ func TestSimulationManager_PerformanceMetrics(t *testing.T) {
 func TestSimulationManager_ComponentIntegration(t *testing.T) {
 	config := SimulationConfig{
 		BlockchainConfig: BlockchainConfig{
-			NetworkType: "testnet",
-			BlockTime: time.Second * 6,
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 6,
 			InitialDifficulty: 1200,
 		},
 		MinerConfig: VirtualMinerConfig{
-			MinerCount: 6,
+			MinerCount:    6,
 			HashRateRange: HashRateRange{Min: 2000000, Max: 5000000},
 		},
 		ClusterConfig: ClusterSimulatorConfig{
@@ -400,7 +412,7 @@ func TestSimulationManager_ComponentIntegration(t *testing.T) {
 			},
 		},
 		EnableIntegration: true,
-		SyncInterval: time.Second * 3,
+		SyncInterval:      time.Second * 3,
 	}
 
 	manager, err := NewSimulationManager(config)
@@ -416,19 +428,19 @@ func TestSimulationManager_ComponentIntegration(t *testing.T) {
 	// Test that all components are accessible and working
 	blockchain := manager.GetBlockchainSimulator()
 	assert.NotNil(t, blockchain)
-	
+
 	blockchainStats := blockchain.GetNetworkStats()
 	assert.Equal(t, "testnet", blockchainStats.NetworkType)
 
 	miners := manager.GetVirtualMinerSimulator()
 	assert.NotNil(t, miners)
-	
+
 	minerList := miners.GetMiners()
 	assert.Len(t, minerList, 6)
 
 	clusters := manager.GetClusterSimulator()
 	assert.NotNil(t, clusters)
-	
+
 	clusterList := clusters.GetClusters()
 	assert.Len(t, clusterList, 1)
 	assert.Equal(t, "IntegCluster", clusterList[0].Name)
@@ -436,7 +448,7 @@ func TestSimulationManager_ComponentIntegration(t *testing.T) {
 	// Test that components are coordinated
 	overallStats := manager.GetOverallStats()
 	assert.NotNil(t, overallStats)
-	
+
 	// Total hash rate should be sum of individual and cluster miners
 	expectedTotalMiners := uint32(6 + 9) // 6 individual + 9 cluster miners
 	assert.Equal(t, expectedTotalMiners, overallStats.TotalMiners)

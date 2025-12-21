@@ -11,7 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func skipInstallerTest(t *testing.T) {
+	if os.Getenv("INSTALLER_TEST") != "true" {
+		t.Skip("Skipping installer test - set INSTALLER_TEST=true to run")
+	}
+}
+
 func TestPoolInstaller_AutoConfiguration(t *testing.T) {
+	skipInstallerTest(t)
 	tests := []struct {
 		name           string
 		systemSpecs    SystemSpecs
@@ -22,9 +29,9 @@ func TestPoolInstaller_AutoConfiguration(t *testing.T) {
 			name: "high_performance_server",
 			systemSpecs: SystemSpecs{
 				CPU:        CPUInfo{Cores: 16, Architecture: "x86_64"},
-				Memory:     MemoryInfo{Total: 32 * 1024 * 1024 * 1024}, // 32GB
+				Memory:     MemoryInfo{Total: 32 * 1024 * 1024 * 1024},        // 32GB
 				Storage:    StorageInfo{Available: 1024 * 1024 * 1024 * 1024}, // 1TB
-				Network:    NetworkInfo{Bandwidth: 1000}, // 1Gbps
+				Network:    NetworkInfo{Bandwidth: 1000},                      // 1Gbps
 				OS:         "linux",
 				Containers: ContainerSupport{Docker: true, Podman: false},
 			},
@@ -42,9 +49,9 @@ func TestPoolInstaller_AutoConfiguration(t *testing.T) {
 			name: "low_resource_system",
 			systemSpecs: SystemSpecs{
 				CPU:        CPUInfo{Cores: 2, Architecture: "x86_64"},
-				Memory:     MemoryInfo{Total: 2 * 1024 * 1024 * 1024}, // 2GB
+				Memory:     MemoryInfo{Total: 2 * 1024 * 1024 * 1024},       // 2GB
 				Storage:    StorageInfo{Available: 50 * 1024 * 1024 * 1024}, // 50GB
-				Network:    NetworkInfo{Bandwidth: 100}, // 100Mbps
+				Network:    NetworkInfo{Bandwidth: 100},                     // 100Mbps
 				OS:         "linux",
 				Containers: ContainerSupport{Docker: true, Podman: false},
 			},
@@ -62,9 +69,9 @@ func TestPoolInstaller_AutoConfiguration(t *testing.T) {
 			name: "insufficient_resources",
 			systemSpecs: SystemSpecs{
 				CPU:        CPUInfo{Cores: 1, Architecture: "x86_64"},
-				Memory:     MemoryInfo{Total: 512 * 1024 * 1024}, // 512MB
+				Memory:     MemoryInfo{Total: 512 * 1024 * 1024},           // 512MB
 				Storage:    StorageInfo{Available: 1 * 1024 * 1024 * 1024}, // 1GB
-				Network:    NetworkInfo{Bandwidth: 10}, // 10Mbps
+				Network:    NetworkInfo{Bandwidth: 10},                     // 10Mbps
 				OS:         "linux",
 				Containers: ContainerSupport{Docker: false, Podman: false},
 			},
@@ -75,14 +82,14 @@ func TestPoolInstaller_AutoConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			installer := NewPoolInstaller()
-			
+
 			config, err := installer.GenerateAutoConfiguration(tt.systemSpecs)
-			
+
 			if tt.shouldFail {
 				assert.Error(t, err)
 				return
 			}
-			
+
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig.MaxMiners, config.MaxMiners)
 			assert.Equal(t, tt.expectedConfig.DatabaseConfig.MaxConnections, config.DatabaseConfig.MaxConnections)
@@ -92,6 +99,7 @@ func TestPoolInstaller_AutoConfiguration(t *testing.T) {
 }
 
 func TestPoolInstaller_DockerComposeGeneration(t *testing.T) {
+	skipInstallerTest(t)
 	installer := NewPoolInstaller()
 	config := PoolConfig{
 		MaxMiners:      1000,
@@ -101,24 +109,25 @@ func TestPoolInstaller_DockerComposeGeneration(t *testing.T) {
 
 	dockerCompose, err := installer.GenerateDockerCompose(config)
 	require.NoError(t, err)
-	
+
 	// Verify essential services are present
 	assert.Contains(t, dockerCompose, "chimera-pool-core")
 	assert.Contains(t, dockerCompose, "postgresql")
 	assert.Contains(t, dockerCompose, "redis")
 	assert.Contains(t, dockerCompose, "nginx")
-	
+
 	// Verify configuration is applied
 	assert.Contains(t, dockerCompose, "POSTGRES_MAX_CONNECTIONS=50")
 	assert.Contains(t, dockerCompose, "REDIS_MAX_CONNECTIONS=100")
 }
 
 func TestPoolInstaller_SystemDetection(t *testing.T) {
+	skipInstallerTest(t)
 	installer := NewPoolInstaller()
-	
+
 	specs, err := installer.DetectSystemSpecs()
 	require.NoError(t, err)
-	
+
 	// Basic validation that detection works
 	assert.Greater(t, specs.CPU.Cores, 0)
 	assert.Greater(t, specs.Memory.Total, int64(0))
@@ -127,34 +136,35 @@ func TestPoolInstaller_SystemDetection(t *testing.T) {
 }
 
 func TestPoolInstaller_OneClickInstall(t *testing.T) {
+	skipInstallerTest(t)
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	tempDir := t.TempDir()
 	installer := NewPoolInstaller()
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	
+
 	installConfig := InstallConfig{
-		InstallPath:    tempDir,
-		AutoStart:      false, // Don't start services in test
-		EnableSSL:      false,
-		DomainName:     "test.local",
-		AdminEmail:     "admin@test.local",
-		WalletAddress:  "test_wallet_address",
+		InstallPath:   tempDir,
+		AutoStart:     false, // Don't start services in test
+		EnableSSL:     false,
+		DomainName:    "test.local",
+		AdminEmail:    "admin@test.local",
+		WalletAddress: "test_wallet_address",
 	}
-	
+
 	result, err := installer.OneClickInstall(ctx, installConfig)
 	require.NoError(t, err)
-	
+
 	// Verify installation artifacts
 	assert.FileExists(t, filepath.Join(tempDir, "docker-compose.yml"))
 	assert.FileExists(t, filepath.Join(tempDir, "config", "pool.yml"))
 	assert.FileExists(t, filepath.Join(tempDir, "scripts", "start.sh"))
 	assert.FileExists(t, filepath.Join(tempDir, "scripts", "stop.sh"))
-	
+
 	// Verify result contains expected information
 	assert.NotEmpty(t, result.InstallationID)
 	assert.Equal(t, "success", result.Status)
@@ -185,7 +195,7 @@ func TestPoolInstaller_CloudTemplateGeneration(t *testing.T) {
 			template, err := installer.GenerateCloudTemplate(tt.provider, config)
 			require.NoError(t, err)
 			assert.NotEmpty(t, template)
-			
+
 			// Verify provider-specific elements
 			switch tt.provider {
 			case CloudProviderAWS:

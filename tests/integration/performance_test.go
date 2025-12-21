@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"chimera-pool-core/internal/testutil"
+	"github.com/chimera-pool/chimera-pool-core/internal/testutil"
 )
 
 // PerformanceTestSuite validates system performance under production load
@@ -615,3 +618,4 @@ func (s *PerformanceTestSuite) TestLongRunningStabilityTest() {
 	s.Assert().Greater(float64(acceptedShares)/float64(totalShares), 0.98, "Share acceptance rate should remain high during stability test")
 	s.Assert().Greater(totalShares, int64(numMiners*30), "Should process significant shares during stability test")
 }
+

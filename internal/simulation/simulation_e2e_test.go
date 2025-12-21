@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -9,8 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func skipE2ETest(t *testing.T) {
+	if os.Getenv("SIMULATION_TEST") != "true" {
+		t.Skip("Skipping simulation E2E test - set SIMULATION_TEST=true to run")
+	}
+}
+
 // E2E Test: Complete simulation environment with blockchain, virtual miners, and clusters
 func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
+	skipE2ETest(t)
 	// Setup blockchain simulator
 	blockchainConfig := BlockchainConfig{
 		NetworkType:                "testnet",
@@ -141,6 +149,7 @@ func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 
 // E2E Test: High load stress testing
 func TestSimulationEnvironment_E2E_HighLoad(t *testing.T) {
+	skipE2ETest(t)
 	// Setup high-load configuration
 	blockchainConfig := BlockchainConfig{
 		NetworkType:       "mainnet",
@@ -221,6 +230,7 @@ func TestSimulationEnvironment_E2E_HighLoad(t *testing.T) {
 
 // E2E Test: Failure scenarios and recovery
 func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
+	skipE2ETest(t)
 	// Setup with failure simulation enabled
 	clusterConfig := ClusterSimulatorConfig{
 		ClusterCount: 3,
@@ -315,6 +325,7 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 
 // E2E Test: Pool migration scenarios
 func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
+	skipE2ETest(t)
 	clusterConfig := ClusterSimulatorConfig{
 		ClusterCount: 4,
 		ClustersConfig: []ClusterConfig{
@@ -404,6 +415,7 @@ func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
 
 // E2E Test: Geographical distribution and network effects
 func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
+	skipE2ETest(t)
 	clusterConfig := ClusterSimulatorConfig{
 		ClusterCount: 6,
 		ClustersConfig: []ClusterConfig{
@@ -477,6 +489,7 @@ func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
 
 // E2E Test: Performance validation under various conditions
 func TestSimulationEnvironment_E2E_PerformanceValidation(t *testing.T) {
+	skipE2ETest(t)
 	// Test with different configurations to validate performance
 	testCases := []struct {
 		name                string

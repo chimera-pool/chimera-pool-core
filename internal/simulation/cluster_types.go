@@ -99,20 +99,22 @@ type Cluster struct {
 
 // ClusterStatistics tracks cluster performance statistics
 type ClusterStatistics struct {
-	MinerCount        uint32
-	ActiveMiners      uint32
-	TotalHashRate     uint64
-	AverageHashRate   uint64
-	TotalShares       uint64
-	ValidShares       uint64
-	InvalidShares     uint64
-	UptimePercentage  float64
-	PowerEfficiency   float64 // Hash/Watt
-	FailoverEvents    uint64
-	SyncEvents        uint64
-	MigrationEvents   uint64
-	LastFailureTime   time.Time
-	LastRecoveryTime  time.Time
+	MinerCount       uint32
+	ActiveMiners     uint32
+	TotalHashRate    uint64
+	AverageHashRate  uint64
+	TotalShares      uint64
+	ValidShares      uint64
+	InvalidShares    uint64
+	UptimePercentage float64
+	PowerEfficiency  float64 // Hash/Watt
+	FailoverEvents   uint64
+	SyncEvents       uint64
+	MigrationEvents  uint64
+	LastFailureTime  time.Time
+	LastRecoveryTime time.Time
+	IsActive         bool // Whether cluster is currently active
+	IsInFailure      bool // Whether cluster is in failure state
 }
 
 // MigrationPlan defines a pool migration plan
@@ -129,29 +131,29 @@ type MigrationPlan struct {
 
 // MigrationProgress tracks migration progress
 type MigrationProgress struct {
-	PlanID          string
-	TotalMiners     uint32
-	MigratedMiners  uint32
-	FailedMiners    uint32
-	ProgressPercent float64
+	PlanID                 string
+	TotalMiners            uint32
+	MigratedMiners         uint32
+	FailedMiners           uint32
+	ProgressPercent        float64
 	EstimatedTimeRemaining time.Duration
-	Status          string
-	Errors          []string
+	Status                 string
+	Errors                 []string
 }
 
 // OverallClusterStats provides statistics across all clusters
 type OverallClusterStats struct {
-	TotalClusters     uint32
-	ActiveClusters    uint32
-	TotalMiners       uint32
-	ActiveMiners      uint32
-	TotalHashRate     uint64
-	AverageHashRate   uint64
-	TotalPowerUsage   uint32
-	PowerEfficiency   float64
-	UptimePercentage  float64
-	FailoverEvents    uint64
-	MigrationEvents   uint64
+	TotalClusters            uint32
+	ActiveClusters           uint32
+	TotalMiners              uint32
+	ActiveMiners             uint32
+	TotalHashRate            uint64
+	AverageHashRate          uint64
+	TotalPowerUsage          uint32
+	PowerEfficiency          float64
+	UptimePercentage         float64
+	FailoverEvents           uint64
+	MigrationEvents          uint64
 	GeographicalDistribution map[string]uint32
 }
 
@@ -160,32 +162,32 @@ type ClusterSimulator interface {
 	// Lifecycle management
 	Start() error
 	Stop() error
-	
+
 	// Cluster management
 	GetClusters() []*Cluster
 	GetCluster(id string) *Cluster
 	AddCluster(config ClusterConfig) (*Cluster, error)
 	RemoveCluster(id string) error
-	
+
 	// Failure simulation
 	TriggerClusterFailure(clusterID string, duration time.Duration) error
 	TriggerNetworkPartition(clusterIDs []string, duration time.Duration) error
 	TriggerCoordinatorFailure(coordinatorID string, duration time.Duration) error
-	
+
 	// Migration management
 	ExecuteMigration(plan MigrationPlan) error
 	GetMigrationProgress(sourcePool, targetPool string) *MigrationProgress
 	CancelMigration(planID string) error
-	
+
 	// Statistics and monitoring
 	GetOverallStats() *OverallClusterStats
 	GetClusterStats(clusterID string) *ClusterStatistics
 	GetGeographicalDistribution() map[string]uint32
-	
+
 	// Coordination
 	ElectLeader(clusterIDs []string) (string, error)
 	SynchronizeClusters(clusterIDs []string) error
-	
+
 	// Configuration
 	UpdateClusterConfig(clusterID string, config ClusterConfig) error
 	UpdateMinerDistribution(clusterID string, minerCount int) error

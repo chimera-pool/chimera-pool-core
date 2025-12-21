@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -13,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"chimera-pool-core/internal/testutil"
+	"github.com/chimera-pool/chimera-pool-core/internal/testutil"
 )
 
 // ProductionReadinessTestSuite validates production readiness
@@ -847,3 +850,4 @@ func (s *ProductionReadinessTestSuite) getAdminToken() string {
 	
 	return token.AccessToken
 }
+

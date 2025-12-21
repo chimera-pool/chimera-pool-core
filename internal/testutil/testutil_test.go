@@ -1,13 +1,22 @@
 package testutil
 
 import (
+	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func skipTestUtilIntegration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping integration test - set INTEGRATION_TEST=true to run")
+	}
+}
+
 func TestSetupTestDatabase(t *testing.T) {
+	skipTestUtilIntegration(t)
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -29,6 +38,7 @@ func TestSetupTestDatabase(t *testing.T) {
 }
 
 func TestSetupTestRedis(t *testing.T) {
+	skipTestUtilIntegration(t)
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -38,16 +48,18 @@ func TestSetupTestRedis(t *testing.T) {
 	require.NotNil(t, testRedis.Client)
 	require.NotEmpty(t, testRedis.URL)
 
+	ctx := context.Background()
+
 	// Test Redis connection
-	pong, err := testRedis.Client.Ping(testRedis.Client.Context()).Result()
+	pong, err := testRedis.Client.Ping(ctx).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, "PONG", pong)
 
 	// Test basic operations
-	err = testRedis.Client.Set(testRedis.Client.Context(), "test_key", "test_value", 0).Err()
+	err = testRedis.Client.Set(ctx, "test_key", "test_value", 0).Err()
 	assert.NoError(t, err)
 
-	val, err := testRedis.Client.Get(testRedis.Client.Context(), "test_key").Result()
+	val, err := testRedis.Client.Get(ctx, "test_key").Result()
 	assert.NoError(t, err)
 	assert.Equal(t, "test_value", val)
 }

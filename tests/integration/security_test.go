@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package integration
 
 import (
@@ -15,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"chimera-pool-core/internal/testutil"
+	"github.com/chimera-pool/chimera-pool-core/internal/testutil"
 )
 
 // SecurityTestSuite validates comprehensive security measures
@@ -1056,3 +1059,4 @@ func (s *SecurityTestSuite) testDDoSProtection() {
 	s.Assert().Less(connectionsPerSecond, 1000.0, 
 		"System should limit rapid connection attempts")
 }
+
