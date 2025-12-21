@@ -1,12 +1,17 @@
 package database
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+// Silence unused import warnings - these will be used as tests expand
+var (
+	_ = assert.Equal
+	_ = require.NoError
 )
 
 // TestDatabaseFoundationTDD implements the TDD approach for database foundation
@@ -89,11 +94,11 @@ func TestDatabaseFoundationTDD(t *testing.T) {
 		t.Run("ConnectionPool_ShouldHaveCorrectInterface", func(t *testing.T) {
 			// Test that ConnectionPool has all required methods
 			config := DefaultConfig()
-			
+
 			// This test validates the interface exists
 			// In a real environment, this would create an actual connection
 			pool := &ConnectionPool{}
-			
+
 			// Verify methods exist (compile-time check)
 			assert.NotNil(t, pool.Close, "Close method should exist")
 			assert.NotNil(t, pool.HealthCheck, "HealthCheck method should exist")
@@ -111,7 +116,7 @@ func TestDatabaseFoundationTDD(t *testing.T) {
 		t.Run("Transaction_ShouldHaveCorrectInterface", func(t *testing.T) {
 			// Test that Transaction has all required methods
 			tx := &Transaction{}
-			
+
 			// Verify methods exist (compile-time check)
 			assert.NotNil(t, tx.Rollback, "Rollback method should exist")
 			assert.NotNil(t, tx.Commit, "Commit method should exist")
@@ -128,7 +133,7 @@ func TestDatabaseFoundationTDD(t *testing.T) {
 				InUse:     3,
 				Idle:      2,
 			}
-			
+
 			assert.Equal(t, int32(10), stats.MaxConns)
 			assert.Equal(t, int32(5), stats.OpenConns)
 			assert.Equal(t, int32(3), stats.InUse)
@@ -252,21 +257,21 @@ func TestDatabaseFoundationTDD(t *testing.T) {
 		t.Run("DatabaseOperations_ShouldHaveCorrectSignatures", func(t *testing.T) {
 			// Test that all required database operations exist with correct signatures
 			// This is a compile-time check to ensure the functions exist
-			
+
 			// User operations
 			assert.NotNil(t, CreateUser, "CreateUser function should exist")
 			assert.NotNil(t, GetUserByID, "GetUserByID function should exist")
 			assert.NotNil(t, GetUserByUsername, "GetUserByUsername function should exist")
-			
+
 			// Miner operations
 			assert.NotNil(t, CreateMiner, "CreateMiner function should exist")
 			assert.NotNil(t, GetMinersByUserID, "GetMinersByUserID function should exist")
 			assert.NotNil(t, UpdateMinerLastSeen, "UpdateMinerLastSeen function should exist")
-			
+
 			// Share operations
 			assert.NotNil(t, CreateShare, "CreateShare function should exist")
 			assert.NotNil(t, GetSharesByMinerID, "GetSharesByMinerID function should exist")
-			
+
 			// Migration operations
 			assert.NotNil(t, RunMigrations, "RunMigrations function should exist")
 			assert.NotNil(t, GetMigrationStatus, "GetMigrationStatus function should exist")
@@ -278,7 +283,7 @@ func TestDatabaseFoundationTDD(t *testing.T) {
 		t.Run("Database_ShouldHaveCorrectInterface", func(t *testing.T) {
 			// Test that Database struct has all required methods
 			db := &Database{}
-			
+
 			assert.NotNil(t, db.Close, "Close method should exist")
 			assert.NotNil(t, db.HealthCheck, "HealthCheck method should exist")
 			assert.NotNil(t, db.GetStats, "GetStats method should exist")
@@ -346,7 +351,7 @@ func TestDatabaseFoundationImplementation(t *testing.T) {
 func TestDatabaseFoundationRequirements(t *testing.T) {
 	t.Run("Requirement_6_1_PoolMiningFunctionality", func(t *testing.T) {
 		// Requirement 6.1: WHEN a miner submits valid shares THEN the system SHALL record and credit the contribution
-		
+
 		// Test that Share model supports recording contributions
 		share := &Share{
 			MinerID:    1,
@@ -356,7 +361,7 @@ func TestDatabaseFoundationRequirements(t *testing.T) {
 			Nonce:      "test_nonce",
 			Hash:       "test_hash",
 		}
-		
+
 		assert.Greater(t, share.MinerID, int64(0), "should record miner ID")
 		assert.Greater(t, share.UserID, int64(0), "should record user ID")
 		assert.Greater(t, share.Difficulty, 0.0, "should record difficulty")
@@ -367,7 +372,7 @@ func TestDatabaseFoundationRequirements(t *testing.T) {
 
 	t.Run("Requirement_6_2_PayoutCalculation", func(t *testing.T) {
 		// Requirement 6.2: WHEN calculating payouts THEN the system SHALL use a fair distribution algorithm
-		
+
 		// Test that Payout model supports payout tracking
 		payout := &Payout{
 			UserID:  1,
@@ -375,7 +380,7 @@ func TestDatabaseFoundationRequirements(t *testing.T) {
 			Address: "test_address",
 			Status:  "pending",
 		}
-		
+
 		assert.Greater(t, payout.UserID, int64(0), "should track user for payout")
 		assert.Greater(t, payout.Amount, int64(0), "should track payout amount")
 		assert.NotEmpty(t, payout.Address, "should track payout address")

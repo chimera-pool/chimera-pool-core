@@ -36,19 +36,19 @@ type AdminUserView struct {
 }
 
 type UserDetailResponse struct {
-	User    AdminUserView   `json:"user"`
-	Miners  []MinerView     `json:"miners"`
-	Payouts []PayoutView    `json:"payouts"`
-	Shares  SharesStats     `json:"shares_stats"`
+	User    AdminUserView `json:"user"`
+	Miners  []MinerView   `json:"miners"`
+	Payouts []PayoutView  `json:"payouts"`
+	Shares  SharesStats   `json:"shares_stats"`
 }
 
 type MinerView struct {
-	ID        int64   `json:"id"`
-	Name      string  `json:"name"`
-	Address   string  `json:"address"`
-	Hashrate  float64 `json:"hashrate"`
-	IsActive  bool    `json:"is_active"`
-	LastSeen  string  `json:"last_seen"`
+	ID       int64   `json:"id"`
+	Name     string  `json:"name"`
+	Address  string  `json:"address"`
+	Hashrate float64 `json:"hashrate"`
+	IsActive bool    `json:"is_active"`
+	LastSeen string  `json:"last_seen"`
 }
 
 type PayoutView struct {
@@ -62,10 +62,10 @@ type PayoutView struct {
 }
 
 type SharesStats struct {
-	TotalShares   int64   `json:"total_shares"`
-	ValidShares   int64   `json:"valid_shares"`
-	InvalidShares int64   `json:"invalid_shares"`
-	Last24Hours   int64   `json:"last_24_hours"`
+	TotalShares   int64 `json:"total_shares"`
+	ValidShares   int64 `json:"valid_shares"`
+	InvalidShares int64 `json:"invalid_shares"`
+	Last24Hours   int64 `json:"last_24_hours"`
 }
 
 type UpdateUserRequest struct {
@@ -110,7 +110,7 @@ func TestAdminListUsers(t *testing.T) {
 	router := setupTestRouter(db, jwtSecret)
 
 	// Create admin JWT token
-	token, err := generateJWT(1, jwtSecret)
+	token, err := generateJWT(1, "admin", jwtSecret)
 	if err != nil {
 		t.Fatalf("Failed to generate JWT: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestAdminGetUser(t *testing.T) {
 	jwtSecret := "test-secret"
 	router := setupTestRouter(db, jwtSecret)
 
-	token, _ := generateJWT(1, jwtSecret)
+	token, _ := generateJWT(1, "admin", jwtSecret)
 
 	tests := []struct {
 		name           string
@@ -254,7 +254,7 @@ func TestAdminUpdateUser(t *testing.T) {
 	jwtSecret := "test-secret"
 	router := setupTestRouter(db, jwtSecret)
 
-	token, _ := generateJWT(1, jwtSecret)
+	token, _ := generateJWT(1, "admin", jwtSecret)
 
 	// Create a test user
 	var testUserID int64
@@ -347,7 +347,7 @@ func TestAdminUserEarnings(t *testing.T) {
 	jwtSecret := "test-secret"
 	router := setupTestRouter(db, jwtSecret)
 
-	token, _ := generateJWT(1, jwtSecret)
+	token, _ := generateJWT(1, "admin", jwtSecret)
 
 	tests := []struct {
 		name           string
