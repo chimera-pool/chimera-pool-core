@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -139,6 +140,15 @@ func main() {
 
 			protected.POST("/community/report", handleReportContent(db))
 			protected.GET("/community/online-users", handleGetOnlineUsers(db))
+
+			// Bug reporting routes (authenticated users)
+			protected.POST("/bugs", handleCreateBugReport(db, config))
+			protected.GET("/bugs", handleGetUserBugReports(db))
+			protected.GET("/bugs/:id", handleGetBugReport(db))
+			protected.POST("/bugs/:id/comments", handleAddBugComment(db, config))
+			protected.POST("/bugs/:id/attachments", handleUploadBugAttachment(db))
+			protected.POST("/bugs/:id/subscribe", handleSubscribeToBug(db))
+			protected.DELETE("/bugs/:id/subscribe", handleUnsubscribeFromBug(db))
 		}
 
 		// Admin routes
@@ -184,6 +194,15 @@ func main() {
 			admin.POST("/community/channels", handleAdminCreateChannel(db))
 			admin.PUT("/community/channels/:id", handleAdminUpdateChannel(db))
 			admin.DELETE("/community/channels/:id", handleAdminDeleteChannel(db))
+
+			// Admin bug report management
+			admin.GET("/bugs", handleAdminGetAllBugReports(db))
+			admin.GET("/bugs/:id", handleAdminGetBugReport(db))
+			admin.PUT("/bugs/:id/status", handleAdminUpdateBugStatus(db, config))
+			admin.PUT("/bugs/:id/priority", handleAdminUpdateBugPriority(db))
+			admin.PUT("/bugs/:id/assign", handleAdminAssignBug(db, config))
+			admin.POST("/bugs/:id/comments", handleAdminAddBugComment(db, config))
+			admin.DELETE("/bugs/:id", handleAdminDeleteBugReport(db))
 		}
 	}
 
@@ -1657,6 +1676,75 @@ This is an automated message. Please do not reply to this email.
 	}
 
 	log.Printf("Password reset email sent to %s", toEmail)
+	return nil
+}
+
+// Generic email sending function
+func sendEmail(config *Config, toEmail, subject, body string) error {
+	// Compose email
+	msg := fmt.Sprintf("From: %s\r\n"+
+		"To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"MIME-Version: 1.0\r\n"+
+		"Content-Type: text/plain; charset=UTF-8\r\n"+
+		"\r\n"+
+		"%s", config.SMTPFrom, toEmail, subject, body)
+
+	addr := fmt.Sprintf("%s:%s", config.SMTPHost, config.SMTPPort)
+
+	if config.SMTPPort == "465" {
+		// Direct TLS connection for port 465
+		tlsConfig := &tls.Config{
+			ServerName: config.SMTPHost,
+		}
+
+		conn, err := tls.Dial("tcp", addr, tlsConfig)
+		if err != nil {
+			log.Printf("Failed to connect to SMTP server: %v", err)
+			return err
+		}
+		defer conn.Close()
+
+		client, err := smtp.NewClient(conn, config.SMTPHost)
+		if err != nil {
+			log.Printf("Failed to create SMTP client: %v", err)
+			return err
+		}
+		defer client.Close()
+
+		auth := smtp.PlainAuth("", config.SMTPUser, config.SMTPPassword, config.SMTPHost)
+		if err := client.Auth(auth); err != nil {
+			log.Printf("SMTP authentication failed: %v", err)
+			return err
+		}
+
+		if err := client.Mail(config.SMTPFrom); err != nil {
+			return err
+		}
+		if err := client.Rcpt(toEmail); err != nil {
+			return err
+		}
+
+		w, err := client.Data()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte(msg))
+		if err != nil {
+			return err
+		}
+		w.Close()
+		client.Quit()
+	} else {
+		auth := smtp.PlainAuth("", config.SMTPUser, config.SMTPPassword, config.SMTPHost)
+		err := smtp.SendMail(addr, auth, config.SMTPFrom, []string{toEmail}, []byte(msg))
+		if err != nil {
+			log.Printf("Failed to send email: %v", err)
+			return err
+		}
+	}
+
+	log.Printf("Email sent to %s: %s", toEmail, subject)
 	return nil
 }
 
@@ -4941,4 +5029,987 @@ func handleWalletPayoutPreview(db *sql.DB) gin.HandlerFunc {
 			"splits":       splits,
 		})
 	}
+}
+
+// ==================== BUG REPORTING HANDLERS ====================
+
+// BugReport represents a bug report
+type BugReport struct {
+	ID               int64      `json:"id"`
+	ReportNumber     string     `json:"report_number"`
+	UserID           int64      `json:"user_id"`
+	Username         string     `json:"username,omitempty"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	StepsToReproduce string     `json:"steps_to_reproduce,omitempty"`
+	ExpectedBehavior string     `json:"expected_behavior,omitempty"`
+	ActualBehavior   string     `json:"actual_behavior,omitempty"`
+	Category         string     `json:"category"`
+	Priority         string     `json:"priority"`
+	Status           string     `json:"status"`
+	BrowserInfo      string     `json:"browser_info,omitempty"`
+	OSInfo           string     `json:"os_info,omitempty"`
+	PageURL          string     `json:"page_url,omitempty"`
+	ConsoleErrors    string     `json:"console_errors,omitempty"`
+	AssignedTo       *int64     `json:"assigned_to,omitempty"`
+	AssignedUsername string     `json:"assigned_username,omitempty"`
+	ResolvedAt       *time.Time `json:"resolved_at,omitempty"`
+	ResolvedBy       *int64     `json:"resolved_by,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	AttachmentCount  int        `json:"attachment_count,omitempty"`
+	CommentCount     int        `json:"comment_count,omitempty"`
+}
+
+// BugComment represents a comment on a bug report
+type BugComment struct {
+	ID             int64     `json:"id"`
+	BugReportID    int64     `json:"bug_report_id"`
+	UserID         int64     `json:"user_id"`
+	Username       string    `json:"username"`
+	Content        string    `json:"content"`
+	IsInternal     bool      `json:"is_internal"`
+	IsStatusChange bool      `json:"is_status_change"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// BugAttachment represents a file attachment
+type BugAttachment struct {
+	ID               int64     `json:"id"`
+	BugReportID      int64     `json:"bug_report_id"`
+	Filename         string    `json:"filename"`
+	OriginalFilename string    `json:"original_filename"`
+	FileType         string    `json:"file_type"`
+	FileSize         int64     `json:"file_size"`
+	IsScreenshot     bool      `json:"is_screenshot"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// handleCreateBugReport creates a new bug report
+func handleCreateBugReport(db *sql.DB, config *Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var req struct {
+			Title            string `json:"title" binding:"required,min=5,max=255"`
+			Description      string `json:"description" binding:"required,min=10"`
+			StepsToReproduce string `json:"steps_to_reproduce"`
+			ExpectedBehavior string `json:"expected_behavior"`
+			ActualBehavior   string `json:"actual_behavior"`
+			Category         string `json:"category"`
+			BrowserInfo      string `json:"browser_info"`
+			OSInfo           string `json:"os_info"`
+			PageURL          string `json:"page_url"`
+			ConsoleErrors    string `json:"console_errors"`
+			Screenshot       string `json:"screenshot"` // Base64 encoded screenshot
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title (min 5 chars) and description (min 10 chars) are required"})
+			return
+		}
+
+		// Default category if not provided
+		if req.Category == "" {
+			req.Category = "other"
+		}
+
+		// Validate category
+		validCategories := map[string]bool{"ui": true, "performance": true, "security": true, "feature_request": true, "crash": true, "other": true}
+		if !validCategories[req.Category] {
+			req.Category = "other"
+		}
+
+		// Insert bug report
+		var bugID int64
+		var reportNumber string
+		err := db.QueryRow(`
+			INSERT INTO bug_reports (user_id, title, description, steps_to_reproduce, expected_behavior, actual_behavior, category, browser_info, os_info, page_url, console_errors)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			RETURNING id, report_number
+		`, userID, req.Title, req.Description, req.StepsToReproduce, req.ExpectedBehavior, req.ActualBehavior, req.Category, req.BrowserInfo, req.OSInfo, req.PageURL, req.ConsoleErrors).Scan(&bugID, &reportNumber)
+
+		if err != nil {
+			log.Printf("Failed to create bug report: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create bug report"})
+			return
+		}
+
+		// Auto-subscribe the reporter
+		db.Exec("INSERT INTO bug_subscribers (bug_report_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", bugID, userID)
+
+		// Handle screenshot if provided
+		if req.Screenshot != "" {
+			// Decode base64 screenshot
+			screenshotData, err := base64.StdEncoding.DecodeString(req.Screenshot)
+			if err == nil && len(screenshotData) > 0 && len(screenshotData) < 10*1024*1024 { // Max 10MB
+				filename := fmt.Sprintf("screenshot_%s_%d.png", reportNumber, time.Now().Unix())
+				db.Exec(`
+					INSERT INTO bug_attachments (bug_report_id, filename, original_filename, file_type, file_size, file_data, is_screenshot)
+					VALUES ($1, $2, $3, $4, $5, $6, true)
+				`, bugID, filename, "screenshot.png", "image/png", len(screenshotData), screenshotData)
+			}
+		}
+
+		// Get user email for notification
+		var userEmail, username string
+		db.QueryRow("SELECT email, username FROM users WHERE id = $1", userID).Scan(&userEmail, &username)
+
+		// Send notification email to admins
+		go sendBugReportNotificationToAdmins(db, config, bugID, reportNumber, req.Title, username)
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message":       "Bug report submitted successfully",
+			"id":            bugID,
+			"report_number": reportNumber,
+		})
+	}
+}
+
+// handleGetUserBugReports gets all bug reports for the current user
+func handleGetUserBugReports(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		rows, err := db.Query(`
+			SELECT b.id, b.report_number, b.title, b.category, b.priority, b.status, b.created_at, b.updated_at,
+				(SELECT COUNT(*) FROM bug_attachments WHERE bug_report_id = b.id) as attachment_count,
+				(SELECT COUNT(*) FROM bug_comments WHERE bug_report_id = b.id AND is_internal = false) as comment_count
+			FROM bug_reports b
+			WHERE b.user_id = $1
+			ORDER BY b.created_at DESC
+		`, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bug reports"})
+			return
+		}
+		defer rows.Close()
+
+		bugs := []gin.H{}
+		for rows.Next() {
+			var b BugReport
+			rows.Scan(&b.ID, &b.ReportNumber, &b.Title, &b.Category, &b.Priority, &b.Status, &b.CreatedAt, &b.UpdatedAt, &b.AttachmentCount, &b.CommentCount)
+			bugs = append(bugs, gin.H{
+				"id":               b.ID,
+				"report_number":    b.ReportNumber,
+				"title":            b.Title,
+				"category":         b.Category,
+				"priority":         b.Priority,
+				"status":           b.Status,
+				"created_at":       b.CreatedAt,
+				"updated_at":       b.UpdatedAt,
+				"attachment_count": b.AttachmentCount,
+				"comment_count":    b.CommentCount,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"bugs": bugs})
+	}
+}
+
+// handleGetBugReport gets a single bug report with comments and attachments
+func handleGetBugReport(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		// Get bug report (user can only see their own bugs or if they're an admin)
+		var b BugReport
+		var assignedTo, resolvedBy sql.NullInt64
+		var assignedUsername sql.NullString
+		var resolvedAt sql.NullTime
+
+		err := db.QueryRow(`
+			SELECT b.id, b.report_number, b.user_id, u.username, b.title, b.description, 
+				COALESCE(b.steps_to_reproduce, ''), COALESCE(b.expected_behavior, ''), COALESCE(b.actual_behavior, ''),
+				b.category, b.priority, b.status, COALESCE(b.browser_info, ''), COALESCE(b.os_info, ''), 
+				COALESCE(b.page_url, ''), COALESCE(b.console_errors, ''),
+				b.assigned_to, au.username, b.resolved_at, b.resolved_by, b.created_at, b.updated_at
+			FROM bug_reports b
+			JOIN users u ON b.user_id = u.id
+			LEFT JOIN users au ON b.assigned_to = au.id
+			WHERE b.id = $1 AND (b.user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND is_admin = true))
+		`, bugID, userID).Scan(
+			&b.ID, &b.ReportNumber, &b.UserID, &b.Username, &b.Title, &b.Description,
+			&b.StepsToReproduce, &b.ExpectedBehavior, &b.ActualBehavior,
+			&b.Category, &b.Priority, &b.Status, &b.BrowserInfo, &b.OSInfo,
+			&b.PageURL, &b.ConsoleErrors,
+			&assignedTo, &assignedUsername, &resolvedAt, &resolvedBy, &b.CreatedAt, &b.UpdatedAt,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		if assignedTo.Valid {
+			b.AssignedTo = &assignedTo.Int64
+		}
+		if assignedUsername.Valid {
+			b.AssignedUsername = assignedUsername.String
+		}
+		if resolvedAt.Valid {
+			b.ResolvedAt = &resolvedAt.Time
+		}
+		if resolvedBy.Valid {
+			b.ResolvedBy = &resolvedBy.Int64
+		}
+
+		// Get comments (exclude internal comments for non-admins)
+		var isAdmin bool
+		db.QueryRow("SELECT is_admin FROM users WHERE id = $1", userID).Scan(&isAdmin)
+
+		commentQuery := `
+			SELECT bc.id, bc.user_id, u.username, bc.content, bc.is_internal, bc.is_status_change, bc.created_at
+			FROM bug_comments bc
+			JOIN users u ON bc.user_id = u.id
+			WHERE bc.bug_report_id = $1
+		`
+		if !isAdmin {
+			commentQuery += " AND bc.is_internal = false"
+		}
+		commentQuery += " ORDER BY bc.created_at ASC"
+
+		commentRows, _ := db.Query(commentQuery, bugID)
+		defer commentRows.Close()
+
+		comments := []BugComment{}
+		for commentRows.Next() {
+			var comment BugComment
+			commentRows.Scan(&comment.ID, &comment.UserID, &comment.Username, &comment.Content, &comment.IsInternal, &comment.IsStatusChange, &comment.CreatedAt)
+			comments = append(comments, comment)
+		}
+
+		// Get attachments
+		attachmentRows, _ := db.Query(`
+			SELECT id, filename, original_filename, file_type, file_size, is_screenshot, created_at
+			FROM bug_attachments WHERE bug_report_id = $1 ORDER BY created_at ASC
+		`, bugID)
+		defer attachmentRows.Close()
+
+		attachments := []BugAttachment{}
+		for attachmentRows.Next() {
+			var att BugAttachment
+			attachmentRows.Scan(&att.ID, &att.Filename, &att.OriginalFilename, &att.FileType, &att.FileSize, &att.IsScreenshot, &att.CreatedAt)
+			att.BugReportID = b.ID
+			attachments = append(attachments, att)
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"bug":         b,
+			"comments":    comments,
+			"attachments": attachments,
+		})
+	}
+}
+
+// handleAddBugComment adds a comment to a bug report
+func handleAddBugComment(db *sql.DB, config *Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		var req struct {
+			Content string `json:"content" binding:"required,min=1"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Comment content is required"})
+			return
+		}
+
+		// Verify user owns this bug or is admin
+		var bugUserID int64
+		var reportNumber string
+		err := db.QueryRow("SELECT user_id, report_number FROM bug_reports WHERE id = $1", bugID).Scan(&bugUserID, &reportNumber)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		var isAdmin bool
+		db.QueryRow("SELECT is_admin FROM users WHERE id = $1", userID).Scan(&isAdmin)
+
+		if bugUserID != userID && !isAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You can only comment on your own bug reports"})
+			return
+		}
+
+		// Insert comment
+		var commentID int64
+		err = db.QueryRow(`
+			INSERT INTO bug_comments (bug_report_id, user_id, content, is_internal)
+			VALUES ($1, $2, $3, false)
+			RETURNING id
+		`, bugID, userID, req.Content).Scan(&commentID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment"})
+			return
+		}
+
+		// Update bug report updated_at
+		db.Exec("UPDATE bug_reports SET updated_at = NOW() WHERE id = $1", bugID)
+
+		// Send notification to subscribers
+		go sendBugCommentNotification(db, config, bugID, reportNumber, userID, req.Content)
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "Comment added successfully",
+			"id":      commentID,
+		})
+	}
+}
+
+// handleUploadBugAttachment uploads an attachment to a bug report
+func handleUploadBugAttachment(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		// Verify user owns this bug
+		var bugUserID int64
+		err := db.QueryRow("SELECT user_id FROM bug_reports WHERE id = $1", bugID).Scan(&bugUserID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		if bugUserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You can only add attachments to your own bug reports"})
+			return
+		}
+
+		var req struct {
+			Filename     string `json:"filename" binding:"required"`
+			FileType     string `json:"file_type" binding:"required"`
+			FileData     string `json:"file_data" binding:"required"` // Base64 encoded
+			IsScreenshot bool   `json:"is_screenshot"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Filename, file_type, and file_data are required"})
+			return
+		}
+
+		// Decode base64 file
+		fileData, err := base64.StdEncoding.DecodeString(req.FileData)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 file data"})
+			return
+		}
+
+		// Validate file size (max 10MB)
+		if len(fileData) > 10*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File size exceeds 10MB limit"})
+			return
+		}
+
+		// Generate unique filename
+		storedFilename := fmt.Sprintf("%s_%d_%s", bugID, time.Now().Unix(), req.Filename)
+
+		var attachmentID int64
+		err = db.QueryRow(`
+			INSERT INTO bug_attachments (bug_report_id, filename, original_filename, file_type, file_size, file_data, is_screenshot)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			RETURNING id
+		`, bugID, storedFilename, req.Filename, req.FileType, len(fileData), fileData, req.IsScreenshot).Scan(&attachmentID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload attachment"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "Attachment uploaded successfully",
+			"id":      attachmentID,
+		})
+	}
+}
+
+// handleSubscribeToBug subscribes user to bug updates
+func handleSubscribeToBug(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		_, err := db.Exec("INSERT INTO bug_subscribers (bug_report_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", bugID, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to subscribe"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Subscribed to bug updates"})
+	}
+}
+
+// handleUnsubscribeFromBug unsubscribes user from bug updates
+func handleUnsubscribeFromBug(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		db.Exec("DELETE FROM bug_subscribers WHERE bug_report_id = $1 AND user_id = $2", bugID, userID)
+		c.JSON(http.StatusOK, gin.H{"message": "Unsubscribed from bug updates"})
+	}
+}
+
+// ==================== ADMIN BUG REPORT HANDLERS ====================
+
+// handleAdminGetAllBugReports gets all bug reports for admins
+func handleAdminGetAllBugReports(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status := c.DefaultQuery("status", "")
+		priority := c.DefaultQuery("priority", "")
+		category := c.DefaultQuery("category", "")
+
+		query := `
+			SELECT b.id, b.report_number, b.user_id, u.username, b.title, b.category, b.priority, b.status, 
+				b.assigned_to, au.username, b.created_at, b.updated_at,
+				(SELECT COUNT(*) FROM bug_attachments WHERE bug_report_id = b.id) as attachment_count,
+				(SELECT COUNT(*) FROM bug_comments WHERE bug_report_id = b.id) as comment_count
+			FROM bug_reports b
+			JOIN users u ON b.user_id = u.id
+			LEFT JOIN users au ON b.assigned_to = au.id
+			WHERE 1=1
+		`
+		args := []interface{}{}
+		argIndex := 1
+
+		if status != "" {
+			query += fmt.Sprintf(" AND b.status = $%d", argIndex)
+			args = append(args, status)
+			argIndex++
+		}
+		if priority != "" {
+			query += fmt.Sprintf(" AND b.priority = $%d", argIndex)
+			args = append(args, priority)
+			argIndex++
+		}
+		if category != "" {
+			query += fmt.Sprintf(" AND b.category = $%d", argIndex)
+			args = append(args, category)
+			argIndex++
+		}
+
+		query += " ORDER BY CASE b.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, b.created_at DESC"
+
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bug reports"})
+			return
+		}
+		defer rows.Close()
+
+		bugs := []gin.H{}
+		for rows.Next() {
+			var id, userID int64
+			var reportNumber, username, title, category, priority, status string
+			var assignedTo sql.NullInt64
+			var assignedUsername sql.NullString
+			var createdAt, updatedAt time.Time
+			var attachmentCount, commentCount int
+
+			rows.Scan(&id, &reportNumber, &userID, &username, &title, &category, &priority, &status,
+				&assignedTo, &assignedUsername, &createdAt, &updatedAt, &attachmentCount, &commentCount)
+
+			bug := gin.H{
+				"id":               id,
+				"report_number":    reportNumber,
+				"user_id":          userID,
+				"username":         username,
+				"title":            title,
+				"category":         category,
+				"priority":         priority,
+				"status":           status,
+				"created_at":       createdAt,
+				"updated_at":       updatedAt,
+				"attachment_count": attachmentCount,
+				"comment_count":    commentCount,
+			}
+			if assignedTo.Valid {
+				bug["assigned_to"] = assignedTo.Int64
+				bug["assigned_username"] = assignedUsername.String
+			}
+			bugs = append(bugs, bug)
+		}
+
+		// Get counts by status
+		var openCount, inProgressCount, resolvedCount, closedCount int
+		db.QueryRow("SELECT COUNT(*) FROM bug_reports WHERE status = 'open'").Scan(&openCount)
+		db.QueryRow("SELECT COUNT(*) FROM bug_reports WHERE status = 'in_progress'").Scan(&inProgressCount)
+		db.QueryRow("SELECT COUNT(*) FROM bug_reports WHERE status = 'resolved'").Scan(&resolvedCount)
+		db.QueryRow("SELECT COUNT(*) FROM bug_reports WHERE status = 'closed'").Scan(&closedCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"bugs": bugs,
+			"counts": gin.H{
+				"open":        openCount,
+				"in_progress": inProgressCount,
+				"resolved":    resolvedCount,
+				"closed":      closedCount,
+			},
+		})
+	}
+}
+
+// handleAdminGetBugReport gets a single bug report for admins (same as user but with internal comments)
+func handleAdminGetBugReport(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bugID := c.Param("id")
+
+		var b BugReport
+		var assignedTo, resolvedBy sql.NullInt64
+		var assignedUsername sql.NullString
+		var resolvedAt sql.NullTime
+
+		err := db.QueryRow(`
+			SELECT b.id, b.report_number, b.user_id, u.username, b.title, b.description, 
+				COALESCE(b.steps_to_reproduce, ''), COALESCE(b.expected_behavior, ''), COALESCE(b.actual_behavior, ''),
+				b.category, b.priority, b.status, COALESCE(b.browser_info, ''), COALESCE(b.os_info, ''), 
+				COALESCE(b.page_url, ''), COALESCE(b.console_errors, ''),
+				b.assigned_to, au.username, b.resolved_at, b.resolved_by, b.created_at, b.updated_at
+			FROM bug_reports b
+			JOIN users u ON b.user_id = u.id
+			LEFT JOIN users au ON b.assigned_to = au.id
+			WHERE b.id = $1
+		`, bugID).Scan(
+			&b.ID, &b.ReportNumber, &b.UserID, &b.Username, &b.Title, &b.Description,
+			&b.StepsToReproduce, &b.ExpectedBehavior, &b.ActualBehavior,
+			&b.Category, &b.Priority, &b.Status, &b.BrowserInfo, &b.OSInfo,
+			&b.PageURL, &b.ConsoleErrors,
+			&assignedTo, &assignedUsername, &resolvedAt, &resolvedBy, &b.CreatedAt, &b.UpdatedAt,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		if assignedTo.Valid {
+			b.AssignedTo = &assignedTo.Int64
+			b.AssignedUsername = assignedUsername.String
+		}
+		if resolvedAt.Valid {
+			b.ResolvedAt = &resolvedAt.Time
+		}
+		if resolvedBy.Valid {
+			b.ResolvedBy = &resolvedBy.Int64
+		}
+
+		// Get all comments including internal
+		commentRows, _ := db.Query(`
+			SELECT bc.id, bc.user_id, u.username, bc.content, bc.is_internal, bc.is_status_change, bc.created_at
+			FROM bug_comments bc
+			JOIN users u ON bc.user_id = u.id
+			WHERE bc.bug_report_id = $1
+			ORDER BY bc.created_at ASC
+		`, bugID)
+		defer commentRows.Close()
+
+		comments := []BugComment{}
+		for commentRows.Next() {
+			var comment BugComment
+			commentRows.Scan(&comment.ID, &comment.UserID, &comment.Username, &comment.Content, &comment.IsInternal, &comment.IsStatusChange, &comment.CreatedAt)
+			comments = append(comments, comment)
+		}
+
+		// Get attachments
+		attachmentRows, _ := db.Query(`
+			SELECT id, filename, original_filename, file_type, file_size, is_screenshot, created_at
+			FROM bug_attachments WHERE bug_report_id = $1 ORDER BY created_at ASC
+		`, bugID)
+		defer attachmentRows.Close()
+
+		attachments := []BugAttachment{}
+		for attachmentRows.Next() {
+			var att BugAttachment
+			attachmentRows.Scan(&att.ID, &att.Filename, &att.OriginalFilename, &att.FileType, &att.FileSize, &att.IsScreenshot, &att.CreatedAt)
+			att.BugReportID = b.ID
+			attachments = append(attachments, att)
+		}
+
+		// Get subscribers
+		subscriberRows, _ := db.Query(`
+			SELECT u.id, u.username FROM bug_subscribers bs
+			JOIN users u ON bs.user_id = u.id
+			WHERE bs.bug_report_id = $1
+		`, bugID)
+		defer subscriberRows.Close()
+
+		subscribers := []gin.H{}
+		for subscriberRows.Next() {
+			var id int64
+			var username string
+			subscriberRows.Scan(&id, &username)
+			subscribers = append(subscribers, gin.H{"id": id, "username": username})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"bug":         b,
+			"comments":    comments,
+			"attachments": attachments,
+			"subscribers": subscribers,
+		})
+	}
+}
+
+// handleAdminUpdateBugStatus updates a bug report's status
+func handleAdminUpdateBugStatus(db *sql.DB, config *Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		adminID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		var req struct {
+			Status  string `json:"status" binding:"required"`
+			Comment string `json:"comment"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Status is required"})
+			return
+		}
+
+		validStatuses := map[string]bool{"open": true, "in_progress": true, "resolved": true, "closed": true, "wont_fix": true}
+		if !validStatuses[req.Status] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status"})
+			return
+		}
+
+		// Get current status and report number
+		var currentStatus, reportNumber string
+		err := db.QueryRow("SELECT status, report_number FROM bug_reports WHERE id = $1", bugID).Scan(&currentStatus, &reportNumber)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		// Update status
+		updateQuery := "UPDATE bug_reports SET status = $1, updated_at = NOW()"
+		args := []interface{}{req.Status}
+
+		if req.Status == "resolved" || req.Status == "closed" {
+			updateQuery += ", resolved_at = NOW(), resolved_by = $2 WHERE id = $3"
+			args = append(args, adminID, bugID)
+		} else {
+			updateQuery += " WHERE id = $2"
+			args = append(args, bugID)
+		}
+
+		_, err = db.Exec(updateQuery, args...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
+			return
+		}
+
+		// Add status change comment
+		statusComment := fmt.Sprintf("Status changed from '%s' to '%s'", currentStatus, req.Status)
+		if req.Comment != "" {
+			statusComment += "\n\n" + req.Comment
+		}
+		db.Exec(`
+			INSERT INTO bug_comments (bug_report_id, user_id, content, is_status_change)
+			VALUES ($1, $2, $3, true)
+		`, bugID, adminID, statusComment)
+
+		// Send notification to subscribers
+		go sendBugStatusChangeNotification(db, config, bugID, reportNumber, req.Status, adminID)
+
+		c.JSON(http.StatusOK, gin.H{"message": "Status updated successfully"})
+	}
+}
+
+// handleAdminUpdateBugPriority updates a bug report's priority
+func handleAdminUpdateBugPriority(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bugID := c.Param("id")
+
+		var req struct {
+			Priority string `json:"priority" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Priority is required"})
+			return
+		}
+
+		validPriorities := map[string]bool{"low": true, "medium": true, "high": true, "critical": true}
+		if !validPriorities[req.Priority] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid priority"})
+			return
+		}
+
+		_, err := db.Exec("UPDATE bug_reports SET priority = $1, updated_at = NOW() WHERE id = $2", req.Priority, bugID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update priority"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Priority updated successfully"})
+	}
+}
+
+// handleAdminAssignBug assigns a bug to an admin
+func handleAdminAssignBug(db *sql.DB, config *Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		adminID := c.GetInt64("user_id")
+		bugIDStr := c.Param("id")
+		bugID, _ := strconv.ParseInt(bugIDStr, 10, 64)
+
+		var req struct {
+			AssignTo *int64 `json:"assign_to"` // null to unassign
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		var reportNumber string
+		db.QueryRow("SELECT report_number FROM bug_reports WHERE id = $1", bugIDStr).Scan(&reportNumber)
+
+		if req.AssignTo != nil {
+			// Verify assignee is an admin
+			var isAssigneeAdmin bool
+			db.QueryRow("SELECT is_admin FROM users WHERE id = $1", *req.AssignTo).Scan(&isAssigneeAdmin)
+			if !isAssigneeAdmin {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Can only assign to admins"})
+				return
+			}
+
+			_, err := db.Exec("UPDATE bug_reports SET assigned_to = $1, updated_at = NOW() WHERE id = $2", *req.AssignTo, bugIDStr)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign bug"})
+				return
+			}
+
+			// Auto-subscribe assignee
+			db.Exec("INSERT INTO bug_subscribers (bug_report_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", bugIDStr, *req.AssignTo)
+
+			// Add assignment comment
+			var assigneeName string
+			db.QueryRow("SELECT username FROM users WHERE id = $1", *req.AssignTo).Scan(&assigneeName)
+			db.Exec(`
+				INSERT INTO bug_comments (bug_report_id, user_id, content, is_status_change)
+				VALUES ($1, $2, $3, true)
+			`, bugIDStr, adminID, fmt.Sprintf("Assigned to %s", assigneeName))
+
+			// Send notification
+			go sendBugAssignmentNotification(db, config, bugID, reportNumber, *req.AssignTo)
+		} else {
+			db.Exec("UPDATE bug_reports SET assigned_to = NULL, updated_at = NOW() WHERE id = $1", bugIDStr)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Assignment updated successfully"})
+	}
+}
+
+// handleAdminAddBugComment adds an admin comment (can be internal)
+func handleAdminAddBugComment(db *sql.DB, config *Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		adminID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+
+		var req struct {
+			Content    string `json:"content" binding:"required,min=1"`
+			IsInternal bool   `json:"is_internal"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Comment content is required"})
+			return
+		}
+
+		var reportNumber string
+		err := db.QueryRow("SELECT report_number FROM bug_reports WHERE id = $1", bugID).Scan(&reportNumber)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		var commentID int64
+		err = db.QueryRow(`
+			INSERT INTO bug_comments (bug_report_id, user_id, content, is_internal)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id
+		`, bugID, adminID, req.Content, req.IsInternal).Scan(&commentID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment"})
+			return
+		}
+
+		db.Exec("UPDATE bug_reports SET updated_at = NOW() WHERE id = $1", bugID)
+
+		// Send notification only for non-internal comments
+		if !req.IsInternal {
+			go sendBugCommentNotification(db, config, bugID, reportNumber, adminID, req.Content)
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "Comment added successfully",
+			"id":      commentID,
+		})
+	}
+}
+
+// handleAdminDeleteBugReport deletes a bug report
+func handleAdminDeleteBugReport(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bugID := c.Param("id")
+
+		_, err := db.Exec("DELETE FROM bug_reports WHERE id = $1", bugID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bug report"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Bug report deleted successfully"})
+	}
+}
+
+// ==================== BUG NOTIFICATION HELPERS ====================
+
+func sendBugReportNotificationToAdmins(db *sql.DB, config *Config, bugID int64, reportNumber, title, username string) {
+	// Get all admin emails
+	rows, err := db.Query("SELECT email FROM users WHERE is_admin = true")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	bugURL := fmt.Sprintf("%s/admin/bugs/%d", config.FrontendURL, bugID)
+	subject := fmt.Sprintf("[%s] New Bug Report: %s", reportNumber, title)
+	body := fmt.Sprintf(`
+A new bug report has been submitted.
+
+Report Number: %s
+Title: %s
+Submitted by: %s
+
+View and respond to this bug report:
+%s
+
+---
+Chimera Pool Bug Tracking System
+`, reportNumber, title, username, bugURL)
+
+	for rows.Next() {
+		var email string
+		rows.Scan(&email)
+		sendEmail(config, email, subject, body)
+
+		// Log notification
+		db.Exec(`
+			INSERT INTO bug_email_notifications (bug_report_id, user_id, email_type, email_address, subject, is_sent, sent_at)
+			SELECT $1, id, 'new_report', $2, $3, true, NOW() FROM users WHERE email = $2
+		`, bugID, email, subject)
+	}
+}
+
+func sendBugStatusChangeNotification(db *sql.DB, config *Config, bugID interface{}, reportNumber, newStatus string, adminID int64) {
+	// Get subscribers
+	rows, err := db.Query(`
+		SELECT u.email, u.username FROM bug_subscribers bs
+		JOIN users u ON bs.user_id = u.id
+		WHERE bs.bug_report_id = $1
+	`, bugID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var adminName string
+	db.QueryRow("SELECT username FROM users WHERE id = $1", adminID).Scan(&adminName)
+
+	bugURL := fmt.Sprintf("%s/bugs/%v", config.FrontendURL, bugID)
+	subject := fmt.Sprintf("[%s] Status Updated: %s", reportNumber, newStatus)
+	body := fmt.Sprintf(`
+Your bug report status has been updated.
+
+Report Number: %s
+New Status: %s
+Updated by: %s
+
+View the full conversation and updates:
+%s
+
+---
+Chimera Pool Bug Tracking System
+`, reportNumber, newStatus, adminName, bugURL)
+
+	for rows.Next() {
+		var email, username string
+		rows.Scan(&email, &username)
+		sendEmail(config, email, subject, body)
+	}
+}
+
+func sendBugCommentNotification(db *sql.DB, config *Config, bugID interface{}, reportNumber string, commenterID int64, content string) {
+	// Get subscribers except the commenter
+	rows, err := db.Query(`
+		SELECT u.email, u.username FROM bug_subscribers bs
+		JOIN users u ON bs.user_id = u.id
+		WHERE bs.bug_report_id = $1 AND bs.user_id != $2
+	`, bugID, commenterID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var commenterName string
+	db.QueryRow("SELECT username FROM users WHERE id = $1", commenterID).Scan(&commenterName)
+
+	bugURL := fmt.Sprintf("%s/bugs/%v", config.FrontendURL, bugID)
+	subject := fmt.Sprintf("[%s] New Comment", reportNumber)
+
+	// Truncate content for email preview
+	preview := content
+	if len(preview) > 200 {
+		preview = preview[:200] + "..."
+	}
+
+	body := fmt.Sprintf(`
+A new comment has been added to bug report %s.
+
+Comment by: %s
+---
+%s
+---
+
+View the full conversation:
+%s
+
+---
+Chimera Pool Bug Tracking System
+`, reportNumber, commenterName, preview, bugURL)
+
+	for rows.Next() {
+		var email, username string
+		rows.Scan(&email, &username)
+		sendEmail(config, email, subject, body)
+	}
+}
+
+func sendBugAssignmentNotification(db *sql.DB, config *Config, bugID int64, reportNumber string, assigneeID int64) {
+	var email, title string
+	db.QueryRow("SELECT email FROM users WHERE id = $1", assigneeID).Scan(&email)
+	db.QueryRow("SELECT title FROM bug_reports WHERE id = $1", bugID).Scan(&title)
+
+	bugURL := fmt.Sprintf("%s/admin/bugs/%d", config.FrontendURL, bugID)
+	subject := fmt.Sprintf("[%s] Bug Assigned to You: %s", reportNumber, title)
+	body := fmt.Sprintf(`
+A bug report has been assigned to you.
+
+Report Number: %s
+Title: %s
+
+View and work on this bug report:
+%s
+
+---
+Chimera Pool Bug Tracking System
+`, reportNumber, title, bugURL)
+
+	sendEmail(config, email, subject, body)
 }

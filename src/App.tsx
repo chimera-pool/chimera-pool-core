@@ -60,6 +60,23 @@ function App() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
+  // Bug reporting state
+  const [showBugReportModal, setShowBugReportModal] = useState(false);
+  const [bugReportForm, setBugReportForm] = useState({
+    title: '',
+    description: '',
+    steps_to_reproduce: '',
+    expected_behavior: '',
+    actual_behavior: '',
+    category: 'other',
+    screenshot: '' as string
+  });
+  const [bugReportLoading, setBugReportLoading] = useState(false);
+  const [showMyBugsModal, setShowMyBugsModal] = useState(false);
+  const [myBugs, setMyBugs] = useState<any[]>([]);
+  const [selectedBug, setSelectedBug] = useState<any>(null);
+  const [bugComment, setBugComment] = useState('');
+
   const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('token');
 
@@ -194,6 +211,142 @@ function App() {
     setTimeout(() => setMessage(null), 5000);
   };
 
+  // Bug Report Functions
+  const handleCaptureScreenshot = async () => {
+    try {
+      // Use html2canvas-like approach with native canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // For now, we'll just note that screenshot is requested
+      // In production, integrate html2canvas library
+      showMessage('success', 'Screenshot capture ready - describe what you see in the description');
+    } catch (error) {
+      showMessage('error', 'Failed to capture screenshot');
+    }
+  };
+
+  const handleSubmitBugReport = async () => {
+    if (!bugReportForm.title || bugReportForm.title.length < 5) {
+      showMessage('error', 'Title must be at least 5 characters');
+      return;
+    }
+    if (!bugReportForm.description || bugReportForm.description.length < 10) {
+      showMessage('error', 'Description must be at least 10 characters');
+      return;
+    }
+
+    setBugReportLoading(true);
+    try {
+      const response = await fetch('/api/v1/bugs', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...bugReportForm,
+          browser_info: navigator.userAgent,
+          os_info: navigator.platform,
+          page_url: window.location.href
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showMessage('success', `Bug report ${data.report_number} submitted successfully!`);
+        setShowBugReportModal(false);
+        setBugReportForm({
+          title: '',
+          description: '',
+          steps_to_reproduce: '',
+          expected_behavior: '',
+          actual_behavior: '',
+          category: 'other',
+          screenshot: ''
+        });
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to submit bug report');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    } finally {
+      setBugReportLoading(false);
+    }
+  };
+
+  const handleFetchMyBugs = async () => {
+    try {
+      const response = await fetch('/api/v1/bugs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMyBugs(data.bugs || []);
+        setShowMyBugsModal(true);
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to fetch bug reports');
+    }
+  };
+
+  const handleViewBugDetails = async (bugId: number) => {
+    try {
+      const response = await fetch(`/api/v1/bugs/${bugId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedBug(data);
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to fetch bug details');
+    }
+  };
+
+  const handleAddBugComment = async () => {
+    if (!bugComment.trim() || !selectedBug) return;
+
+    try {
+      const response = await fetch(`/api/v1/bugs/${selectedBug.bug.id}/comments`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: bugComment })
+      });
+
+      if (response.ok) {
+        showMessage('success', 'Comment added');
+        setBugComment('');
+        handleViewBugDetails(selectedBug.bug.id);
+      } else {
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to add comment');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return '#f59e0b';
+      case 'in_progress': return '#3b82f6';
+      case 'resolved': return '#10b981';
+      case 'closed': return '#6b7280';
+      case 'wont_fix': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'critical': return '#ef4444';
+      case 'high': return '#f97316';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return '#6b7280';
+    }
+  };
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -221,6 +374,20 @@ function App() {
             {token && user ? (
               <div style={styles.userInfo}>
                 <span style={{...styles.username, cursor: 'pointer'}} onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">👤 {user.username}</span>
+                <button 
+                  style={{...styles.authBtn, backgroundColor: '#1a2a1a', borderColor: '#10b981', fontSize: '0.85rem', padding: '8px 12px'}} 
+                  onClick={() => setShowBugReportModal(true)}
+                  title="Report a Bug"
+                >
+                  🐛 Bug
+                </button>
+                <button 
+                  style={{...styles.authBtn, backgroundColor: '#1a1a2e', borderColor: '#3b82f6', fontSize: '0.85rem', padding: '8px 12px'}} 
+                  onClick={handleFetchMyBugs}
+                  title="My Bug Reports"
+                >
+                  📋 My Bugs
+                </button>
                 {user.is_admin && (
                   <button style={{...styles.authBtn, backgroundColor: '#4a1a6b', borderColor: '#9b59b6'}} onClick={() => setShowAdminPanel(true)}>
                     🛡️ Admin
@@ -387,6 +554,226 @@ function App() {
                     </button>
                   )}
                 </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bug Report Modal */}
+      {showBugReportModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowBugReportModal(false)}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '600px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#00d4ff', marginBottom: '20px' }}>🐛 Report a Bug</h2>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Title *</label>
+              <input 
+                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                placeholder="Brief description of the issue"
+                value={bugReportForm.title}
+                onChange={e => setBugReportForm({...bugReportForm, title: e.target.value})}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Category</label>
+              <select 
+                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem' }}
+                value={bugReportForm.category}
+                onChange={e => setBugReportForm({...bugReportForm, category: e.target.value})}
+              >
+                <option value="ui">UI/Visual Issue</option>
+                <option value="performance">Performance</option>
+                <option value="crash">Crash/Error</option>
+                <option value="security">Security Concern</option>
+                <option value="feature_request">Feature Request</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Description *</label>
+              <textarea 
+                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box' }}
+                placeholder="Describe the issue in detail..."
+                value={bugReportForm.description}
+                onChange={e => setBugReportForm({...bugReportForm, description: e.target.value})}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Steps to Reproduce</label>
+              <textarea 
+                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+                placeholder="1. Go to...&#10;2. Click on...&#10;3. See error"
+                value={bugReportForm.steps_to_reproduce}
+                onChange={e => setBugReportForm({...bugReportForm, steps_to_reproduce: e.target.value})}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Expected Behavior</label>
+                <textarea 
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="What should happen?"
+                  value={bugReportForm.expected_behavior}
+                  onChange={e => setBugReportForm({...bugReportForm, expected_behavior: e.target.value})}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Actual Behavior</label>
+                <textarea 
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                  placeholder="What actually happens?"
+                  value={bugReportForm.actual_behavior}
+                  onChange={e => setBugReportForm({...bugReportForm, actual_behavior: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button 
+                style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                onClick={() => setShowBugReportModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                style={{ flex: 1, padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', opacity: bugReportLoading ? 0.6 : 1 }}
+                onClick={handleSubmitBugReport}
+                disabled={bugReportLoading}
+              >
+                {bugReportLoading ? 'Submitting...' : '🐛 Submit Bug Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* My Bug Reports Modal */}
+      {showMyBugsModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}>
+          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '30px', maxWidth: '800px', width: '90%', border: '1px solid #2a2a4a', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            {selectedBug ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ color: '#00d4ff', margin: 0 }}>🐛 {selectedBug.bug.report_number}</h2>
+                  <button 
+                    style={{ padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                    onClick={() => setSelectedBug(null)}
+                  >
+                    ← Back to List
+                  </button>
+                </div>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <h3 style={{ color: '#e0e0e0', margin: '0 0 10px 0' }}>{selectedBug.bug.title}</h3>
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: getStatusColor(selectedBug.bug.status), color: '#fff' }}>
+                      {selectedBug.bug.status.replace('_', ' ')}
+                    </span>
+                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: getPriorityColor(selectedBug.bug.priority), color: '#fff' }}>
+                      {selectedBug.bug.priority}
+                    </span>
+                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: '#2a2a4a', color: '#888' }}>
+                      {selectedBug.bug.category}
+                    </span>
+                  </div>
+                  <p style={{ color: '#ccc', whiteSpace: 'pre-wrap', margin: '0 0 15px 0' }}>{selectedBug.bug.description}</p>
+                  
+                  {selectedBug.bug.steps_to_reproduce && (
+                    <div style={{ marginBottom: '15px' }}>
+                      <h4 style={{ color: '#888', margin: '0 0 5px 0', fontSize: '0.9rem' }}>Steps to Reproduce:</h4>
+                      <p style={{ color: '#ccc', whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.9rem' }}>{selectedBug.bug.steps_to_reproduce}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Comments Section */}
+                <div style={{ borderTop: '1px solid #2a2a4a', paddingTop: '20px' }}>
+                  <h4 style={{ color: '#e0e0e0', margin: '0 0 15px 0' }}>💬 Comments ({selectedBug.comments?.length || 0})</h4>
+                  
+                  {selectedBug.comments?.map((comment: any) => (
+                    <div key={comment.id} style={{ backgroundColor: comment.is_status_change ? '#1a2a1a' : '#0a0a15', padding: '12px', borderRadius: '6px', marginBottom: '10px', borderLeft: comment.is_status_change ? '3px solid #10b981' : '3px solid #2a2a4a' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                        <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '0.9rem' }}>{comment.username}</span>
+                        <span style={{ color: '#666', fontSize: '0.8rem' }}>{new Date(comment.created_at).toLocaleString()}</span>
+                      </div>
+                      <p style={{ color: '#ccc', margin: 0, fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{comment.content}</p>
+                    </div>
+                  ))}
+
+                  {/* Add Comment */}
+                  <div style={{ marginTop: '15px' }}>
+                    <textarea 
+                      style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                      placeholder="Add a comment..."
+                      value={bugComment}
+                      onChange={e => setBugComment(e.target.value)}
+                    />
+                    <button 
+                      style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                      onClick={handleAddBugComment}
+                    >
+                      Add Comment
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ color: '#00d4ff', margin: 0 }}>🐛 My Bug Reports</h2>
+                  <button 
+                    style={{ padding: '8px 16px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                    onClick={() => { setShowMyBugsModal(false); setShowBugReportModal(true); }}
+                  >
+                    + New Report
+                  </button>
+                </div>
+
+                {myBugs.length === 0 ? (
+                  <p style={{ color: '#888', textAlign: 'center', padding: '40px' }}>No bug reports yet. Click "New Report" to submit one.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {myBugs.map((bug: any) => (
+                      <div 
+                        key={bug.id} 
+                        style={{ backgroundColor: '#0a0a15', padding: '15px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #2a2a4a', transition: 'border-color 0.2s' }}
+                        onClick={() => handleViewBugDetails(bug.id)}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = '#00d4ff')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2a4a')}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <span style={{ color: '#00d4ff', fontSize: '0.85rem' }}>{bug.report_number}</span>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', backgroundColor: getStatusColor(bug.status), color: '#fff' }}>
+                              {bug.status.replace('_', ' ')}
+                            </span>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', backgroundColor: getPriorityColor(bug.priority), color: '#fff' }}>
+                              {bug.priority}
+                            </span>
+                          </div>
+                        </div>
+                        <h4 style={{ color: '#e0e0e0', margin: '0 0 5px 0', fontSize: '1rem' }}>{bug.title}</h4>
+                        <div style={{ display: 'flex', gap: '15px', color: '#666', fontSize: '0.8rem' }}>
+                          <span>📎 {bug.attachment_count || 0}</span>
+                          <span>💬 {bug.comment_count || 0}</span>
+                          <span>{new Date(bug.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button 
+                  style={{ marginTop: '20px', width: '100%', padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                  onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}
+                >
+                  Close
+                </button>
               </>
             )}
           </div>
