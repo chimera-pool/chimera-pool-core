@@ -350,13 +350,13 @@ function App() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <div style={styles.headerContent}>
+        <div style={styles.headerContent} className="header-content">
           <div>
-            <h1 style={styles.title}>⛏️ Chimera Pool</h1>
-            <p style={styles.subtitle}>BlockDAG Mining Pool</p>
+            <h1 style={styles.title} className="header-title">⛏️ Chimera Pool</h1>
+            <p style={styles.subtitle} className="header-subtitle">BlockDAG Mining Pool</p>
           </div>
           {/* Main Navigation Tabs - Always visible */}
-          <nav style={{ display: 'flex', gap: '5px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px', border: '2px solid #00d4ff' }}>
+          <nav className="header-nav" style={{ display: 'flex', gap: '5px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px', border: '2px solid #00d4ff' }}>
             <button 
               style={{ padding: '12px 24px', backgroundColor: mainView === 'dashboard' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'dashboard' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'dashboard' ? 'bold' : 500 }}
               onClick={() => setMainView('dashboard')}
@@ -370,10 +370,10 @@ function App() {
               💬 Community
             </button>
           </nav>
-          <div style={styles.authButtons}>
+          <div style={styles.authButtons} className="auth-buttons">
             {token && user ? (
-              <div style={styles.userInfo}>
-                <span style={{...styles.username, cursor: 'pointer'}} onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">👤 {user.username}</span>
+              <div style={styles.userInfo} className="user-info">
+                <span style={{...styles.username, cursor: 'pointer'}} className="username-display" onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">👤 {user.username}</span>
                 <button 
                   style={{...styles.authBtn, backgroundColor: '#1a2a1a', borderColor: '#10b981', fontSize: '0.85rem', padding: '8px 12px'}} 
                   onClick={() => setShowBugReportModal(true)}
@@ -780,14 +780,14 @@ function App() {
         </div>
       )}
 
-      <main style={mainView === 'community' ? { ...styles.main, maxWidth: '100%', padding: '0' } : styles.main}>
+      <main style={mainView === 'community' ? { ...styles.main, maxWidth: '100%', padding: '0' } : styles.main} className="main-content">
         {/* DASHBOARD VIEW */}
         {mainView === 'dashboard' && (
           <>
             {loading ? (
               <div style={styles.loading}>Loading pool statistics...</div>
             ) : stats ? (
-              <div style={styles.statsGrid}>
+              <div style={styles.statsGrid} className="stats-grid">
                 <StatCard label="Network" value={stats.network} />
                 <StatCard label="Currency" value={stats.currency} />
                 <StatCard label="Active Miners" value={stats.total_miners} />
@@ -828,8 +828,8 @@ function App() {
         {/* Dashboard-only sections */}
         {mainView === 'dashboard' && (
           <>
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>🔗 Connect Your Miner</h2>
+        <section style={styles.section} className="section">
+          <h2 style={styles.sectionTitle} className="section-title">🔗 Connect Your Miner</h2>
           
           {/* Hybrid Protocol Banner */}
           <div style={instructionStyles.protocolBanner}>
@@ -3889,44 +3889,49 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div style={adminStyles.overlay} onClick={onClose}>
-      <div style={adminStyles.panel} onClick={e => e.stopPropagation()}>
+    <div style={adminStyles.overlay} className="admin-overlay" onClick={onClose}>
+      <div style={adminStyles.panel} className="admin-panel" onClick={e => e.stopPropagation()}>
         <div style={adminStyles.header}>
           <h2 style={adminStyles.title}>🛡️ Admin Panel</h2>
           <button style={adminStyles.closeBtn} onClick={onClose}>×</button>
         </div>
 
         {/* Tabs */}
-        <div style={adminStyles.tabs}>
+        <div style={adminStyles.tabs} className="admin-tabs">
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'users' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
             onClick={() => setActiveTab('users')}
           >
-            👥 User Management
+            👥 Users
           </button>
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'stats' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
             onClick={() => setActiveTab('stats')}
           >
-            📊 Pool Statistics
+            📊 Stats
           </button>
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'algorithm' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
             onClick={() => setActiveTab('algorithm')}
           >
-            ⚙️ Algorithm Settings
+            ⚙️ Algo
           </button>
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'roles' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
             onClick={() => setActiveTab('roles')}
           >
-            👑 Role Management
+            👑 Roles
           </button>
           <button 
             style={{...adminStyles.tab, ...(activeTab === 'bugs' ? adminStyles.tabActive : {}), position: 'relative'}} 
+            className="admin-tab"
             onClick={() => setActiveTab('bugs')}
           >
-            🐛 Bug Reports
+            🐛 Bugs
             {adminBugs.filter(b => b.status === 'open').length > 0 && (
               <span style={{ position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', minWidth: '18px', textAlign: 'center' }}>
                 {adminBugs.filter(b => b.status === 'open').length}
@@ -3946,7 +3951,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
           <div style={adminStyles.loading}>Loading users...</div>
         ) : (
           <>
-            <div style={adminStyles.tableContainer}>
+            <div style={adminStyles.tableContainer} className="admin-table-container">
               <table style={adminStyles.table}>
                 <thead>
                   <tr>
@@ -4749,7 +4754,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                   </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }} className="bug-detail-grid">
                   {/* Left Column - Bug Details */}
                   <div>
                     <div style={{ backgroundColor: '#0a0a15', borderRadius: '8px', padding: '20px', marginBottom: '15px' }}>
@@ -4941,7 +4946,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                 </div>
 
                 {/* Filters */}
-                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }} className="bug-filters">
                   <select 
                     style={{ padding: '8px 12px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0' }}
                     value={bugFilter.status}

@@ -13,6 +13,7 @@ COPY public/ ./public/
 # Copy only essential source files (exclude problematic components)
 COPY src/App.tsx ./src/
 COPY src/index.tsx ./src/
+COPY src/responsive.css ./src/
 
 # Copy TypeScript config
 COPY tsconfig.json ./
