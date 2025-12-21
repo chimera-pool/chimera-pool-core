@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,19 +13,19 @@ import (
 func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 	// Setup blockchain simulator
 	blockchainConfig := BlockchainConfig{
-		NetworkType:     "testnet",
-		BlockTime:       time.Second * 10,
-		InitialDifficulty: 1000,
+		NetworkType:                "testnet",
+		BlockTime:                  time.Second * 10,
+		InitialDifficulty:          1000,
 		DifficultyAdjustmentWindow: 5,
 		NetworkLatency: NetworkLatencyConfig{
-			MinLatency: time.Millisecond * 50,
-			MaxLatency: time.Millisecond * 200,
+			MinLatency:   time.Millisecond * 50,
+			MaxLatency:   time.Millisecond * 200,
 			Distribution: "normal",
 		},
 		TransactionLoad: TransactionLoadConfig{
-			TxPerSecond: 5,
+			TxPerSecond:      5,
 			BurstProbability: 0.1,
-			BurstMultiplier: 3,
+			BurstMultiplier:  3,
 		},
 	}
 
@@ -33,7 +34,7 @@ func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 
 	// Setup virtual miner simulator
 	minerConfig := VirtualMinerConfig{
-		MinerCount: 50,
+		MinerCount:    50,
 		HashRateRange: HashRateRange{Min: 1000000, Max: 10000000},
 		MinerTypes: []MinerType{
 			{Type: "ASIC", Percentage: 0.4, HashRateMultiplier: 5.0},
@@ -52,12 +53,12 @@ func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 		},
 		BehaviorPatterns: BehaviorPatternsConfig{
 			BurstMining: BurstMiningConfig{
-				Probability: 0.1,
-				DurationRange: DurationRange{Min: time.Minute, Max: time.Minute * 5},
+				Probability:         0.1,
+				DurationRange:       DurationRange{Min: time.Minute, Max: time.Minute * 5},
 				IntensityMultiplier: 2.0,
 			},
 			ConnectionDrops: ConnectionDropsConfig{
-				Probability: 0.05,
+				Probability:   0.05,
 				DurationRange: DurationRange{Min: time.Second * 30, Max: time.Minute * 2},
 			},
 		},
@@ -78,17 +79,17 @@ func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 		ClustersConfig: []ClusterConfig{
 			{
 				Name: "DataCenter_1", MinerCount: 100, Location: "US-East",
-				HashRateRange: HashRateRange{Min: 5000000, Max: 15000000},
+				HashRateRange:  HashRateRange{Min: 5000000, Max: 15000000},
 				NetworkLatency: time.Millisecond * 30,
 			},
 			{
 				Name: "DataCenter_2", MinerCount: 80, Location: "EU-West",
-				HashRateRange: HashRateRange{Min: 3000000, Max: 12000000},
+				HashRateRange:  HashRateRange{Min: 3000000, Max: 12000000},
 				NetworkLatency: time.Millisecond * 60,
 			},
 			{
 				Name: "MiningFarm_1", MinerCount: 150, Location: "Asia-Pacific",
-				HashRateRange: HashRateRange{Min: 8000000, Max: 20000000},
+				HashRateRange:  HashRateRange{Min: 8000000, Max: 20000000},
 				NetworkLatency: time.Millisecond * 90,
 			},
 		},
@@ -142,13 +143,13 @@ func TestSimulationEnvironment_E2E_Complete(t *testing.T) {
 func TestSimulationEnvironment_E2E_HighLoad(t *testing.T) {
 	// Setup high-load configuration
 	blockchainConfig := BlockchainConfig{
-		NetworkType:     "mainnet",
-		BlockTime:       time.Second * 30,
+		NetworkType:       "mainnet",
+		BlockTime:         time.Second * 30,
 		InitialDifficulty: 10000,
 		TransactionLoad: TransactionLoadConfig{
-			TxPerSecond: 50,
+			TxPerSecond:      50,
 			BurstProbability: 0.2,
-			BurstMultiplier: 5,
+			BurstMultiplier:  5,
 		},
 	}
 
@@ -157,11 +158,11 @@ func TestSimulationEnvironment_E2E_HighLoad(t *testing.T) {
 
 	// High number of virtual miners
 	minerConfig := VirtualMinerConfig{
-		MinerCount: 500,
+		MinerCount:    500,
 		HashRateRange: HashRateRange{Min: 5000000, Max: 50000000},
 		BehaviorPatterns: BehaviorPatternsConfig{
 			BurstMining: BurstMiningConfig{
-				Probability: 0.3,
+				Probability:         0.3,
 				IntensityMultiplier: 3.0,
 			},
 			ConnectionDrops: ConnectionDropsConfig{
@@ -228,8 +229,8 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 				Name: "Primary_Cluster", MinerCount: 100, Location: "Primary-DC",
 				FailoverConfig: FailoverConfig{
 					BackupClusters: []string{"Backup_Cluster"},
-					AutoFailover: true,
-					RecoveryTime: time.Minute,
+					AutoFailover:   true,
+					RecoveryTime:   time.Minute,
 				},
 			},
 			{
@@ -242,7 +243,7 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 		},
 		FailureSimulation: FailureSimulationConfig{
 			EnableClusterFailures: true,
-			FailureRate: 0.1,
+			FailureRate:           0.1,
 		},
 	}
 
@@ -250,11 +251,11 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 	require.NoError(t, err)
 
 	minerConfig := VirtualMinerConfig{
-		MinerCount: 100,
+		MinerCount:    100,
 		HashRateRange: HashRateRange{Min: 1000000, Max: 10000000},
 		BehaviorPatterns: BehaviorPatternsConfig{
 			ConnectionDrops: ConnectionDropsConfig{
-				Probability: 0.2, // High drop rate for testing
+				Probability:   0.2, // High drop rate for testing
 				DurationRange: DurationRange{Min: time.Second * 10, Max: time.Minute},
 			},
 		},
@@ -277,7 +278,7 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	initialStats := clusterSimulator.GetOverallStats()
-	initialActiveMiners := initialStats.ActiveMiners
+	_ = initialStats.ActiveMiners // Track initial miners for potential future assertions
 
 	// Trigger cluster failure
 	err = clusterSimulator.TriggerClusterFailure("Primary_Cluster", time.Second*30)
@@ -294,7 +295,7 @@ func TestSimulationEnvironment_E2E_FailureRecovery(t *testing.T) {
 	// Trigger connection drops in virtual miners
 	miners := minerSimulator.GetMiners()
 	require.Greater(t, len(miners), 0)
-	
+
 	// Trigger drops for some miners
 	for i := 0; i < 10 && i < len(miners); i++ {
 		err = minerSimulator.TriggerDrop(miners[i].ID, time.Second*15)
@@ -326,9 +327,9 @@ func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
 			EnableCoordinatedMigration: true,
 			MigrationStrategies: []MigrationStrategy{
 				{
-					Type: "gradual",
-					Duration: time.Second * 20,
-					BatchSize: 1, // One cluster at a time
+					Type:           "gradual",
+					Duration:       time.Second * 20,
+					BatchSize:      1, // One cluster at a time
 					RollbackOnFail: true,
 				},
 			},
@@ -349,7 +350,7 @@ func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
 	clusters := clusterSimulator.GetClusters()
 	pool1Clusters := 0
 	pool2Clusters := 0
-	
+
 	for _, cluster := range clusters {
 		switch cluster.CurrentPool {
 		case "pool_1":
@@ -358,17 +359,17 @@ func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
 			pool2Clusters++
 		}
 	}
-	
+
 	assert.Equal(t, 2, pool1Clusters) // Clusters A and B
 	assert.Equal(t, 2, pool2Clusters) // Clusters C and D
 
 	// Execute migration from pool_1 to pool_3
 	migrationPlan := MigrationPlan{
-		SourcePool: "pool_1",
-		TargetPool: "pool_3",
-		ClusterIDs: []string{"Cluster_A", "Cluster_B"},
-		Strategy: "gradual",
-		StartTime: time.Now().Add(time.Second),
+		SourcePool:        "pool_1",
+		TargetPool:        "pool_3",
+		ClusterIDs:        []string{"Cluster_A", "Cluster_B"},
+		Strategy:          "gradual",
+		StartTime:         time.Now().Add(time.Second),
 		EstimatedDuration: time.Second * 15,
 	}
 
@@ -390,13 +391,13 @@ func TestSimulationEnvironment_E2E_PoolMigration(t *testing.T) {
 	// Verify final pool distribution
 	finalClusters := clusterSimulator.GetClusters()
 	pool3Clusters := 0
-	
+
 	for _, cluster := range finalClusters {
 		if cluster.CurrentPool == "pool_3" {
 			pool3Clusters++
 		}
 	}
-	
+
 	// Should have migrated some or all clusters
 	assert.GreaterOrEqual(t, pool3Clusters, 0)
 }
@@ -415,7 +416,7 @@ func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
 		},
 		GeographicalSimulation: GeographicalConfig{
 			EnableLatencySimulation: true,
-			EnableTimezoneEffects: true,
+			EnableTimezoneEffects:   true,
 		},
 	}
 
@@ -436,7 +437,7 @@ func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
 	// Check that different regions have different network characteristics
 	clusters := clusterSimulator.GetClusters()
 	latencyByRegion := make(map[string][]time.Duration)
-	
+
 	for _, cluster := range clusters {
 		for _, miner := range cluster.Miners {
 			region := cluster.Location
@@ -446,7 +447,7 @@ func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
 
 	// Verify that different regions have different average latencies
 	assert.Greater(t, len(latencyByRegion), 1)
-	
+
 	// Calculate average latencies (simplified check)
 	for region, latencies := range latencyByRegion {
 		if len(latencies) > 0 {
@@ -478,21 +479,21 @@ func TestSimulationEnvironment_E2E_GeographicalDistribution(t *testing.T) {
 func TestSimulationEnvironment_E2E_PerformanceValidation(t *testing.T) {
 	// Test with different configurations to validate performance
 	testCases := []struct {
-		name string
-		minerCount int
-		clusterCount int
+		name                string
+		minerCount          int
+		clusterCount        int
 		expectedMinHashRate uint64
 	}{
-		{"Small Scale", 50, 2, 50000000},      // 50 MH/s minimum
-		{"Medium Scale", 200, 5, 200000000},   // 200 MH/s minimum
-		{"Large Scale", 500, 10, 500000000},   // 500 MH/s minimum
+		{"Small Scale", 50, 2, 50000000},    // 50 MH/s minimum
+		{"Medium Scale", 200, 5, 200000000}, // 200 MH/s minimum
+		{"Large Scale", 500, 10, 500000000}, // 500 MH/s minimum
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup miners
 			minerConfig := VirtualMinerConfig{
-				MinerCount: tc.minerCount,
+				MinerCount:    tc.minerCount,
 				HashRateRange: HashRateRange{Min: 1000000, Max: 10000000},
 			}
 
@@ -503,15 +504,15 @@ func TestSimulationEnvironment_E2E_PerformanceValidation(t *testing.T) {
 			clusterConfigs := make([]ClusterConfig, tc.clusterCount)
 			for i := 0; i < tc.clusterCount; i++ {
 				clusterConfigs[i] = ClusterConfig{
-					Name: fmt.Sprintf("Cluster_%d", i),
-					MinerCount: 50,
-					Location: fmt.Sprintf("Location_%d", i),
+					Name:          fmt.Sprintf("Cluster_%d", i),
+					MinerCount:    50,
+					Location:      fmt.Sprintf("Location_%d", i),
 					HashRateRange: HashRateRange{Min: 5000000, Max: 15000000},
 				}
 			}
 
 			clusterConfig := ClusterSimulatorConfig{
-				ClusterCount: tc.clusterCount,
+				ClusterCount:   tc.clusterCount,
 				ClustersConfig: clusterConfigs,
 			}
 

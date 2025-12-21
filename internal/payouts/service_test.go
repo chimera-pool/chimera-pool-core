@@ -17,16 +17,6 @@ type MockDatabase struct {
 	blocks  []Block
 }
 
-type Block struct {
-	ID       int64     `json:"id" db:"id"`
-	Height   int64     `json:"height" db:"height"`
-	Hash     string    `json:"hash" db:"hash"`
-	FinderID int64     `json:"finder_id" db:"finder_id"`
-	Reward   int64     `json:"reward" db:"reward"`
-	Status   string    `json:"status" db:"status"`
-	Created  time.Time `json:"created_at" db:"created_at"`
-}
-
 func (db *MockDatabase) GetSharesForPayout(ctx context.Context, blockTime time.Time, windowSize int64) ([]Share, error) {
 	// Return shares sorted by timestamp descending
 	result := make([]Share, len(db.shares))
@@ -50,7 +40,7 @@ func (db *MockDatabase) GetBlock(ctx context.Context, blockID int64) (*Block, er
 
 func (db *MockDatabase) GetPayoutHistory(ctx context.Context, userID int64, limit, offset int) ([]Payout, error) {
 	result := make([]Payout, 0)
-	
+
 	// If userID is 0, return all payouts
 	if userID == 0 {
 		for _, payout := range db.payouts {
@@ -64,7 +54,7 @@ func (db *MockDatabase) GetPayoutHistory(ctx context.Context, userID int64, limi
 			}
 		}
 	}
-	
+
 	// Sort by timestamp descending (most recent first)
 	for i := 0; i < len(result); i++ {
 		for j := i + 1; j < len(result); j++ {
@@ -73,18 +63,18 @@ func (db *MockDatabase) GetPayoutHistory(ctx context.Context, userID int64, limi
 			}
 		}
 	}
-	
+
 	// Apply offset and limit
 	start := offset
 	if start >= len(result) {
 		return []Payout{}, nil
 	}
-	
+
 	end := start + limit
 	if end > len(result) {
 		end = len(result)
 	}
-	
+
 	return result[start:end], nil
 }
 
@@ -100,13 +90,13 @@ func TestPayoutService_ProcessBlockPayout(t *testing.T) {
 		},
 		blocks: []Block{
 			{
-				ID:       1,
-				Height:   12345,
-				Hash:     "0x123abc",
-				FinderID: 1,
-				Reward:   5000000000, // 50 coins
-				Status:   "confirmed",
-				Created:  time.Now(),
+				ID:        1,
+				Height:    12345,
+				Hash:      "0x123abc",
+				FinderID:  1,
+				Reward:    5000000000, // 50 coins
+				Status:    "confirmed",
+				Timestamp: time.Now(),
 			},
 		},
 	}
@@ -167,13 +157,13 @@ func TestPayoutService_ProcessBlockPayout_PendingBlock(t *testing.T) {
 	mockDB := &MockDatabase{
 		blocks: []Block{
 			{
-				ID:       1,
-				Height:   12345,
-				Hash:     "0x123abc",
-				FinderID: 1,
-				Reward:   5000000000,
-				Status:   "pending", // Not confirmed yet
-				Created:  time.Now(),
+				ID:        1,
+				Height:    12345,
+				Hash:      "0x123abc",
+				FinderID:  1,
+				Reward:    5000000000,
+				Status:    "pending", // Not confirmed yet
+				Timestamp: time.Now(),
 			},
 		},
 	}
@@ -222,7 +212,7 @@ func TestPayoutService_GetPayoutHistory(t *testing.T) {
 	now := time.Now()
 	mockDB := &MockDatabase{
 		payouts: []Payout{
-			{UserID: 1, Amount: 1000000000, BlockID: 1, Timestamp: now.Add(-1 * time.Hour)},  // More recent
+			{UserID: 1, Amount: 1000000000, BlockID: 1, Timestamp: now.Add(-1 * time.Hour)}, // More recent
 			{UserID: 1, Amount: 2000000000, BlockID: 2, Timestamp: now.Add(-2 * time.Hour)}, // Less recent
 			{UserID: 2, Amount: 1500000000, BlockID: 1, Timestamp: now.Add(-1 * time.Hour)},
 		},
@@ -282,13 +272,13 @@ func TestPayoutService_ValidatePayoutFairness(t *testing.T) {
 				shares: tt.shares,
 				blocks: []Block{
 					{
-						ID:       1,
-						Height:   12345,
-						Hash:     "0x123abc",
-						FinderID: 1,
-						Reward:   tt.blockReward,
-						Status:   "confirmed",
-						Created:  time.Now(),
+						ID:        1,
+						Height:    12345,
+						Hash:      "0x123abc",
+						FinderID:  1,
+						Reward:    tt.blockReward,
+						Status:    "confirmed",
+						Timestamp: time.Now(),
 					},
 				},
 			}

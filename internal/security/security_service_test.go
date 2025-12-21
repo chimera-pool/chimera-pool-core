@@ -194,10 +194,10 @@ func TestSecurityServiceIntegration(t *testing.T) {
 
 		// Should be blocked for authentication
 		req := SecurityCheckRequest{
-			UserID:    123,
-			ClientID:  clientID,
-			Action:    "login",
-			Resource:  "auth",
+			UserID:   123,
+			ClientID: clientID,
+			Action:   "login",
+			Resource: "auth",
 		}
 
 		result, err := securityService.ValidateRequest(ctx, req)
@@ -293,10 +293,10 @@ func TestSecurityServiceConfiguration(t *testing.T) {
 		},
 		DDoS: DDoSConfig{
 			RequestsPerSecond:   5,
-			BurstSize:          10,
+			BurstSize:           10,
 			SuspiciousThreshold: 50,
-			BlockDuration:      30 * time.Minute,
-			CleanupInterval:    time.Minute,
+			BlockDuration:       30 * time.Minute,
+			CleanupInterval:     time.Minute,
 		},
 		IntrusionDetection: IntrusionDetectionConfig{
 			SuspiciousPatterns: []string{
@@ -337,7 +337,7 @@ func TestSecurityServiceConfiguration(t *testing.T) {
 
 func TestSecurityServiceErrorHandling(t *testing.T) {
 	securityService := NewSecurityService(nil)
-	ctx := context.Background()
+	_ = context.Background() // ctx reserved for future use
 
 	t.Run("invalid_mfa_setup", func(t *testing.T) {
 		// Test with invalid user ID
