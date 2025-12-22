@@ -125,6 +125,23 @@ services:
       timeout: 10s
       retries: 3
 
+  # Litecoin Node for mining pool
+  litecoind:
+    image: uphold/litecoin-core:0.21
+    ports:
+      - "9332:9332"   # RPC port
+      - "9333:9333"   # P2P port
+    volumes:
+      - litecoin_data:/home/litecoin/.litecoin
+      - ./litecoin.conf:/home/litecoin/.litecoin/litecoin.conf:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "litecoin-cli", "-rpcuser=chimera", "-rpcpassword=ChimeraLTC2024!", "getblockchaininfo"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+
   # Monitoring services
   prometheus:
     image: prom/prometheus:latest
@@ -146,6 +163,7 @@ volumes:
   postgres_data:
   redis_data:
   prometheus_data:
+  litecoin_data:
 
 networks:
   default:
