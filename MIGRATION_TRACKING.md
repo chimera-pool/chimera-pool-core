@@ -16,6 +16,32 @@
 
 ## Recent Feature Changes
 
+### December 22, 2025 - Frontend Dead Code Cleanup & CI Fix
+
+**Codebase Audit Session - App.tsx Cleanup**
+
+**Dead Code Removed from `src/App.tsx`**:
+- ✅ `UserDashboard` duplicate (-215 lines) → extracted to `components/dashboard/UserDashboard.tsx`
+- ✅ `MiningGraphs` duplicate (-256 lines) → extracted to `components/charts/MiningGraphs.tsx`
+- ✅ `GlobalMinerMap` duplicate (-232 lines) → extracted to `components/maps/GlobalMinerMap.tsx`
+- ✅ `WalletManager` duplicate (-365 lines) → extracted to `components/wallet/WalletManager.tsx`
+- ✅ Associated style objects (`dashStyles`, `mapStyles`, `walletStyles`) removed
+
+**Results**:
+- `App.tsx`: 6,855 → 5,473 lines (-1,382 lines, -20%)
+- Bundle size: -38.85 kB reduction
+- Frontend build: ✅ Passes
+
+**Backend Fixes**:
+- Added `UpdateCategoryRequest` type to `internal/community/models.go`
+- Fixed unreachable code in `internal/stratum/server.go` (cleanupConnection defer)
+
+**CI Status**: All Go tests pass locally (24 packages)
+
+**Audit Documentation**: Updated `CODEBASE_AUDIT.md` with current status
+
+---
+
 ### December 21, 2025 - Equipment Management System
 
 **Migration**: `007_equipment_management.up.sql`

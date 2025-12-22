@@ -23,10 +23,10 @@ type StratumServer struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	wg          sync.WaitGroup
-	
+
 	// Connection tracking
 	connectionCount int64
-	
+
 	// Configuration
 	extranonce2Size int
 	difficulty      float64
@@ -41,7 +41,7 @@ type ClientConnection struct {
 	WorkerName   string
 	Extranonce1  string
 	LastActivity time.Time
-	
+
 	// Communication channels
 	sendChan chan string
 	ctx      context.Context
@@ -51,7 +51,7 @@ type ClientConnection struct {
 // NewStratumServer creates a new Stratum server
 func NewStratumServer(address string) *StratumServer {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &StratumServer{
 		address:         address,
 		connections:     make(map[string]*ClientConnection),
@@ -68,12 +68,12 @@ func (s *StratumServer) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to start listener: %w", err)
 	}
-	
+
 	// Set listener with proper synchronization
 	s.listenerMu.Lock()
 	s.listener = listener
 	s.listenerMu.Unlock()
-	
+
 	// Accept connections
 	for {
 		select {
@@ -87,7 +87,7 @@ func (s *StratumServer) Start() error {
 				}
 				continue
 			}
-			
+
 			// Handle connection in goroutine
 			s.wg.Add(1)
 			go s.handleConnection(conn)
@@ -98,14 +98,14 @@ func (s *StratumServer) Start() error {
 // Stop stops the Stratum server
 func (s *StratumServer) Stop() error {
 	s.cancel()
-	
+
 	// Close listener with proper synchronization
 	s.listenerMu.Lock()
 	if s.listener != nil {
 		s.listener.Close()
 	}
 	s.listenerMu.Unlock()
-	
+
 	// Close all client connections
 	s.connMutex.Lock()
 	for _, client := range s.connections {
@@ -113,7 +113,7 @@ func (s *StratumServer) Stop() error {
 		client.Conn.Close()
 	}
 	s.connMutex.Unlock()
-	
+
 	s.wg.Wait()
 	return nil
 }
@@ -122,7 +122,7 @@ func (s *StratumServer) Stop() error {
 func (s *StratumServer) GetAddress() string {
 	s.listenerMu.RLock()
 	defer s.listenerMu.RUnlock()
-	
+
 	if s.listener != nil {
 		return s.listener.Addr().String()
 	}
@@ -138,7 +138,7 @@ func (s *StratumServer) GetConnectionCount() int {
 func (s *StratumServer) handleConnection(conn net.Conn) {
 	defer s.wg.Done()
 	defer conn.Close()
-	
+
 	// Create client connection
 	clientCtx, clientCancel := context.WithCancel(s.ctx)
 	client := &ClientConnection{
@@ -152,18 +152,21 @@ func (s *StratumServer) handleConnection(conn net.Conn) {
 		ctx:          clientCtx,
 		cancel:       clientCancel,
 	}
-	
+
 	// Add to connections map
 	s.connMutex.Lock()
 	s.connections[client.ID] = client
 	s.connMutex.Unlock()
-	
+
 	atomic.AddInt64(&s.connectionCount, 1)
-	
+
+	// Ensure cleanup happens when function exits
+	defer s.cleanupConnection(client)
+
 	// Start send goroutine
 	s.wg.Add(1)
 	go s.handleClientSend(client)
-	
+
 	// Handle incoming messages
 	scanner := bufio.NewScanner(conn)
 	for {
@@ -189,15 +192,12 @@ func (s *StratumServer) handleConnection(conn net.Conn) {
 			}
 		}
 	}
-	
-	// Cleanup
-	s.cleanupConnection(client)
 }
 
 // handleClientSend handles sending messages to a client
 func (s *StratumServer) handleClientSend(client *ClientConnection) {
 	defer s.wg.Done()
-	
+
 	for {
 		select {
 		case <-client.ctx.Done():
@@ -225,7 +225,7 @@ func (s *StratumServer) handleMessage(client *ClientConnection, data string) {
 		}
 		return
 	}
-	
+
 	switch msg.Method {
 	case "mining.subscribe":
 		s.handleSubscribe(client, msg)
@@ -249,17 +249,17 @@ func (s *StratumServer) handleMessage(client *ClientConnection, data string) {
 func (s *StratumServer) handleSubscribe(client *ClientConnection, msg *StratumMessage) {
 	// Mark client as subscribed
 	client.Subscribed = true
-	
+
 	// Create subscribe response
 	resp := NewSubscribeResponse(msg.ID, client.ID, client.Extranonce1, s.extranonce2Size)
-	
+
 	if jsonResp, err := resp.ToJSON(); err == nil {
 		select {
 		case client.sendChan <- jsonResp:
 		default:
 		}
 	}
-	
+
 	// Note: Difficulty notification will be sent separately when needed
 }
 
@@ -272,10 +272,10 @@ func (s *StratumServer) handleAuthorize(client *ClientConnection, msg *StratumMe
 			client.Authorized = true
 		}
 	}
-	
+
 	// Create authorize response
 	resp := NewAuthorizeResponse(msg.ID, client.Authorized)
-	
+
 	if jsonResp, err := resp.ToJSON(); err == nil {
 		select {
 		case client.sendChan <- jsonResp:
@@ -288,7 +288,7 @@ func (s *StratumServer) handleAuthorize(client *ClientConnection, msg *StratumMe
 func (s *StratumServer) handleSubmit(client *ClientConnection, msg *StratumMessage) {
 	// Basic submit handling - accept all for now
 	// In a real implementation, this would validate the share
-	
+
 	if !client.Authorized {
 		errorResp := NewErrorResponse(msg.ID, 24, "Unauthorized worker")
 		if jsonResp, err := errorResp.ToJSON(); err == nil {
@@ -299,10 +299,10 @@ func (s *StratumServer) handleSubmit(client *ClientConnection, msg *StratumMessa
 		}
 		return
 	}
-	
+
 	// For now, accept all submissions
 	resp := NewSubmitResponse(msg.ID, true)
-	
+
 	if jsonResp, err := resp.ToJSON(); err == nil {
 		select {
 		case client.sendChan <- jsonResp:
@@ -314,13 +314,13 @@ func (s *StratumServer) handleSubmit(client *ClientConnection, msg *StratumMessa
 // cleanupConnection removes a client connection and cleans up resources
 func (s *StratumServer) cleanupConnection(client *ClientConnection) {
 	client.cancel()
-	
+
 	s.connMutex.Lock()
 	delete(s.connections, client.ID)
 	s.connMutex.Unlock()
-	
+
 	atomic.AddInt64(&s.connectionCount, -1)
-	
+
 	close(client.sendChan)
 }
 

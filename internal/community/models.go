@@ -2,6 +2,7 @@ package community
 
 import (
 	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -14,12 +15,12 @@ type Team struct {
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 	IsActive    bool      `json:"is_active" db:"is_active"`
-	
+
 	// Statistics
-	TotalHashrate   float64 `json:"total_hashrate" db:"total_hashrate"`
-	MemberCount     int     `json:"member_count" db:"member_count"`
-	TotalShares     int64   `json:"total_shares" db:"total_shares"`
-	BlocksFound     int     `json:"blocks_found" db:"blocks_found"`
+	TotalHashrate float64 `json:"total_hashrate" db:"total_hashrate"`
+	MemberCount   int     `json:"member_count" db:"member_count"`
+	TotalShares   int64   `json:"total_shares" db:"total_shares"`
+	BlocksFound   int     `json:"blocks_found" db:"blocks_found"`
 }
 
 // TeamMember represents a team membership
@@ -59,12 +60,12 @@ type Competition struct {
 
 // CompetitionParticipant represents a competition participant
 type CompetitionParticipant struct {
-	ID            uuid.UUID `json:"id" db:"id"`
-	CompetitionID uuid.UUID `json:"competition_id" db:"competition_id"`
-	UserID        uuid.UUID `json:"user_id" db:"user_id"`
+	ID            uuid.UUID  `json:"id" db:"id"`
+	CompetitionID uuid.UUID  `json:"competition_id" db:"competition_id"`
+	UserID        uuid.UUID  `json:"user_id" db:"user_id"`
 	TeamID        *uuid.UUID `json:"team_id" db:"team_id"`
-	JoinedAt      time.Time `json:"joined_at" db:"joined_at"`
-	
+	JoinedAt      time.Time  `json:"joined_at" db:"joined_at"`
+
 	// Performance metrics
 	TotalShares   int64   `json:"total_shares" db:"total_shares"`
 	TotalHashrate float64 `json:"total_hashrate" db:"total_hashrate"`
@@ -158,13 +159,20 @@ type UpdateChannelRequest struct {
 	AdminOnlyPost *bool        `json:"admin_only_post,omitempty"`
 }
 
+// UpdateCategoryRequest represents a request to update a channel category
+type UpdateCategoryRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Position    *int    `json:"position,omitempty"`
+}
+
 // ModerationLogEntry represents an entry in the moderation log
 type ModerationLogEntry struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ActorID     int64     `json:"actor_id" db:"actor_id"`
-	Action      string    `json:"action" db:"action"`
-	TargetType  string    `json:"target_type" db:"target_type"` // user, channel, message, etc.
-	TargetID    string    `json:"target_id" db:"target_id"`
-	Details     string    `json:"details" db:"details"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID         uuid.UUID `json:"id" db:"id"`
+	ActorID    int64     `json:"actor_id" db:"actor_id"`
+	Action     string    `json:"action" db:"action"`
+	TargetType string    `json:"target_type" db:"target_type"` // user, channel, message, etc.
+	TargetID   string    `json:"target_id" db:"target_id"`
+	Details    string    `json:"details" db:"details"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }

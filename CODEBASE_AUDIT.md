@@ -1,5 +1,5 @@
 # Chimera Pool - Comprehensive Codebase Audit Report
-**Date:** December 20, 2025  
+**Date:** December 22, 2025 (Updated)  
 **Auditor:** Elite Software Engineering Review  
 **Methodology:** TDD & Interface Segregation Principle (ISP) Analysis
 
@@ -55,57 +55,30 @@ The stratum package demonstrates textbook ISP implementation:
 
 ## 🔴 CRITICAL ISSUES
 
-### 1. Frontend Monolith - `src/App.tsx` (6,480 lines)
-**Severity:** HIGH  
+### 1. Frontend Monolith - `src/App.tsx` ~~(6,480 lines)~~ → 5,473 lines ✅ IMPROVED
+**Severity:** ~~HIGH~~ MEDIUM (partially resolved)  
 **Impact:** Maintainability, Performance, Code Reuse
 
-**Problems:**
-- 14 React components in single file
-- 13 separate style objects with duplicate patterns
-- No code splitting or lazy loading
-- Bundle size impact
+**December 22, 2025 - Dead Code Cleanup Completed:**
+- ✅ Removed `UserDashboard` duplicate (-215 lines) → extracted to `components/dashboard/UserDashboard.tsx`
+- ✅ Removed `MiningGraphs` duplicate (-256 lines) → extracted to `components/charts/MiningGraphs.tsx`
+- ✅ Removed `GlobalMinerMap` duplicate (-232 lines) → extracted to `components/maps/GlobalMinerMap.tsx`
+- ✅ Removed `WalletManager` duplicate (-365 lines) → extracted to `components/wallet/WalletManager.tsx`
+- ✅ Removed associated `dashStyles`, `mapStyles`, `walletStyles` duplicates
+- ✅ Build verified - bundle size reduced by **38.85 kB**
+- **Total lines removed:** 1,382 lines
 
-**Style Objects (Duplicate Patterns):**
-| Object | Line | Duplicates |
-|--------|------|------------|
-| `navStyles` | 41 | header patterns |
-| `dashStyles` | 1528 | stat boxes |
-| `overlayStyles` | 1814 | modal patterns |
-| `modalStyles` | 2004 | modal patterns |
-| `eqStyles` | 3115 | modal, card patterns |
-| `graphStyles` | 3146 | section patterns |
-| `mapStyles` | 3364 | section patterns |
-| `communityPageStyles` | 3935 | sidebar patterns |
-| `commStyles` | 4308 | section patterns |
-| `walletStyles` | 4701 | form patterns |
-| `instructionStyles` | 4747 | unique |
-| `styles` | 6743 | base patterns |
-| `adminStyles` | 6789 | modal patterns |
+**Remaining Inline Components (Still Need Extraction):**
+1. `EquipmentPage` → `components/equipment/EquipmentPage.tsx`
+2. `CommunityPage` → `components/community/CommunityPage.tsx`
+3. `CommunitySection` (unused - can be deleted)
+4. `AuthModal` (unused - can be deleted)
+5. `AdminPanel` → `components/admin/AdminPanel.tsx`
 
-**Components That Should Be Extracted:**
-1. `StatCard` → `components/StatCard.tsx`
-2. `UserDashboard` → `components/UserDashboard.tsx`
-3. `MiningGraphs` → `components/MiningGraphs.tsx`
-4. `EquipmentPage` → `components/equipment/EquipmentPage.tsx`
-5. `GlobalMinerMap` → `components/GlobalMinerMap.tsx`
-6. `CommunityPage` → `components/community/CommunityPage.tsx`
-7. `WalletManager` → `components/WalletManager.tsx`
-8. `AuthModal` → `components/auth/AuthModal.tsx`
-9. `AdminPanel` → `components/admin/AdminPanel.tsx`
+### 2. ~~Migration Numbering Conflict~~ ✅ RESOLVED
+**Status:** Fixed in previous session
 
-### 2. Migration Numbering Conflict
-**Severity:** HIGH  
-**Impact:** Database migrations will fail
-
-```
-migrations/
-├── 006_bug_reports.up.sql      ← CONFLICT
-├── 006_bug_reports.down.sql    ← CONFLICT
-├── 006_equipment_management.up.sql    ← CONFLICT
-├── 006_equipment_management.down.sql  ← CONFLICT
-```
-
-**Fix Required:** Rename equipment_management to 007_
+Migrations properly numbered 001-006.
 
 ### 3. Backend Monolith - `cmd/api/main.go` (6,016 lines)
 **Severity:** MEDIUM  
@@ -120,16 +93,20 @@ All HTTP handlers are defined in main.go instead of using the existing `internal
 
 ## 🟡 RECOMMENDATIONS
 
-### Immediate Actions (This Session)
+### Immediate Actions (This Session) ✅ COMPLETED
 1. ✅ Fix migration numbering (006 → 007 for equipment_management)
 2. ✅ Create shared style constants file
 3. ✅ Document component extraction roadmap
+4. ✅ Remove dead code duplicates from App.tsx (-1,382 lines)
+5. ✅ Verify frontend build passes
+6. ✅ Fix Go build error (UpdateCategoryRequest type)
 
 ### Short-term (Next Sprint)
-1. Extract 9 components from App.tsx
-2. Create `src/styles/` directory with shared constants
-3. Implement React.lazy() for code splitting
-4. Add component-level tests
+1. Extract remaining 3 components from App.tsx (EquipmentPage, CommunityPage, AdminPanel)
+2. Delete unused components (CommunitySection, AuthModal duplicates)
+3. Create `src/styles/` directory with shared constants
+4. Implement React.lazy() for remaining components
+5. Add component-level tests
 
 ### Long-term
 1. Consider moving to CSS modules or styled-components
@@ -147,7 +124,7 @@ All HTTP handlers are defined in main.go instead of using the existing `internal
 | Test Coverage | ⭐⭐⭐⭐⭐ | 40+ test files |
 | Security | ⭐⭐⭐⭐ | bcrypt, JWT, role-based |
 | Backend Architecture | ⭐⭐⭐⭐ | Good packages, monolithic main |
-| Frontend Architecture | ⭐⭐ | Needs modularization |
+| Frontend Architecture | ⭐⭐⭐ | Improved - 4 components extracted |
 | Database Design | ⭐⭐⭐⭐ | Clean migrations |
 | Documentation | ⭐⭐⭐⭐ | Good READMEs |
 
@@ -166,7 +143,7 @@ All HTTP handlers are defined in main.go instead of using the existing `internal
 - `migrations/*.sql` - 6 migration sets
 
 ### Frontend (React/TypeScript)
-- `src/App.tsx` - 6,480 lines
+- `src/App.tsx` - 5,473 lines (reduced from 6,855)
 - `src/components/` - 23 component files (underutilized)
 - `src/responsive.css` - 11,204 bytes
 
