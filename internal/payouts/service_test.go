@@ -321,3 +321,275 @@ func TestPayoutService_ValidatePayoutFairness(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR 75%+ COVERAGE
+// =============================================================================
+
+func TestPayoutService_GetPayoutStatistics(t *testing.T) {
+	now := time.Now()
+	mockDB := &MockDatabase{
+		payouts: []Payout{
+			{UserID: 1, Amount: 1000000000, BlockID: 1, Timestamp: now.Add(-1 * time.Hour)},
+			{UserID: 1, Amount: 2000000000, BlockID: 2, Timestamp: now.Add(-2 * time.Hour)},
+			{UserID: 1, Amount: 500000000, BlockID: 3, Timestamp: now.Add(-25 * time.Hour)}, // Outside 24h window
+		},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	// Get stats for last 24 hours
+	stats, err := service.GetPayoutStatistics(context.Background(), 1, now.Add(-24*time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1), stats.UserID)
+	assert.Equal(t, int64(3000000000), stats.TotalPayout) // 1B + 2B = 3B (500M is outside window)
+	assert.Equal(t, 2, stats.PayoutCount)
+	assert.Equal(t, int64(1500000000), stats.AveragePayout)
+}
+
+func TestPayoutService_GetPayoutStatistics_NoPayouts(t *testing.T) {
+	mockDB := &MockDatabase{
+		payouts: []Payout{},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	stats, err := service.GetPayoutStatistics(context.Background(), 1, time.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(0), stats.TotalPayout)
+	assert.Equal(t, 0, stats.PayoutCount)
+	assert.Equal(t, int64(0), stats.AveragePayout)
+}
+
+func TestPayoutService_CalculateEstimatedPayout_NoShares(t *testing.T) {
+	mockDB := &MockDatabase{
+		shares: []Share{},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	payout, err := service.CalculateEstimatedPayout(context.Background(), 1, 10000000000)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), payout)
+}
+
+func TestPayoutService_CalculateEstimatedPayout_UserNotInWindow(t *testing.T) {
+	mockDB := &MockDatabase{
+		shares: []Share{
+			{UserID: 2, Difficulty: 100, Timestamp: time.Now(), IsValid: true},
+			{UserID: 3, Difficulty: 200, Timestamp: time.Now(), IsValid: true},
+		},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	// User 1 has no shares
+	payout, err := service.CalculateEstimatedPayout(context.Background(), 1, 10000000000)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), payout)
+}
+
+func TestPayoutService_ProcessBlockPayout_NoShares(t *testing.T) {
+	mockDB := &MockDatabase{
+		shares: []Share{},
+		blocks: []Block{
+			{
+				ID:        1,
+				Height:    12345,
+				Hash:      "0x123abc",
+				FinderID:  1,
+				Reward:    5000000000,
+				Status:    "confirmed",
+				Timestamp: time.Now(),
+			},
+		},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	err = service.ProcessBlockPayout(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Len(t, mockDB.payouts, 0) // No payouts created
+}
+
+func TestPayoutService_ProcessBlockPayout_OnlyInvalidShares(t *testing.T) {
+	mockDB := &MockDatabase{
+		shares: []Share{
+			{UserID: 1, Difficulty: 100, Timestamp: time.Now(), IsValid: false},
+			{UserID: 2, Difficulty: 200, Timestamp: time.Now(), IsValid: false},
+		},
+		blocks: []Block{
+			{
+				ID:        1,
+				Height:    12345,
+				Hash:      "0x123abc",
+				FinderID:  1,
+				Reward:    5000000000,
+				Status:    "confirmed",
+				Timestamp: time.Now(),
+			},
+		},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	err = service.ProcessBlockPayout(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Len(t, mockDB.payouts, 0) // No payouts for invalid shares
+}
+
+func TestPayoutService_ValidatePayoutFairness_Valid(t *testing.T) {
+	now := time.Now()
+	mockDB := &MockDatabase{
+		shares: []Share{
+			{UserID: 1, Difficulty: 100, Timestamp: now.Add(-5 * time.Minute), IsValid: true},
+			{UserID: 2, Difficulty: 100, Timestamp: now.Add(-4 * time.Minute), IsValid: true},
+		},
+		blocks: []Block{
+			{
+				ID:        1,
+				Height:    12345,
+				Hash:      "0x123abc",
+				FinderID:  1,
+				Reward:    2000000000,
+				Status:    "confirmed",
+				Timestamp: now,
+			},
+		},
+	}
+
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+
+	// First process the payout
+	err = service.ProcessBlockPayout(context.Background(), 1)
+	require.NoError(t, err)
+
+	// Then validate fairness
+	validation, err := service.ValidatePayoutFairness(context.Background(), 1)
+	require.NoError(t, err)
+
+	assert.True(t, validation.IsValid)
+	assert.Len(t, validation.Discrepancies, 0)
+}
+
+func TestNewPayoutService(t *testing.T) {
+	mockDB := &MockDatabase{}
+	calculator, err := NewPPLNSCalculator(1000, 1.0)
+	require.NoError(t, err)
+
+	service := NewPayoutService(mockDB, calculator)
+	assert.NotNil(t, service)
+}
+
+func TestPayoutStatistics_Structure(t *testing.T) {
+	now := time.Now()
+	stats := PayoutStatistics{
+		UserID:        1,
+		TotalPayout:   5000000000,
+		PayoutCount:   10,
+		AveragePayout: 500000000,
+		LastPayout:    now,
+		Since:         now.Add(-24 * time.Hour),
+	}
+
+	assert.Equal(t, int64(1), stats.UserID)
+	assert.Equal(t, int64(5000000000), stats.TotalPayout)
+	assert.Equal(t, 10, stats.PayoutCount)
+}
+
+func TestPayoutValidation_Structure(t *testing.T) {
+	validation := PayoutValidation{
+		BlockID:         1,
+		IsValid:         true,
+		ExpectedPayouts: []Payout{},
+		ActualPayouts:   []Payout{},
+		Discrepancies:   []PayoutDiscrepancy{},
+	}
+
+	assert.Equal(t, int64(1), validation.BlockID)
+	assert.True(t, validation.IsValid)
+}
+
+func TestPayoutDiscrepancy_Structure(t *testing.T) {
+	discrepancy := PayoutDiscrepancy{
+		Type:        "amount_mismatch",
+		UserID:      1,
+		Description: "Expected 100, got 90",
+	}
+
+	assert.Equal(t, "amount_mismatch", discrepancy.Type)
+	assert.Equal(t, int64(1), discrepancy.UserID)
+}
+
+func TestShare_Structure(t *testing.T) {
+	now := time.Now()
+	share := Share{
+		ID:         1,
+		UserID:     100,
+		MinerID:    200,
+		Difficulty: 500.5,
+		IsValid:    true,
+		Timestamp:  now,
+	}
+
+	assert.Equal(t, int64(1), share.ID)
+	assert.Equal(t, int64(100), share.UserID)
+	assert.Equal(t, float64(500.5), share.Difficulty)
+	assert.True(t, share.IsValid)
+}
+
+func TestBlock_Structure(t *testing.T) {
+	now := time.Now()
+	block := Block{
+		ID:         1,
+		Height:     12345,
+		Hash:       "0xabc123",
+		Reward:     5000000000,
+		Difficulty: 1000000,
+		FinderID:   1,
+		Status:     "confirmed",
+		Timestamp:  now,
+	}
+
+	assert.Equal(t, int64(1), block.ID)
+	assert.Equal(t, int64(12345), block.Height)
+	assert.Equal(t, "0xabc123", block.Hash)
+	assert.Equal(t, "confirmed", block.Status)
+}
+
+func TestPayout_Structure(t *testing.T) {
+	now := time.Now()
+	payout := Payout{
+		UserID:    1,
+		Amount:    1000000000,
+		BlockID:   100,
+		Timestamp: now,
+	}
+
+	assert.Equal(t, int64(1), payout.UserID)
+	assert.Equal(t, int64(1000000000), payout.Amount)
+	assert.Equal(t, int64(100), payout.BlockID)
+}
