@@ -474,3 +474,247 @@ func TestCommunityService_RecordSocialShare(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR 55%+ COVERAGE
+// =============================================================================
+
+func TestCommunityService_JoinTeam_EmptyTeamID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.JoinTeam(context.Background(), uuid.Nil, uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "team ID cannot be empty")
+}
+
+func TestCommunityService_JoinTeam_EmptyUserID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.JoinTeam(context.Background(), uuid.New(), uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID cannot be empty")
+}
+
+func TestCommunityService_LeaveTeam_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	teamID := uuid.New()
+	userID := uuid.New()
+
+	mockRepo.On("RemoveTeamMember", mock.Anything, teamID, userID).Return(nil)
+
+	service := NewService(mockRepo)
+	err := service.LeaveTeam(context.Background(), teamID, userID)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCommunityService_LeaveTeam_EmptyTeamID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.LeaveTeam(context.Background(), uuid.Nil, uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "team ID cannot be empty")
+}
+
+func TestCommunityService_LeaveTeam_EmptyUserID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.LeaveTeam(context.Background(), uuid.New(), uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID cannot be empty")
+}
+
+func TestCommunityService_ProcessReferral_EmptyCode(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.ProcessReferral(context.Background(), "", uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "referral code cannot be empty")
+}
+
+func TestCommunityService_ProcessReferral_EmptyReferredID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.ProcessReferral(context.Background(), "REF123", uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "referred user ID cannot be empty")
+}
+
+func TestCommunityService_ProcessReferral_NotPending(t *testing.T) {
+	mockRepo := &MockRepository{}
+	referralCode := "REF123"
+
+	referral := &Referral{
+		ID:         uuid.New(),
+		ReferrerID: uuid.New(),
+		Code:       referralCode,
+		Status:     "completed",
+		CreatedAt:  time.Now(),
+	}
+	mockRepo.On("GetReferral", mock.Anything, referralCode).Return(referral, nil)
+
+	service := NewService(mockRepo)
+	err := service.ProcessReferral(context.Background(), referralCode, uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "referral is not pending")
+}
+
+func TestCommunityService_ProcessReferral_Expired(t *testing.T) {
+	mockRepo := &MockRepository{}
+	referralCode := "REFEXP"
+
+	referral := &Referral{
+		ID:         uuid.New(),
+		ReferrerID: uuid.New(),
+		Code:       referralCode,
+		Status:     "pending",
+		CreatedAt:  time.Now().Add(-31 * 24 * time.Hour),
+	}
+	mockRepo.On("GetReferral", mock.Anything, referralCode).Return(referral, nil)
+
+	service := NewService(mockRepo)
+	err := service.ProcessReferral(context.Background(), referralCode, uuid.New())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "referral has expired")
+}
+
+func TestCommunityService_CreateCompetition_NegativePrizePool(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	startTime := time.Now().Add(time.Hour)
+	endTime := startTime.Add(24 * time.Hour)
+
+	_, err := service.CreateCompetition(context.Background(), "Test", "Desc", startTime, endTime, -100)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prize pool cannot be negative")
+}
+
+func TestCommunityService_JoinCompetition_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	competitionID := uuid.New()
+	userID := uuid.New()
+
+	mockRepo.On("JoinCompetition", mock.Anything, mock.AnythingOfType("*community.CompetitionParticipant")).Return(nil)
+
+	service := NewService(mockRepo)
+	err := service.JoinCompetition(context.Background(), competitionID, userID, nil)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCommunityService_JoinCompetition_EmptyCompetitionID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.JoinCompetition(context.Background(), uuid.Nil, uuid.New(), nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "competition ID cannot be empty")
+}
+
+func TestCommunityService_JoinCompetition_EmptyUserID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	err := service.JoinCompetition(context.Background(), uuid.New(), uuid.Nil, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID cannot be empty")
+}
+
+func TestCommunityService_RecordSocialShare_EmptyUserID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	_, err := service.RecordSocialShare(context.Background(), uuid.Nil, "twitter", "content", "milestone")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID cannot be empty")
+}
+
+func TestCommunityService_RecordSocialShare_EmptyContent(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	_, err := service.RecordSocialShare(context.Background(), uuid.New(), "twitter", "", "milestone")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "content cannot be empty")
+}
+
+func TestCommunityService_GetTeamStatistics_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	teamID := uuid.New()
+
+	stats := []*TeamStatistics{
+		{TeamID: teamID, Period: "daily", TotalHashrate: 1000},
+	}
+	mockRepo.On("GetTeamStatistics", mock.Anything, teamID, "daily", 7).Return(stats, nil)
+
+	service := NewService(mockRepo)
+	result, err := service.GetTeamStatistics(context.Background(), teamID, "daily", 7)
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+}
+
+func TestCommunityService_GetTeamStatistics_EmptyTeamID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	_, err := service.GetTeamStatistics(context.Background(), uuid.Nil, "daily", 7)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "team ID cannot be empty")
+}
+
+func TestCommunityService_GetTeamStatistics_InvalidPeriod(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	_, err := service.GetTeamStatistics(context.Background(), uuid.New(), "invalid", 7)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid period")
+}
+
+func TestCommunityService_GetTeamStatistics_InvalidDays(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	_, err := service.GetTeamStatistics(context.Background(), uuid.New(), "daily", 0)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "days must be positive")
+}
+
+func TestNewCommunityService(t *testing.T) {
+	mockRepo := &MockRepository{}
+	service := NewService(mockRepo)
+
+	assert.NotNil(t, service)
+}
+
+func TestChannelType_Constants(t *testing.T) {
+	assert.Equal(t, ChannelType("text"), ChannelTypeText)
+	assert.Equal(t, ChannelType("announcement"), ChannelTypeAnnouncement)
+	assert.Equal(t, ChannelType("regional"), ChannelTypeRegional)
+}
