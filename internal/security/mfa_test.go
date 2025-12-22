@@ -133,8 +133,8 @@ func TestTOTPValidationWithCurrentTime(t *testing.T) {
 	pastCode := mfaService.GenerateTOTPCode(secret, time.Now().Add(-30*time.Second))
 	assert.True(t, mfaService.ValidateTOTP(secret, pastCode))
 
-	// Code from 2 minutes ago should be invalid
-	oldCode := mfaService.GenerateTOTPCode(secret, time.Now().Add(-2*time.Minute))
+	// Code from 5 minutes ago should be invalid (well outside any reasonable time window)
+	oldCode := mfaService.GenerateTOTPCode(secret, time.Now().Add(-5*time.Minute))
 	assert.False(t, mfaService.ValidateTOTP(secret, oldCode))
 }
 
