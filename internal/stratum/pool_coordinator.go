@@ -205,6 +205,12 @@ func (pc *PoolCoordinator) Stop() error {
 	return nil
 }
 
+// SetAuthenticator configures the miner authenticator
+// Must be called before Start() for production use
+func (pc *PoolCoordinator) SetAuthenticator(auth MinerAuthenticator) {
+	pc.authenticator = auth
+}
+
 // GetStats returns current pool statistics (lock-free)
 func (pc *PoolCoordinator) GetStats() PoolStats {
 	return PoolStats{
