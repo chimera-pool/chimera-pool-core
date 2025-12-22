@@ -175,7 +175,8 @@ func (s *StratumServer) handleConnection(conn net.Conn) {
 			return
 		default:
 			// Set a read timeout to avoid blocking indefinitely
-			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			// 5 seconds is more forgiving for miners on slow/unstable networks
+			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 			if scanner.Scan() {
 				line := strings.TrimSpace(scanner.Text())
 				if line != "" {
@@ -313,6 +314,7 @@ func (s *StratumServer) handleSubmit(client *ClientConnection, msg *StratumMessa
 
 // cleanupConnection removes a client connection and cleans up resources
 func (s *StratumServer) cleanupConnection(client *ClientConnection) {
+	// Cancel context first to signal all goroutines to stop
 	client.cancel()
 
 	s.connMutex.Lock()
@@ -321,7 +323,23 @@ func (s *StratumServer) cleanupConnection(client *ClientConnection) {
 
 	atomic.AddInt64(&s.connectionCount, -1)
 
-	close(client.sendChan)
+	// Safely close channel by draining any pending messages first
+	// This prevents panic if a sender writes after cancel but before close
+	go func() {
+		// Small delay to allow handleClientSend to exit via context
+		time.Sleep(10 * time.Millisecond)
+		// Drain any remaining messages
+		for {
+			select {
+			case <-client.sendChan:
+				// Discard pending message
+			default:
+				// Channel is empty, safe to close
+				close(client.sendChan)
+				return
+			}
+		}
+	}()
 }
 
 // generateExtranonce1 generates a unique extranonce1 value

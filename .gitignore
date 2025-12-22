@@ -45,6 +45,20 @@ vendor/
 *.so
 *.dylib
 
+# Go compiled binaries (without extension)
+chimera-api
+chimera-stratum
+api
+stratum
+
+# Test binaries
+*.test
+*.test.exe
+
+# Temp files
+temp_*.html
+temp_*.txt
+
 # Node.js
 node_modules/
 npm-debug.log*

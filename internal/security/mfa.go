@@ -7,7 +7,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -51,9 +53,15 @@ func DefaultTOTPConfig() *TOTPConfig {
 }
 
 // NewMFAService creates a new MFA service
+// WARNING: Uses in-memory storage by default - use NewMFAServiceWithRepository for production
 func NewMFAService() *MFAService {
+	env := os.Getenv("ENVIRONMENT")
+	if env == "production" || env == "prod" {
+		log.Println("⚠️  WARNING: MFA service using in-memory storage in production!")
+		log.Println("⚠️  TOTP secrets will be LOST on restart. Use NewMFAServiceWithRepository instead.")
+	}
 	return &MFAService{
-		repository: NewInMemoryMFARepository(), // Default to in-memory for testing
+		repository: NewInMemoryMFARepository(),
 	}
 }
 

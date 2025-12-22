@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chimera-pool/chimera-pool-core/internal/api"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang-migrate/migrate/v4"
@@ -70,14 +71,24 @@ func main() {
 		})
 	})
 
+	// Initialize rate limiter for auth endpoints (prevents brute force attacks)
+	authRateLimiter := api.NewRateLimiter(api.AuthRateLimiterConfig())
+	defer authRateLimiter.Stop()
+
 	// API routes
 	apiGroup := router.Group("/api/v1")
 	{
-		// Public routes
-		apiGroup.POST("/auth/register", handleRegister(db, config.JWTSecret))
-		apiGroup.POST("/auth/login", handleLogin(db, config.JWTSecret))
-		apiGroup.POST("/auth/forgot-password", handleForgotPassword(db, config))
-		apiGroup.POST("/auth/reset-password", handleResetPassword(db))
+		// Auth routes with rate limiting (5 attempts per 15 minutes, 30-minute block)
+		authGroup := apiGroup.Group("/auth")
+		authGroup.Use(api.RateLimitMiddleware(authRateLimiter))
+		{
+			authGroup.POST("/register", handleRegister(db, config.JWTSecret))
+			authGroup.POST("/login", handleLogin(db, config.JWTSecret))
+			authGroup.POST("/forgot-password", handleForgotPassword(db, config))
+			authGroup.POST("/reset-password", handleResetPassword(db))
+		}
+
+		// Public routes (no rate limiting needed)
 		apiGroup.GET("/pool/stats", handlePoolStats(db))
 		apiGroup.GET("/pool/blocks", handleBlocks(db))
 		apiGroup.GET("/miners/locations", handlePublicMinerLocations(db))
