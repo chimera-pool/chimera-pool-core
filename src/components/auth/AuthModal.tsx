@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState } from 'react';
 import { colors } from '../../styles/shared';
 
 // ============================================================================
@@ -120,49 +120,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-// PasswordInput component - memoized to prevent re-renders
-interface PasswordInputProps {
-  name: string;
-  placeholder: string;
-  value: string;
-  show: boolean;
-  onToggle: () => void;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  minLength?: number;
-}
-
-const PasswordInput = memo(function PasswordInput({
-  name,
-  placeholder,
-  value,
-  show,
-  onToggle,
-  onChange,
-  minLength
-}: PasswordInputProps) {
-  return (
-    <div style={styles.passwordWrapper}>
-      <input
-        style={styles.input}
-        type={show ? 'text' : 'password'}
-        name={name}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        minLength={minLength}
-        required
-      />
-      <button
-        type="button"
-        onClick={onToggle}
-        style={styles.passwordToggle}
-      >
-        {show ? '🙈' : '👁️'}
-      </button>
-    </div>
-  );
-});
-
 export function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthModalProps) {
   const [formData, setFormData] = useState({
     username: '',
@@ -173,22 +130,11 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setError('');
-  }, []);
-
-  const toggleShowPassword = useCallback(() => {
-    setShowPassword(prev => !prev);
-  }, []);
-
-  const toggleShowConfirmPassword = useCallback(() => {
-    setShowConfirmPassword(prev => !prev);
-  }, []);
+  const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    if (error) setError('');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,19 +267,20 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
             <input
               style={styles.input}
               type="email"
-              name="email"
               placeholder="Email Address"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleInputChange('email')}
               required
+              autoComplete="email"
             />
-            <PasswordInput
-              name="password"
+            <input
+              style={styles.input}
+              type="password"
               placeholder="Password"
               value={formData.password}
-              show={showPassword}
-              onToggle={toggleShowPassword}
-              onChange={handleChange}
+              onChange={handleInputChange('password')}
+              required
+              autoComplete="current-password"
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
@@ -356,37 +303,39 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
             <input
               style={styles.input}
               type="text"
-              name="username"
               placeholder="Username"
               value={formData.username}
-              onChange={handleChange}
+              onChange={handleInputChange('username')}
               required
+              autoComplete="username"
             />
             <input
               style={styles.input}
               type="email"
-              name="email"
               placeholder="Email"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleInputChange('email')}
               required
+              autoComplete="email"
             />
-            <PasswordInput
-              name="password"
+            <input
+              style={styles.input}
+              type="password"
               placeholder="Password (min 8 characters)"
               value={formData.password}
-              show={showPassword}
-              onToggle={toggleShowPassword}
-              onChange={handleChange}
+              onChange={handleInputChange('password')}
               minLength={8}
+              required
+              autoComplete="new-password"
             />
-            <PasswordInput
-              name="confirmPassword"
+            <input
+              style={styles.input}
+              type="password"
               placeholder="Confirm Password"
               value={formData.confirmPassword}
-              show={showConfirmPassword}
-              onToggle={toggleShowConfirmPassword}
-              onChange={handleChange}
+              onChange={handleInputChange('confirmPassword')}
+              required
+              autoComplete="new-password"
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Creating...' : 'Create Account'}
@@ -409,11 +358,11 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
             <input
               style={styles.input}
               type="email"
-              name="email"
               placeholder="Email Address"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleInputChange('email')}
               required
+              autoComplete="email"
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Sending...' : 'Send Reset Link'}
@@ -436,21 +385,21 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
             <input
               style={styles.input}
               type="password"
-              name="newPassword"
               placeholder="New Password (min 8 characters)"
               value={formData.newPassword}
-              onChange={handleChange}
+              onChange={handleInputChange('newPassword')}
               minLength={8}
               required
+              autoComplete="new-password"
             />
             <input
               style={styles.input}
               type="password"
-              name="confirmPassword"
               placeholder="Confirm New Password"
               value={formData.confirmPassword}
-              onChange={handleChange}
+              onChange={handleInputChange('confirmPassword')}
               required
+              autoComplete="new-password"
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Resetting...' : 'Reset Password'}
