@@ -80,9 +80,9 @@ func TestUserRegistration(t *testing.T) {
 			// Use mock repository for testing
 			mockRepo := NewMockUserRepository()
 			service := NewAuthService(mockRepo, "test-secret")
-			
+
 			user, err := service.RegisterUser(tt.username, tt.email, tt.password)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -151,15 +151,15 @@ func TestUserLogin(t *testing.T) {
 			// Use mock repository for testing
 			mockRepo := NewMockUserRepository()
 			service := NewAuthService(mockRepo, "test-secret")
-			
+
 			// First register a user for valid login test
 			if tt.name == "valid login" {
 				_, err := service.RegisterUser("testuser", "test@example.com", "SecurePass123!")
 				require.NoError(t, err)
 			}
-			
+
 			user, token, err := service.LoginUser(tt.username, tt.password)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -178,19 +178,19 @@ func TestUserLogin(t *testing.T) {
 // TestJWTTokenGeneration tests JWT token generation and validation
 func TestJWTTokenGeneration(t *testing.T) {
 	service := NewAuthService(nil, "test-secret-key")
-	
+
 	user := &User{
 		ID:       1,
 		Username: "testuser",
 		Email:    "test@example.com",
 		IsActive: true,
 	}
-	
+
 	// Test token generation
 	token, err := service.GenerateJWT(user)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
-	
+
 	// Test token validation
 	claims, err := service.ValidateJWT(token)
 	assert.NoError(t, err)
@@ -203,7 +203,7 @@ func TestJWTTokenGeneration(t *testing.T) {
 // TestJWTTokenValidation tests JWT token validation with various scenarios
 func TestJWTTokenValidation(t *testing.T) {
 	service := NewAuthService(nil, "test-secret-key")
-	
+
 	tests := []struct {
 		name        string
 		token       string
@@ -229,11 +229,11 @@ func TestJWTTokenValidation(t *testing.T) {
 			errorMsg:    "invalid token",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			claims, err := service.ValidateJWT(tt.token)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -249,19 +249,19 @@ func TestJWTTokenValidation(t *testing.T) {
 // TestPasswordHashing tests password hashing functionality
 func TestPasswordHashing(t *testing.T) {
 	service := NewAuthService(nil, "test-secret")
-	
+
 	password := "SecurePass123!"
-	
+
 	// Test password hashing
 	hash, err := service.HashPassword(password)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, hash)
 	assert.NotEqual(t, password, hash)
-	
+
 	// Test password verification
 	isValid := service.VerifyPassword(password, hash)
 	assert.True(t, isValid)
-	
+
 	// Test wrong password
 	isValid = service.VerifyPassword("wrongpassword", hash)
 	assert.False(t, isValid)
@@ -305,11 +305,11 @@ func TestUserModel(t *testing.T) {
 			errorMsg:    "email is required",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.user.Validate()
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
@@ -318,4 +318,264 @@ func TestUserModel(t *testing.T) {
 			}
 		})
 	}
+}
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR 60%+ COVERAGE
+// =============================================================================
+
+func TestAuthService_HashPassword_EmptyPassword(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	hash, err := service.HashPassword("")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is required")
+	assert.Empty(t, hash)
+}
+
+func TestAuthService_HashPassword_WhitespacePassword(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	hash, err := service.HashPassword("   ")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is required")
+	assert.Empty(t, hash)
+}
+
+func TestAuthService_VerifyPassword_EmptyPassword(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	isValid := service.VerifyPassword("", "somehash")
+
+	assert.False(t, isValid)
+}
+
+func TestAuthService_VerifyPassword_EmptyHash(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	isValid := service.VerifyPassword("password", "")
+
+	assert.False(t, isValid)
+}
+
+func TestAuthService_VerifyPassword_BothEmpty(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	isValid := service.VerifyPassword("", "")
+
+	assert.False(t, isValid)
+}
+
+func TestAuthService_GenerateJWT_NilUser(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	token, err := service.GenerateJWT(nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user is required")
+	assert.Empty(t, token)
+}
+
+func TestAuthService_ValidateJWT_WhitespaceToken(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	claims, err := service.ValidateJWT("   ")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "token is required")
+	assert.Nil(t, claims)
+}
+
+func TestAuthService_LoginUser_NoRepository(t *testing.T) {
+	service := NewAuthService(nil, "test-secret")
+
+	user, token, err := service.LoginUser("testuser", "password123")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user repository not configured")
+	assert.Nil(t, user)
+	assert.Empty(t, token)
+}
+
+func TestAuthService_LoginUser_InactiveUser(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	// Register a user first
+	_, err := service.RegisterUser("testuser", "test@example.com", "SecurePass123!")
+	require.NoError(t, err)
+
+	// Deactivate the user using DeleteUser (soft delete sets IsActive = false)
+	user, _ := mockRepo.GetUserByUsername("testuser")
+	require.NotNil(t, user)
+	mockRepo.DeleteUser(user.ID)
+
+	// Try to login - mock returns nil for inactive users, so this returns "invalid credentials"
+	_, _, err = service.LoginUser("testuser", "SecurePass123!")
+
+	assert.Error(t, err)
+	// Mock implementation filters out inactive users, so we get "invalid credentials"
+	assert.Contains(t, err.Error(), "invalid credentials")
+}
+
+func TestAuthService_RegisterUser_DuplicateUsername(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	// Register first user
+	_, err := service.RegisterUser("testuser", "test1@example.com", "SecurePass123!")
+	require.NoError(t, err)
+
+	// Try to register with same username
+	_, err = service.RegisterUser("testuser", "test2@example.com", "SecurePass123!")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username already exists")
+}
+
+func TestAuthService_RegisterUser_DuplicateEmail(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	// Register first user
+	_, err := service.RegisterUser("testuser1", "test@example.com", "SecurePass123!")
+	require.NoError(t, err)
+
+	// Try to register with same email
+	_, err = service.RegisterUser("testuser2", "test@example.com", "SecurePass123!")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "email already exists")
+}
+
+func TestAuthService_RegisterUser_EmptyPassword(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, err := service.RegisterUser("testuser", "test@example.com", "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is required")
+}
+
+func TestAuthService_RegisterUser_WhitespaceUsername(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, err := service.RegisterUser("   ", "test@example.com", "SecurePass123!")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username is required")
+}
+
+func TestAuthService_RegisterUser_WhitespaceEmail(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, err := service.RegisterUser("testuser", "   ", "SecurePass123!")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "email is required")
+}
+
+func TestAuthService_RegisterUser_WhitespacePassword(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, err := service.RegisterUser("testuser", "test@example.com", "   ")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is required")
+}
+
+func TestAuthService_LoginUser_WhitespaceUsername(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, _, err := service.LoginUser("   ", "password123")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username is required")
+}
+
+func TestAuthService_LoginUser_WhitespacePassword(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	_, _, err := service.LoginUser("testuser", "   ")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is required")
+}
+
+func TestNewAuthService(t *testing.T) {
+	mockRepo := NewMockUserRepository()
+	service := NewAuthService(mockRepo, "test-secret")
+
+	assert.NotNil(t, service)
+}
+
+func TestAuthService_GenerateAndValidateJWT(t *testing.T) {
+	service := NewAuthService(nil, "test-secret-key-for-jwt")
+
+	user := &User{
+		ID:       42,
+		Username: "jwtuser",
+		Email:    "jwt@example.com",
+		IsActive: true,
+	}
+
+	// Generate token
+	token, err := service.GenerateJWT(user)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// Validate token
+	claims, err := service.ValidateJWT(token)
+	require.NoError(t, err)
+	require.NotNil(t, claims)
+
+	assert.Equal(t, int64(42), claims.UserID)
+	assert.Equal(t, "jwtuser", claims.Username)
+	assert.Equal(t, "jwt@example.com", claims.Email)
+	assert.False(t, claims.IssuedAt.IsZero())
+	assert.False(t, claims.ExpiresAt.IsZero())
+	assert.True(t, claims.ExpiresAt.After(claims.IssuedAt))
+}
+
+func TestJWTClaims_Structure(t *testing.T) {
+	now := time.Now()
+	claims := JWTClaims{
+		UserID:    123,
+		Username:  "testuser",
+		Email:     "test@example.com",
+		IssuedAt:  now,
+		ExpiresAt: now.Add(24 * time.Hour),
+	}
+
+	assert.Equal(t, int64(123), claims.UserID)
+	assert.Equal(t, "testuser", claims.Username)
+	assert.Equal(t, "test@example.com", claims.Email)
+	assert.True(t, claims.ExpiresAt.After(claims.IssuedAt))
+}
+
+func TestUser_Structure(t *testing.T) {
+	now := time.Now()
+	user := User{
+		ID:           1,
+		Username:     "testuser",
+		Email:        "test@example.com",
+		PasswordHash: "hashedpassword",
+		IsActive:     true,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	assert.Equal(t, int64(1), user.ID)
+	assert.Equal(t, "testuser", user.Username)
+	assert.Equal(t, "test@example.com", user.Email)
+	assert.NotEmpty(t, user.PasswordHash)
+	assert.True(t, user.IsActive)
 }
