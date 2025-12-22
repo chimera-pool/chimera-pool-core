@@ -21,6 +21,11 @@ type Share struct {
 	Difficulty float64   `json:"difficulty" db:"difficulty"`
 	IsValid    bool      `json:"is_valid" db:"is_valid"`
 	Timestamp  time.Time `json:"timestamp" db:"timestamp"`
+
+	// Additional stratum fields
+	WorkerName string `json:"worker_name"`
+	ExtraNonce string `json:"extra_nonce"`
+	NTime      string `json:"ntime"`
 }
 
 // ShareValidationResult represents the result of share validation
@@ -60,12 +65,12 @@ type MinerStatistics struct {
 type ShareProcessor struct {
 	// Algorithm interface for hash validation
 	algorithm Blake2SHasher
-	
+
 	// Statistics tracking
-	stats       ShareStatistics
-	minerStats  map[int64]*MinerStatistics
-	statsMutex  sync.RWMutex
-	
+	stats      ShareStatistics
+	minerStats map[int64]*MinerStatistics
+	statsMutex sync.RWMutex
+
 	// Configuration
 	maxNonceLength int
 	maxJobIDLength int
@@ -84,13 +89,13 @@ type DefaultBlake2SHasher struct{}
 func (h *DefaultBlake2SHasher) Hash(input []byte) ([]byte, error) {
 	// Simplified Blake2S-like hash for testing
 	// In production, this would call the actual Rust Blake2S implementation
-	
+
 	hash := make([]byte, 32) // Blake2S-256 produces 32-byte hash
-	
+
 	// Create a more realistic hash that varies significantly with input
 	// This is still a simulation but produces better distribution
 	seed := uint64(0x6a09e667f3bcc908) // Blake2S initial value
-	
+
 	for i, b := range input {
 		seed = seed*0x9e3779b97f4a7c15 + uint64(b) + uint64(i)
 		seed ^= seed >> 30
@@ -98,13 +103,13 @@ func (h *DefaultBlake2SHasher) Hash(input []byte) ([]byte, error) {
 		seed ^= seed >> 27
 		seed *= 0x94d049bb133111eb
 		seed ^= seed >> 31
-		
+
 		// Distribute seed across hash bytes
 		for j := 0; j < 8 && i*8+j < 32; j++ {
 			hash[i*8+j] = byte(seed >> (j * 8))
 		}
 	}
-	
+
 	// Fill remaining bytes if input is small
 	for i := len(input) * 8; i < 32; i++ {
 		seed = seed*0x9e3779b97f4a7c15 + uint64(i)
@@ -113,7 +118,7 @@ func (h *DefaultBlake2SHasher) Hash(input []byte) ([]byte, error) {
 		seed ^= seed >> 27
 		hash[i] = byte(seed)
 	}
-	
+
 	return hash, nil
 }
 
@@ -124,22 +129,22 @@ func (h *DefaultBlake2SHasher) Verify(input []byte, target []byte, nonce uint64)
 	for i := 0; i < 8; i++ {
 		nonceBytes[i] = byte(nonce >> (i * 8))
 	}
-	
+
 	combined := append(input, nonceBytes...)
 	hash, err := h.Hash(combined)
 	if err != nil {
 		return false, err
 	}
-	
+
 	// Compare hash against target (big-endian comparison)
 	if len(target) == 0 {
 		return false, nil // Empty target means impossible
 	}
-	
+
 	// Convert to big integers for comparison
 	hashInt := new(big.Int).SetBytes(hash)
 	targetInt := new(big.Int).SetBytes(target)
-	
+
 	// Hash must be less than target to be valid
 	return hashInt.Cmp(targetInt) < 0, nil
 }
@@ -166,10 +171,10 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 			Error:   err.Error(),
 		}
 	}
-	
+
 	// Convert difficulty to target
 	target := sp.difficultyToTarget(share.Difficulty)
-	
+
 	// Parse nonce
 	nonce, err := sp.parseNonce(share.Nonce)
 	if err != nil {
@@ -178,10 +183,10 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 			Error:   fmt.Sprintf("invalid nonce: %v", err),
 		}
 	}
-	
+
 	// Create input data for hashing (job_id as base input)
 	input := []byte(share.JobID)
-	
+
 	// Verify share using Blake2S algorithm
 	isValid, err := sp.algorithm.Verify(input, target, nonce)
 	if err != nil {
@@ -190,7 +195,7 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 			Error:   fmt.Sprintf("verification failed: %v", err),
 		}
 	}
-	
+
 	// Compute hash for storage
 	hash := ""
 	if isValid {
@@ -200,7 +205,7 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 			nonceBytes[i] = byte(nonce >> (i * 8))
 		}
 		combined := append(input, nonceBytes...)
-		
+
 		hashBytes, err := sp.algorithm.Hash(combined)
 		if err != nil {
 			return ShareValidationResult{
@@ -210,7 +215,7 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 		}
 		hash = hex.EncodeToString(hashBytes)
 	}
-	
+
 	return ShareValidationResult{
 		IsValid: isValid,
 		Hash:    hash,
@@ -222,7 +227,7 @@ func (sp *ShareProcessor) ValidateShare(share *Share) ShareValidationResult {
 func (sp *ShareProcessor) ProcessShare(share *Share) ShareProcessingResult {
 	// Validate the share
 	validationResult := sp.ValidateShare(share)
-	
+
 	// Create processed share
 	processedShare := &Share{
 		ID:         share.ID,
@@ -235,10 +240,10 @@ func (sp *ShareProcessor) ProcessShare(share *Share) ShareProcessingResult {
 		IsValid:    validationResult.IsValid,
 		Timestamp:  share.Timestamp,
 	}
-	
+
 	// Update statistics
 	sp.updateStatistics(processedShare)
-	
+
 	if !validationResult.IsValid {
 		return ShareProcessingResult{
 			Success:        false,
@@ -246,7 +251,7 @@ func (sp *ShareProcessor) ProcessShare(share *Share) ShareProcessingResult {
 			Error:          validationResult.Error,
 		}
 	}
-	
+
 	return ShareProcessingResult{
 		Success:        true,
 		ProcessedShare: processedShare,
@@ -258,7 +263,7 @@ func (sp *ShareProcessor) ProcessShare(share *Share) ShareProcessingResult {
 func (sp *ShareProcessor) GetStatistics() ShareStatistics {
 	sp.statsMutex.RLock()
 	defer sp.statsMutex.RUnlock()
-	
+
 	return sp.stats
 }
 
@@ -266,11 +271,11 @@ func (sp *ShareProcessor) GetStatistics() ShareStatistics {
 func (sp *ShareProcessor) GetMinerStatistics(minerID int64) MinerStatistics {
 	sp.statsMutex.RLock()
 	defer sp.statsMutex.RUnlock()
-	
+
 	if stats, exists := sp.minerStats[minerID]; exists {
 		return *stats
 	}
-	
+
 	return MinerStatistics{
 		MinerID: minerID,
 	}
@@ -281,35 +286,35 @@ func (sp *ShareProcessor) validateShareInput(share *Share) error {
 	if share == nil {
 		return fmt.Errorf("share cannot be nil")
 	}
-	
+
 	if share.JobID == "" {
 		return fmt.Errorf("job_id cannot be empty")
 	}
-	
+
 	if len(share.JobID) > sp.maxJobIDLength {
 		return fmt.Errorf("job_id too long (max %d characters)", sp.maxJobIDLength)
 	}
-	
+
 	if share.Nonce == "" {
 		return fmt.Errorf("nonce cannot be empty")
 	}
-	
+
 	if len(share.Nonce) > sp.maxNonceLength {
 		return fmt.Errorf("nonce too long (max %d characters)", sp.maxNonceLength)
 	}
-	
+
 	if share.Difficulty <= 0 {
 		return fmt.Errorf("difficulty must be positive")
 	}
-	
+
 	if share.MinerID <= 0 {
 		return fmt.Errorf("miner_id must be positive")
 	}
-	
+
 	if share.UserID <= 0 {
 		return fmt.Errorf("user_id must be positive")
 	}
-	
+
 	return nil
 }
 
@@ -317,18 +322,18 @@ func (sp *ShareProcessor) validateShareInput(share *Share) error {
 func (sp *ShareProcessor) parseNonce(nonceStr string) (uint64, error) {
 	// Remove 0x prefix if present
 	nonceStr = strings.TrimPrefix(nonceStr, "0x")
-	
+
 	// Validate hex format
 	if len(nonceStr) == 0 {
 		return 0, fmt.Errorf("empty nonce")
 	}
-	
+
 	// Parse as hex
 	nonce, err := strconv.ParseUint(nonceStr, 16, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid hex nonce: %v", err)
 	}
-	
+
 	return nonce, nil
 }
 
@@ -337,18 +342,18 @@ func (sp *ShareProcessor) difficultyToTarget(difficulty float64) []byte {
 	if difficulty <= 0 {
 		return []byte{} // Invalid difficulty
 	}
-	
+
 	// For very high difficulty (impossible), return very small target
 	if difficulty > 1000000 {
 		target := make([]byte, 32)
 		target[31] = 0x01 // Very small target
 		return target
 	}
-	
+
 	// For testing purposes, make targets very generous
 	// In production, this would be much more restrictive
 	target := make([]byte, 32)
-	
+
 	if difficulty <= 1.0 {
 		// Very easy target for difficulty 1.0 - about 50% chance of success
 		target[0] = 0x80 // First bit must be 0, so 50% chance
@@ -371,7 +376,7 @@ func (sp *ShareProcessor) difficultyToTarget(difficulty float64) []byte {
 			target[i] = 0x00
 		}
 	}
-	
+
 	return target
 }
 
@@ -379,7 +384,7 @@ func (sp *ShareProcessor) difficultyToTarget(difficulty float64) []byte {
 func (sp *ShareProcessor) updateStatistics(share *Share) {
 	sp.statsMutex.Lock()
 	defer sp.statsMutex.Unlock()
-	
+
 	// Update overall statistics
 	sp.stats.TotalShares++
 	if share.IsValid {
@@ -389,7 +394,7 @@ func (sp *ShareProcessor) updateStatistics(share *Share) {
 		sp.stats.InvalidShares++
 	}
 	sp.stats.LastUpdated = time.Now()
-	
+
 	// Update per-miner statistics
 	minerStats, exists := sp.minerStats[share.MinerID]
 	if !exists {
@@ -398,7 +403,7 @@ func (sp *ShareProcessor) updateStatistics(share *Share) {
 		}
 		sp.minerStats[share.MinerID] = minerStats
 	}
-	
+
 	minerStats.TotalShares++
 	if share.IsValid {
 		minerStats.ValidShares++

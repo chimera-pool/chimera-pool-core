@@ -73,6 +73,7 @@ type PoolCoordinator struct {
 	connManager    *ConnectionManager
 	shareProcessor *shares.BatchProcessor
 	vardiffManager *difficulty.VardiffManager
+	authenticator  MinerAuthenticator
 
 	// Job management
 	currentJob   atomic.Value // *Job
@@ -461,10 +462,32 @@ func (pc *PoolCoordinator) handleAuthorize(conn *ManagedConnection, id interface
 		return
 	}
 
-	// TODO: Implement actual authorization against database
-	// For now, accept all valid-looking worker names
-	conn.WorkerName = workerName
-	conn.Authorized = true
+	// Get password (optional in stratum, often ignored)
+	password := ""
+	if len(params) > 1 {
+		if pw, ok := params[1].(string); ok {
+			password = pw
+		}
+	}
+
+	// Authenticate using the authenticator interface
+	if pc.authenticator != nil {
+		result, err := pc.authenticator.Authenticate(pc.ctx, workerName, password)
+		if err != nil {
+			pc.sendError(conn, id, 24, "Authorization failed: "+err.Error())
+			return
+		}
+
+		// Store authentication result in connection
+		conn.WorkerName = workerName
+		conn.UserID = result.UserID
+		conn.MinerID = result.MinerID
+		conn.Authorized = true
+	} else {
+		// Fallback: accept all valid-looking worker names (dev mode)
+		conn.WorkerName = workerName
+		conn.Authorized = true
+	}
 
 	atomic.AddInt64(&pc.stats.AuthorizedMiners, 1)
 
@@ -499,18 +522,18 @@ func (pc *PoolCoordinator) handleSubmit(conn *ManagedConnection, id interface{},
 	ntime, _ := params[3].(string)
 	nonce, _ := params[4].(string)
 
-	// Create share for processing
+	// Create share for processing with actual user/miner IDs from connection
 	share := &shares.Share{
-		MinerID:    1, // TODO: Map connection ID to miner ID
-		UserID:     1, // TODO: Map worker name to user ID
+		MinerID:    conn.MinerID,
+		UserID:     conn.UserID,
 		JobID:      jobID,
 		Nonce:      nonce,
 		Difficulty: float64(conn.Difficulty),
 		Timestamp:  time.Now(),
+		WorkerName: workerName,
+		ExtraNonce: extranonce2,
+		NTime:      ntime,
 	}
-	_ = workerName
-	_ = extranonce2
-	_ = ntime
 
 	// Submit to batch processor
 	resultCh := pc.shareProcessor.Submit(share)

@@ -63,6 +63,10 @@ type ManagedConnection struct {
 	Difficulty   uint64
 	HardwareType string
 
+	// Authentication (set after successful authorization)
+	UserID  int64
+	MinerID int64
+
 	// Timing
 	ConnectedAt  time.Time
 	LastActivity time.Time
