@@ -527,3 +527,427 @@ func TestMonitoringService_CreateDashboard(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR 60%+ COVERAGE
+// =============================================================================
+
+func TestMonitoringService_RecordHistogramMetric(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	metric := &Metric{
+		Name:      "request_latency",
+		Value:     0.5,
+		Labels:    map[string]string{"endpoint": "/api"},
+		Timestamp: time.Now(),
+		Type:      "histogram",
+	}
+
+	mockRepo.On("StoreMetric", mock.Anything, mock.AnythingOfType("*monitoring.Metric")).Return(nil)
+	mockPrometheus.On("RecordHistogram", "request_latency", map[string]string{"endpoint": "/api"}, 0.5).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	err := service.RecordMetric(context.Background(), metric)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+	mockPrometheus.AssertExpectations(t)
+}
+
+func TestMonitoringService_ResolveAlert(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	alertID := uuid.New()
+	mockRepo.On("UpdateAlert", mock.Anything, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	err := service.ResolveAlert(context.Background(), alertID)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestMonitoringService_RecordPerformanceMetrics(t *testing.T) {
+	tests := []struct {
+		name      string
+		metrics   *PerformanceMetrics
+		setupMock func(*MockRepository, *MockPrometheusClient)
+		wantErr   bool
+		errMsg    string
+	}{
+		{
+			name: "should record performance metrics successfully",
+			metrics: &PerformanceMetrics{
+				Timestamp:       time.Now(),
+				CPUUsage:        75.5,
+				MemoryUsage:     60.0,
+				DiskUsage:       40.0,
+				ActiveMiners:    100,
+				TotalHashrate:   1000000,
+				SharesPerSecond: 50.0,
+				BlocksFound:     5,
+				Uptime:          86400,
+			},
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {
+				mr.On("StorePerformanceMetrics", mock.Anything, mock.AnythingOfType("*monitoring.PerformanceMetrics")).Return(nil)
+				mp.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mp.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:      "should fail with nil metrics",
+			metrics:   nil,
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {},
+			wantErr:   true,
+			errMsg:    "cannot be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			tt.setupMock(mockRepo, mockPrometheus)
+
+			service := NewService(mockRepo, mockPrometheus)
+			err := service.RecordPerformanceMetrics(context.Background(), tt.metrics)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMonitoringService_RecordMinerMetrics(t *testing.T) {
+	minerID := uuid.New()
+
+	tests := []struct {
+		name      string
+		metrics   *MinerMetrics
+		setupMock func(*MockRepository, *MockPrometheusClient)
+		wantErr   bool
+		errMsg    string
+	}{
+		{
+			name: "should record miner metrics successfully when online",
+			metrics: &MinerMetrics{
+				MinerID:         minerID,
+				Timestamp:       time.Now(),
+				Hashrate:        50000,
+				SharesSubmitted: 1000,
+				SharesAccepted:  980,
+				SharesRejected:  20,
+				IsOnline:        true,
+				Difficulty:      100,
+				Earnings:        1.5,
+			},
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {
+				mr.On("StoreMinerMetrics", mock.Anything, mock.AnythingOfType("*monitoring.MinerMetrics")).Return(nil)
+				mp.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mp.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "should record miner metrics when offline",
+			metrics: &MinerMetrics{
+				MinerID:  minerID,
+				IsOnline: false,
+			},
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {
+				mr.On("StoreMinerMetrics", mock.Anything, mock.AnythingOfType("*monitoring.MinerMetrics")).Return(nil)
+				mp.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mp.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:      "should fail with nil metrics",
+			metrics:   nil,
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {},
+			wantErr:   true,
+			errMsg:    "cannot be nil",
+		},
+		{
+			name: "should fail with empty miner ID",
+			metrics: &MinerMetrics{
+				MinerID: uuid.Nil,
+			},
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {},
+			wantErr:   true,
+			errMsg:    "miner ID cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			tt.setupMock(mockRepo, mockPrometheus)
+
+			service := NewService(mockRepo, mockPrometheus)
+			err := service.RecordMinerMetrics(context.Background(), tt.metrics)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMonitoringService_RecordPoolMetrics(t *testing.T) {
+	tests := []struct {
+		name      string
+		metrics   *PoolMetrics
+		setupMock func(*MockRepository, *MockPrometheusClient)
+		wantErr   bool
+		errMsg    string
+	}{
+		{
+			name: "should record pool metrics successfully",
+			metrics: &PoolMetrics{
+				Timestamp:         time.Now(),
+				TotalHashrate:     5000000,
+				ActiveMiners:      200,
+				TotalShares:       100000,
+				ValidShares:       99000,
+				InvalidShares:     1000,
+				BlocksFound:       10,
+				NetworkDifficulty: 1000000,
+				PoolDifficulty:    50000,
+				NetworkHashrate:   100000000,
+				PoolEfficiency:    98.5,
+				Luck:              105.0,
+			},
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {
+				mr.On("StorePoolMetrics", mock.Anything, mock.AnythingOfType("*monitoring.PoolMetrics")).Return(nil)
+				mp.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mp.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:      "should fail with nil metrics",
+			metrics:   nil,
+			setupMock: func(mr *MockRepository, mp *MockPrometheusClient) {},
+			wantErr:   true,
+			errMsg:    "cannot be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			tt.setupMock(mockRepo, mockPrometheus)
+
+			service := NewService(mockRepo, mockPrometheus)
+			err := service.RecordPoolMetrics(context.Background(), tt.metrics)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMonitoringService_GetMetrics(t *testing.T) {
+	tests := []struct {
+		name       string
+		metricName string
+		start      time.Time
+		end        time.Time
+		setupMock  func(*MockRepository)
+		wantErr    bool
+		errMsg     string
+	}{
+		{
+			name:       "should get metrics successfully",
+			metricName: "cpu_usage",
+			start:      time.Now().Add(-time.Hour),
+			end:        time.Now(),
+			setupMock: func(mr *MockRepository) {
+				mr.On("GetMetrics", mock.Anything, "cpu_usage", mock.Anything, mock.Anything).Return([]*Metric{
+					{Name: "cpu_usage", Value: 50},
+					{Name: "cpu_usage", Value: 60},
+				}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:       "should fail with empty metric name",
+			metricName: "",
+			start:      time.Now().Add(-time.Hour),
+			end:        time.Now(),
+			setupMock:  func(mr *MockRepository) {},
+			wantErr:    true,
+			errMsg:     "name cannot be empty",
+		},
+		{
+			name:       "should fail when end before start",
+			metricName: "cpu_usage",
+			start:      time.Now(),
+			end:        time.Now().Add(-time.Hour),
+			setupMock:  func(mr *MockRepository) {},
+			wantErr:    true,
+			errMsg:     "end time must be after start time",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			tt.setupMock(mockRepo)
+
+			service := NewService(mockRepo, mockPrometheus)
+			metrics, err := service.GetMetrics(context.Background(), tt.metricName, tt.start, tt.end)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, metrics)
+			}
+		})
+	}
+}
+
+func TestMonitoringService_CreateDashboard_EmptyUserID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+
+	_, err := service.CreateDashboard(context.Background(), "Dashboard", "Desc", "{}", true, uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "created by user ID cannot be empty")
+}
+
+func TestMonitoringService_CreateAlertRule_EmptyName(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+
+	_, err := service.CreateAlertRule(context.Background(), "", "query", ">", 90.0, "5m", "warning")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "name cannot be empty")
+}
+
+func TestMonitoringService_CreateAlertRule_EmptyQuery(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+
+	_, err := service.CreateAlertRule(context.Background(), "Rule", "", ">", 90.0, "5m", "warning")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "query cannot be empty")
+}
+
+func TestMonitoringService_CreateAlertRule_InvalidSeverity(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+
+	_, err := service.CreateAlertRule(context.Background(), "Rule", "query", ">", 90.0, "5m", "invalid")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid severity level")
+}
+
+func TestMonitoringService_CreateAlert_AllSeverities(t *testing.T) {
+	severities := []string{"info", "warning", "error", "critical"}
+
+	for _, severity := range severities {
+		t.Run(severity, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			mockRepo.On("CreateAlert", mock.Anything, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+
+			service := NewService(mockRepo, mockPrometheus)
+			alert, err := service.CreateAlert(context.Background(), "Test", "Desc", severity, nil)
+
+			assert.NoError(t, err)
+			assert.Equal(t, severity, alert.Severity)
+		})
+	}
+}
+
+func TestMonitoringService_CreateAlertRule_AllConditions(t *testing.T) {
+	conditions := []string{">", "<", ">=", "<=", "==", "!="}
+
+	for _, cond := range conditions {
+		t.Run(cond, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			mockRepo.On("CreateAlertRule", mock.Anything, mock.AnythingOfType("*monitoring.AlertRule")).Return(nil)
+
+			service := NewService(mockRepo, mockPrometheus)
+			rule, err := service.CreateAlertRule(context.Background(), "Rule", "query", cond, 90.0, "5m", "warning")
+
+			assert.NoError(t, err)
+			assert.Equal(t, cond, rule.Condition)
+		})
+	}
+}
+
+func TestMonitoringService_CreateAlertRule_ValidDurations(t *testing.T) {
+	durations := []string{"5m", "10s", "1h", "30m"}
+
+	for _, dur := range durations {
+		t.Run(dur, func(t *testing.T) {
+			mockRepo := &MockRepository{}
+			mockPrometheus := &MockPrometheusClient{}
+			mockRepo.On("CreateAlertRule", mock.Anything, mock.AnythingOfType("*monitoring.AlertRule")).Return(nil)
+
+			service := NewService(mockRepo, mockPrometheus)
+			rule, err := service.CreateAlertRule(context.Background(), "Rule", "query", ">", 90.0, dur, "warning")
+
+			assert.NoError(t, err)
+			assert.Equal(t, dur, rule.Duration)
+		})
+	}
+}
+
+func TestMonitoringService_EvaluateAlertRules_InactiveRule(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	rules := []*AlertRule{
+		{
+			ID:        uuid.New(),
+			Name:      "High CPU",
+			Query:     "cpu_usage",
+			Condition: ">",
+			Threshold: 90.0,
+			IsActive:  false, // Inactive
+		},
+	}
+	mockRepo.On("GetAlertRules", mock.Anything).Return(rules, nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	alerts, err := service.EvaluateAlertRules(context.Background())
+
+	assert.NoError(t, err)
+	assert.Len(t, alerts, 0)
+}
