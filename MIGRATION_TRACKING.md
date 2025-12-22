@@ -20,23 +20,37 @@
 
 **Codebase Audit Session - App.tsx Cleanup**
 
-**Dead Code Removed from `src/App.tsx`**:
+**Phase 1 - Dead Code Removed from `src/App.tsx`**:
 - ✅ `UserDashboard` duplicate (-215 lines) → extracted to `components/dashboard/UserDashboard.tsx`
 - ✅ `MiningGraphs` duplicate (-256 lines) → extracted to `components/charts/MiningGraphs.tsx`
 - ✅ `GlobalMinerMap` duplicate (-232 lines) → extracted to `components/maps/GlobalMinerMap.tsx`
 - ✅ `WalletManager` duplicate (-365 lines) → extracted to `components/wallet/WalletManager.tsx`
 - ✅ Associated style objects (`dashStyles`, `mapStyles`, `walletStyles`) removed
 
-**Results**:
-- `App.tsx`: 6,855 → 5,473 lines (-1,382 lines, -20%)
-- Bundle size: -38.85 kB reduction
+**Phase 2 - Additional Dead Code Removed**:
+- ✅ `CommunitySection` function (-312 lines) - unused, replaced by `CommunityPage`
+- ✅ `commStyles` object (-72 lines) - only used by `CommunitySection`
+- ✅ `AuthModal` function (-163 lines) - unused, replaced by `AuthModalLazy`
+- ✅ `AuthModalProps` interface removed
+
+**Final Results**:
+- `App.tsx`: 6,855 → 4,914 lines (-1,941 lines, -28%)
+- Bundle size: 234.67 kB → 195.82 kB (-38.85 kB, -17%)
 - Frontend build: ✅ Passes
+- Go tests: ✅ All 24 packages pass
 
 **Backend Fixes**:
 - Added `UpdateCategoryRequest` type to `internal/community/models.go`
 - Fixed unreachable code in `internal/stratum/server.go` (cleanupConnection defer)
 
-**CI Status**: All Go tests pass locally (24 packages)
+**Git Commits**:
+- `341dec4` - Phase 1 dead code cleanup
+- `ee153d7` - Phase 2 dead code cleanup (CommunitySection, AuthModal)
+
+**Remaining Future Work** (Active Components - Need Extraction):
+1. `EquipmentPage` (~960 lines) → `components/equipment/EquipmentPage.tsx`
+2. `CommunityPage` (~600 lines) → `components/community/CommunityPage.tsx`
+3. `AdminPanel` (~900 lines) → `components/admin/AdminPanel.tsx`
 
 **Audit Documentation**: Updated `CODEBASE_AUDIT.md` with current status
 

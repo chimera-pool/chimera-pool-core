@@ -55,25 +55,34 @@ The stratum package demonstrates textbook ISP implementation:
 
 ## 🔴 CRITICAL ISSUES
 
-### 1. Frontend Monolith - `src/App.tsx` ~~(6,480 lines)~~ → 5,473 lines ✅ IMPROVED
-**Severity:** ~~HIGH~~ MEDIUM (partially resolved)  
+### 1. Frontend Monolith - `src/App.tsx` ~~(6,855 lines)~~ → 4,914 lines ✅ SIGNIFICANTLY IMPROVED
+**Severity:** ~~HIGH~~ LOW (mostly resolved)  
 **Impact:** Maintainability, Performance, Code Reuse
 
-**December 22, 2025 - Dead Code Cleanup Completed:**
+**December 22, 2025 - Dead Code Cleanup Phase 1:**
 - ✅ Removed `UserDashboard` duplicate (-215 lines) → extracted to `components/dashboard/UserDashboard.tsx`
 - ✅ Removed `MiningGraphs` duplicate (-256 lines) → extracted to `components/charts/MiningGraphs.tsx`
 - ✅ Removed `GlobalMinerMap` duplicate (-232 lines) → extracted to `components/maps/GlobalMinerMap.tsx`
 - ✅ Removed `WalletManager` duplicate (-365 lines) → extracted to `components/wallet/WalletManager.tsx`
 - ✅ Removed associated `dashStyles`, `mapStyles`, `walletStyles` duplicates
-- ✅ Build verified - bundle size reduced by **38.85 kB**
-- **Total lines removed:** 1,382 lines
 
-**Remaining Inline Components (Still Need Extraction):**
-1. `EquipmentPage` → `components/equipment/EquipmentPage.tsx`
-2. `CommunityPage` → `components/community/CommunityPage.tsx`
-3. `CommunitySection` (unused - can be deleted)
-4. `AuthModal` (unused - can be deleted)
-5. `AdminPanel` → `components/admin/AdminPanel.tsx`
+**December 22, 2025 - Dead Code Cleanup Phase 2:**
+- ✅ Removed `CommunitySection` function (-312 lines) - unused, replaced by `CommunityPage`
+- ✅ Removed `commStyles` object (-72 lines) - only used by `CommunitySection`
+- ✅ Removed `AuthModal` function (-163 lines) - unused, replaced by `AuthModalLazy`
+- ✅ Removed `AuthModalProps` interface
+
+**Results:**
+- **Total lines removed:** 1,941 lines (-28% reduction)
+- **Bundle size:** 234.67 kB → 195.82 kB (-38.85 kB, -17%)
+- **All tests pass** (Go + Frontend)
+
+**Remaining Inline Components (Future Extraction - Active Code):**
+1. `EquipmentPage` (~960 lines) → `components/equipment/EquipmentPage.tsx`
+2. `CommunityPage` (~600 lines) → `components/community/CommunityPage.tsx`
+3. `AdminPanel` (~900 lines) → `components/admin/AdminPanel.tsx`
+
+These are actively used components that require careful extraction with lazy loading.
 
 ### 2. ~~Migration Numbering Conflict~~ ✅ RESOLVED
 **Status:** Fixed in previous session
