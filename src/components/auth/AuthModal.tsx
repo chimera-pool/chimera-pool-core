@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { colors } from '../../styles/shared';
 
 // ============================================================================
@@ -120,7 +120,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
-// PasswordInput component - defined OUTSIDE AuthModal to prevent re-creation on each render
+// PasswordInput component - memoized to prevent re-renders
 interface PasswordInputProps {
   name: string;
   placeholder: string;
@@ -131,7 +131,7 @@ interface PasswordInputProps {
   minLength?: number;
 }
 
-function PasswordInput({
+const PasswordInput = memo(function PasswordInput({
   name,
   placeholder,
   value,
@@ -141,7 +141,7 @@ function PasswordInput({
   minLength
 }: PasswordInputProps) {
   return (
-    <div style={styles.passwordWrapper as React.CSSProperties}>
+    <div style={styles.passwordWrapper}>
       <input
         style={styles.input}
         type={show ? 'text' : 'password'}
@@ -155,13 +155,13 @@ function PasswordInput({
       <button
         type="button"
         onClick={onToggle}
-        style={styles.passwordToggle as React.CSSProperties}
+        style={styles.passwordToggle}
       >
         {show ? '🙈' : '👁️'}
       </button>
     </div>
   );
-}
+});
 
 export function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthModalProps) {
   const [formData, setFormData] = useState({
@@ -176,10 +176,19 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
-  };
+  }, []);
+
+  const toggleShowPassword = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  const toggleShowConfirmPassword = useCallback(() => {
+    setShowConfirmPassword(prev => !prev);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,7 +332,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               placeholder="Password"
               value={formData.password}
               show={showPassword}
-              onToggle={() => setShowPassword(!showPassword)}
+              onToggle={toggleShowPassword}
               onChange={handleChange}
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
@@ -367,7 +376,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               placeholder="Password (min 8 characters)"
               value={formData.password}
               show={showPassword}
-              onToggle={() => setShowPassword(!showPassword)}
+              onToggle={toggleShowPassword}
               onChange={handleChange}
               minLength={8}
             />
@@ -376,7 +385,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               placeholder="Confirm Password"
               value={formData.confirmPassword}
               show={showConfirmPassword}
-              onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
+              onToggle={toggleShowConfirmPassword}
               onChange={handleChange}
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
