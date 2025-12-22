@@ -13,6 +13,9 @@ const LazyGlobalMinerMap = lazy(() => import('./maps/GlobalMinerMap'));
 const LazyUserDashboard = lazy(() => import('./dashboard/UserDashboard'));
 const LazyWalletManager = lazy(() => import('./wallet/WalletManager'));
 const LazyAuthModal = lazy(() => import('./auth/AuthModal'));
+const LazyCommunityPage = lazy(() => import('./community/CommunityPage'));
+const LazyEquipmentPage = lazy(() => import('./equipment/EquipmentPage'));
+const LazyAdminPanel = lazy(() => import('./admin/AdminPanel'));
 
 // Wrapper component that provides error boundary and suspense
 interface LazyWrapperProps {
@@ -74,6 +77,42 @@ export function AuthModalLazy(props: {
   return (
     <LazyWrapper componentName="Authentication" loadingMessage="Loading...">
       <LazyAuthModal {...props} />
+    </LazyWrapper>
+  );
+}
+
+export function CommunityPageLazy(props: {
+  token: string;
+  user: any;
+  showMessage: (type: 'success' | 'error', text: string) => void;
+}) {
+  return (
+    <LazyWrapper componentName="Community" loadingMessage="Loading community...">
+      <LazyCommunityPage {...props} />
+    </LazyWrapper>
+  );
+}
+
+export function EquipmentPageLazy(props: {
+  token: string;
+  user: any;
+  showMessage: (type: 'success' | 'error', text: string) => void;
+}) {
+  return (
+    <LazyWrapper componentName="Equipment" loadingMessage="Loading equipment...">
+      <LazyEquipmentPage {...props} />
+    </LazyWrapper>
+  );
+}
+
+export function AdminPanelLazy(props: {
+  token: string;
+  onClose: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
+}) {
+  return (
+    <LazyWrapper componentName="Admin Panel" loadingMessage="Loading admin panel...">
+      <LazyAdminPanel {...props} />
     </LazyWrapper>
   );
 }
