@@ -120,6 +120,49 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 };
 
+// PasswordInput component - defined OUTSIDE AuthModal to prevent re-creation on each render
+interface PasswordInputProps {
+  name: string;
+  placeholder: string;
+  value: string;
+  show: boolean;
+  onToggle: () => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  minLength?: number;
+}
+
+function PasswordInput({
+  name,
+  placeholder,
+  value,
+  show,
+  onToggle,
+  onChange,
+  minLength
+}: PasswordInputProps) {
+  return (
+    <div style={styles.passwordWrapper as React.CSSProperties}>
+      <input
+        style={styles.input}
+        type={show ? 'text' : 'password'}
+        name={name}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        minLength={minLength}
+        required
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        style={styles.passwordToggle as React.CSSProperties}
+      >
+        {show ? '🙈' : '👁️'}
+      </button>
+    </div>
+  );
+}
+
 export function AuthModal({ view, setView, setToken, showMessage, resetToken }: AuthModalProps) {
   const [formData, setFormData] = useState({
     username: '',
@@ -256,41 +299,6 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
     setView(null);
   };
 
-  const PasswordInput = ({
-    name,
-    placeholder,
-    value,
-    show,
-    onToggle,
-    minLength
-  }: {
-    name: string;
-    placeholder: string;
-    value: string;
-    show: boolean;
-    onToggle: () => void;
-    minLength?: number;
-  }) => (
-    <div style={styles.passwordWrapper as React.CSSProperties}>
-      <input
-        style={styles.input}
-        type={show ? 'text' : 'password'}
-        name={name}
-        placeholder={placeholder}
-        value={value}
-        onChange={handleChange}
-        minLength={minLength}
-        required
-      />
-      <button
-        type="button"
-        onClick={onToggle}
-        style={styles.passwordToggle as React.CSSProperties}
-      >
-        {show ? '🙈' : '👁️'}
-      </button>
-    </div>
-  );
 
   return (
     <div style={styles.modalOverlay as React.CSSProperties} onClick={closeModal}>
@@ -316,6 +324,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               value={formData.password}
               show={showPassword}
               onToggle={() => setShowPassword(!showPassword)}
+              onChange={handleChange}
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
@@ -359,6 +368,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               value={formData.password}
               show={showPassword}
               onToggle={() => setShowPassword(!showPassword)}
+              onChange={handleChange}
               minLength={8}
             />
             <PasswordInput
@@ -367,6 +377,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               value={formData.confirmPassword}
               show={showConfirmPassword}
               onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
+              onChange={handleChange}
             />
             <button style={styles.submitBtn} type="submit" disabled={loading}>
               {loading ? 'Creating...' : 'Create Account'}
