@@ -30,17 +30,23 @@ func DefaultServiceConfig(jwtSecret string) *ServiceConfig {
 
 // Services holds all service implementations
 type Services struct {
-	Auth *AuthServices
-	User *UserServices
-	Pool *PoolServices
+	Auth      *AuthServices
+	User      *UserServices
+	Pool      *PoolServices
+	Community *CommunityServices
+	Admin     *AdminServices
+	Bug       *BugServices
 }
 
 // NewServices creates all services with the given database and configuration
 func NewServices(db *sql.DB, config *ServiceConfig) *Services {
 	return &Services{
-		Auth: NewAuthServices(db, config.JWTSecret),
-		User: NewUserServices(db),
-		Pool: NewPoolServices(db),
+		Auth:      NewAuthServices(db, config.JWTSecret),
+		User:      NewUserServices(db),
+		Pool:      NewPoolServices(db),
+		Community: NewCommunityServices(db),
+		Admin:     NewAdminServices(db),
+		Bug:       NewBugServices(db),
 	}
 }
 
