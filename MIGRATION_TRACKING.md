@@ -1,6 +1,6 @@
 # Chimeria Pool Migration & Feature Tracking
 
-## Current Database Schema Version: 006
+## Current Database Schema Version: 007
 
 ## Applied Migrations
 
@@ -12,8 +12,40 @@
 | 004 | `004_user_wallets.up.sql` | Multi-wallet support, wallet_address_history, payout splitting | ✅ Applied |
 | 005 | `005_seed_community_categories.up.sql` | Seed community categories and channels | ✅ Applied |
 | 006 | `006_bug_reports.up.sql` | Bug reporting system with attachments, comments, email notifications | ✅ Applied |
+| 007 | `007_equipment_management.up.sql` | Equipment management, metrics history, payout splits, pool stats cache | ✅ Applied |
 
 ## Recent Feature Changes
+
+### December 21, 2025 - Equipment Management System
+
+**Migration**: `007_equipment_management.up.sql`
+
+**Database Tables Created**:
+- `equipment` - Mining hardware tracking (ASIC, GPU, CPU, FPGA, BlockDAG X30/X100)
+- `equipment_metrics_history` - Time-series performance data
+- `payout_splits` - Per-equipment multi-wallet distribution
+- `user_wallets` - User wallet address management
+- `pool_stats_cache` - Cached pool-wide statistics
+- `equipment_alerts` - Notification system for equipment issues
+
+**Key Features**:
+- Hardware type classification (asic, gpu, cpu, fpga, blockdag_x30, blockdag_x100)
+- Equipment status tracking (online, offline, mining, idle, error, maintenance)
+- Real-time metrics: hashrate, temperature, power usage, latency
+- Stratum V1/V2 connection type tracking
+- Per-equipment payout splitting to multiple wallets
+- Automatic pool stats cache with trigger-based updates
+- Alert system for offline, error, high temp, performance drops
+
+**Indexes Created**:
+- `idx_equipment_user_id` - Fast user lookups
+- `idx_equipment_status` - Status filtering
+- `idx_equipment_type` - Type filtering
+- `idx_equipment_worker_name` - Worker name lookups
+- `idx_metrics_equipment_time` - Time-series queries
+- `idx_payout_splits_equipment` - Payout lookups
+
+---
 
 ### December 20, 2025 - Bug Reporting System
 
