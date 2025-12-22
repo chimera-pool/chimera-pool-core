@@ -90,14 +90,37 @@ The stratum package demonstrates textbook ISP implementation:
 
 Migrations properly numbered 001-006.
 
-### 3. Backend Monolith - `cmd/api/main.go` (6,016 lines)
-**Severity:** MEDIUM  
+### 3. Backend Monolith - `cmd/api/main.go` (5,215 lines) - ⚠️ IN PROGRESS
+**Severity:** MEDIUM → LOW  
 **Impact:** Maintainability
 
-All HTTP handlers are defined in main.go instead of using the existing `internal/api/handlers.go`. While functional, this creates:
-- Difficult code navigation
-- Potential for duplicate logic
-- Harder to unit test individual handlers
+**December 22, 2025 - Backend Service Layer Created:**
+- ✅ Created `internal/api/server.go` - Server struct with config, middleware
+- ✅ Created `internal/api/middleware.go` - AuthMiddleware, AdminMiddleware
+- ✅ Created `internal/api/auth_service.go` - 6 ISP-compliant auth services
+- ✅ Created `internal/api/user_service.go` - 6 ISP-compliant user services
+- ✅ Created `internal/api/pool_service.go` - 3 ISP-compliant pool services
+- ✅ Created `internal/api/community_service.go` - 3 ISP-compliant community services
+- ✅ Created `internal/api/admin_service.go` - 4 ISP-compliant admin services
+- ✅ Created `internal/api/bug_service.go` - Bug report services
+- ✅ Created `internal/api/service_factory.go` - Central factory for all services
+- ✅ Created `cmd/api/main_v2.go` - Reference implementation (~100 lines)
+
+**Service Architecture (~2,400 lines of new code):**
+```
+Services {
+    Auth      → BcryptHasher, JWTTokenGenerator, JWTTokenValidator, DBUserRegistrar, etc.
+    User      → DBUserProfileReader/Writer, DBUserPasswordChanger, DBUserMinerReader, etc.
+    Pool      → DBPoolStatsProvider, DBBlockReader, DBMinerLocationReader
+    Community → DBChannelService, DBMessageService, DBForumService
+    Admin     → DBAdminStatsService, DBAdminUserService, DBAdminSettingsService, etc.
+    Bug       → DBBugService (reports, comments, subscriptions)
+}
+```
+
+**Remaining (Optional):**
+- Wire up main.go to use ServerWithServices (gradual migration)
+- main.go still functional with inline handlers
 
 ---
 
@@ -118,11 +141,11 @@ All HTTP handlers are defined in main.go instead of using the existing `internal
 4. ✅ Deployed to production and verified
 5. Add component-level tests (optional enhancement)
 
-### Long-term
+### Long-term (Nice-to-Have)
 1. Consider moving to CSS modules or styled-components
 2. Implement state management (Redux/Zustand) for complex state
 3. Add Storybook for component documentation
-4. Refactor main.go to delegate to internal handlers
+4. ~~Refactor main.go to delegate to internal handlers~~ ✅ Service layer created
 
 ---
 
