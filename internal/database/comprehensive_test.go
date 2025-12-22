@@ -387,3 +387,337 @@ func TestDatabaseFoundationRequirements(t *testing.T) {
 		assert.Equal(t, "pending", payout.Status, "should track payout status")
 	})
 }
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR 80%+ COVERAGE
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Config Validation Edge Cases
+// -----------------------------------------------------------------------------
+
+func TestValidateConfig_AllEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "nil config",
+			config:      nil,
+			expectError: true,
+			errorMsg:    "nil",
+		},
+		{
+			name: "empty host",
+			config: &Config{
+				Host: "", Port: 5432, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "host",
+		},
+		{
+			name: "port zero",
+			config: &Config{
+				Host: "localhost", Port: 0, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "port",
+		},
+		{
+			name: "port negative",
+			config: &Config{
+				Host: "localhost", Port: -1, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "port",
+		},
+		{
+			name: "port too high",
+			config: &Config{
+				Host: "localhost", Port: 70000, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "port",
+		},
+		{
+			name: "empty database",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "", Username: "user", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "database",
+		},
+		{
+			name: "empty username",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "", Password: "pass",
+			},
+			expectError: true,
+			errorMsg:    "username",
+		},
+		{
+			name: "empty password",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "",
+			},
+			expectError: true,
+			errorMsg:    "password",
+		},
+		{
+			name: "negative max conns",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+				MaxConns: -1,
+			},
+			expectError: true,
+			errorMsg:    "max connections",
+		},
+		{
+			name: "negative min conns",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+				MinConns: -1,
+			},
+			expectError: true,
+			errorMsg:    "min connections",
+		},
+		{
+			name: "min greater than max",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+				MinConns: 10, MaxConns: 5,
+			},
+			expectError: true,
+			errorMsg:    "min connections cannot be greater",
+		},
+		{
+			name: "valid config minimal",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config with conns",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+				MinConns: 5, MaxConns: 25,
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config min equals max",
+			config: &Config{
+				Host: "localhost", Port: 5432, Database: "test", Username: "user", Password: "pass",
+				MinConns: 10, MaxConns: 10,
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config max port",
+			config: &Config{
+				Host: "localhost", Port: 65535, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: false,
+		},
+		{
+			name: "valid config min port",
+			config: &Config{
+				Host: "localhost", Port: 1, Database: "test", Username: "user", Password: "pass",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfig(tt.config)
+			if tt.expectError {
+				assert.Error(t, err)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Database Service Tests
+// -----------------------------------------------------------------------------
+
+func TestDatabase_Close_NilPool(t *testing.T) {
+	db := &Database{Pool: nil}
+	err := db.Close()
+	assert.NoError(t, err)
+}
+
+func TestDatabase_GetStats_NilPool(t *testing.T) {
+	db := &Database{Pool: nil}
+	stats := db.GetStats()
+	assert.Equal(t, PoolStats{}, stats)
+}
+
+func TestNew_NilConfig(t *testing.T) {
+	db, err := New(nil)
+	assert.Error(t, err)
+	assert.Nil(t, db)
+	assert.Contains(t, err.Error(), "invalid database configuration")
+}
+
+func TestNew_InvalidConfig(t *testing.T) {
+	config := &Config{Host: ""} // Invalid - empty host
+	db, err := New(config)
+	assert.Error(t, err)
+	assert.Nil(t, db)
+}
+
+// -----------------------------------------------------------------------------
+// Default Config Tests
+// -----------------------------------------------------------------------------
+
+func TestDefaultConfig_Values(t *testing.T) {
+	config := DefaultConfig()
+
+	assert.Equal(t, "localhost", config.Host)
+	assert.Equal(t, 5432, config.Port)
+	assert.Equal(t, "chimera_pool_dev", config.Database)
+	assert.Equal(t, "chimera", config.Username)
+	assert.Equal(t, "dev_password", config.Password)
+	assert.Equal(t, "disable", config.SSLMode)
+	assert.Equal(t, 25, config.MaxConns)
+	assert.Equal(t, 5, config.MinConns)
+}
+
+func TestDefaultConfig_IsValid(t *testing.T) {
+	config := DefaultConfig()
+	err := validateConfig(config)
+	assert.NoError(t, err)
+}
+
+// -----------------------------------------------------------------------------
+// Model Tests
+// -----------------------------------------------------------------------------
+
+func TestUser_ZeroValues(t *testing.T) {
+	user := &User{}
+	assert.Equal(t, int64(0), user.ID)
+	assert.Empty(t, user.Username)
+	assert.Empty(t, user.Email)
+	assert.Empty(t, user.Password)
+	assert.False(t, user.IsActive)
+	assert.True(t, user.CreatedAt.IsZero())
+	assert.True(t, user.UpdatedAt.IsZero())
+}
+
+func TestMiner_ZeroValues(t *testing.T) {
+	miner := &Miner{}
+	assert.Equal(t, int64(0), miner.ID)
+	assert.Equal(t, int64(0), miner.UserID)
+	assert.Empty(t, miner.Name)
+	assert.Empty(t, miner.Address)
+	assert.Equal(t, float64(0), miner.Hashrate)
+	assert.False(t, miner.IsActive)
+}
+
+func TestShare_ZeroValues(t *testing.T) {
+	share := &Share{}
+	assert.Equal(t, int64(0), share.ID)
+	assert.Equal(t, int64(0), share.MinerID)
+	assert.Equal(t, int64(0), share.UserID)
+	assert.Equal(t, float64(0), share.Difficulty)
+	assert.False(t, share.IsValid)
+	assert.Empty(t, share.Nonce)
+	assert.Empty(t, share.Hash)
+}
+
+func TestBlock_ZeroValues(t *testing.T) {
+	block := &Block{}
+	assert.Equal(t, int64(0), block.ID)
+	assert.Equal(t, int64(0), block.Height)
+	assert.Empty(t, block.Hash)
+	assert.Equal(t, int64(0), block.FinderID)
+	assert.Equal(t, int64(0), block.Reward)
+	assert.Equal(t, float64(0), block.Difficulty)
+	assert.Empty(t, block.Status)
+}
+
+func TestPayout_ZeroValues(t *testing.T) {
+	payout := &Payout{}
+	assert.Equal(t, int64(0), payout.ID)
+	assert.Equal(t, int64(0), payout.UserID)
+	assert.Equal(t, int64(0), payout.Amount)
+	assert.Empty(t, payout.Address)
+	assert.Empty(t, payout.TxHash)
+	assert.Empty(t, payout.Status)
+	assert.Nil(t, payout.ProcessedAt)
+}
+
+func TestPayout_WithProcessedAt(t *testing.T) {
+	now := time.Now()
+	payout := &Payout{
+		ID:          1,
+		UserID:      1,
+		Amount:      1000,
+		Address:     "test_addr",
+		TxHash:      "tx123",
+		Status:      "confirmed",
+		CreatedAt:   now,
+		ProcessedAt: &now,
+	}
+
+	assert.NotNil(t, payout.ProcessedAt)
+	assert.Equal(t, now, *payout.ProcessedAt)
+}
+
+// -----------------------------------------------------------------------------
+// PoolStats Tests
+// -----------------------------------------------------------------------------
+
+func TestPoolStats_ZeroValues_Comprehensive(t *testing.T) {
+	stats := PoolStats{}
+	assert.Equal(t, int32(0), stats.MaxConns)
+	assert.Equal(t, int32(0), stats.OpenConns)
+	assert.Equal(t, int32(0), stats.InUse)
+	assert.Equal(t, int32(0), stats.Idle)
+}
+
+func TestPoolStats_WithValues_Comprehensive(t *testing.T) {
+	stats := PoolStats{
+		MaxConns:  25,
+		OpenConns: 10,
+		InUse:     7,
+		Idle:      3,
+	}
+
+	assert.Equal(t, int32(25), stats.MaxConns)
+	assert.Equal(t, int32(10), stats.OpenConns)
+	assert.Equal(t, int32(7), stats.InUse)
+	assert.Equal(t, int32(3), stats.Idle)
+
+	// Verify consistency
+	assert.Equal(t, stats.OpenConns, stats.InUse+stats.Idle)
+}
+
+// -----------------------------------------------------------------------------
+// Benchmark Tests
+// -----------------------------------------------------------------------------
+
+func BenchmarkValidateConfig(b *testing.B) {
+	config := DefaultConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		validateConfig(config)
+	}
+}
+
+func BenchmarkDefaultConfig(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		DefaultConfig()
+	}
+}
