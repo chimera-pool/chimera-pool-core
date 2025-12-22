@@ -899,3 +899,621 @@ func BenchmarkVirtualMinerSimulator_GetSimulationStats(b *testing.B) {
 		simulator.GetSimulationStats()
 	}
 }
+
+// =============================================================================
+// CLUSTER SIMULATOR COMPREHENSIVE TESTS
+// =============================================================================
+
+func TestNewClusterSimulator_Success(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 5, Location: "US-East"},
+			{Name: "Cluster2", MinerCount: 3, Location: "EU-West"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+
+	require.NoError(t, err)
+	require.NotNil(t, simulator)
+}
+
+func TestNewClusterSimulator_EmptyConfig(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount:   0,
+		ClustersConfig: []ClusterConfig{},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+
+	require.NoError(t, err)
+	require.NotNil(t, simulator)
+}
+
+func TestClusterSimulator_GetClusters(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster1", MinerCount: 3, Location: "TestLoc1"},
+			{Name: "TestCluster2", MinerCount: 2, Location: "TestLoc2"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	clusters := simulator.GetClusters()
+	assert.Len(t, clusters, 2)
+}
+
+func TestClusterSimulator_GetCluster(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 1)
+
+	// Get existing cluster
+	cluster := simulator.GetCluster(clusters[0].ID)
+	assert.NotNil(t, cluster)
+	assert.Equal(t, "TestCluster", cluster.Name)
+
+	// Get non-existing cluster
+	cluster = simulator.GetCluster("non-existing")
+	assert.Nil(t, cluster)
+}
+
+func TestClusterSimulator_StartStop(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 2, Location: "TestLoc"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Start
+	err = simulator.Start()
+	require.NoError(t, err)
+
+	// Start again - should error
+	err = simulator.Start()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already running")
+
+	// Clusters should be active
+	clusters := simulator.GetClusters()
+	for _, cluster := range clusters {
+		assert.True(t, cluster.IsActive)
+	}
+
+	// Stop
+	err = simulator.Stop()
+	require.NoError(t, err)
+
+	// Stop again - should be no-op
+	err = simulator.Stop()
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_AddRemoveCluster(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "InitialCluster", MinerCount: 2, Location: "InitLoc"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	initialCount := len(simulator.GetClusters())
+
+	// Add cluster
+	newCluster, err := simulator.AddCluster(ClusterConfig{
+		Name:       "NewCluster",
+		MinerCount: 3,
+		Location:   "NewLoc",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, newCluster)
+	assert.Equal(t, "NewCluster", newCluster.Name)
+	assert.Len(t, simulator.GetClusters(), initialCount+1)
+
+	// Remove cluster
+	err = simulator.RemoveCluster(newCluster.ID)
+	require.NoError(t, err)
+	assert.Len(t, simulator.GetClusters(), initialCount)
+
+	// Remove non-existing cluster
+	err = simulator.RemoveCluster("non-existing")
+	assert.Error(t, err)
+}
+
+func TestClusterSimulator_TriggerClusterFailure(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 2, Location: "TestLoc"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 1)
+
+	// Trigger failure
+	err = simulator.TriggerClusterFailure(clusters[0].ID, time.Millisecond*100)
+	require.NoError(t, err)
+
+	cluster := simulator.GetCluster(clusters[0].ID)
+	assert.True(t, cluster.IsInFailure)
+	assert.False(t, cluster.IsActive)
+
+	// Trigger failure on non-existing cluster
+	err = simulator.TriggerClusterFailure("non-existing", time.Second)
+	assert.Error(t, err)
+}
+
+func TestClusterSimulator_TriggerNetworkPartition(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 2, Location: "Loc1"},
+			{Name: "Cluster2", MinerCount: 2, Location: "Loc2"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 2)
+
+	clusterIDs := []string{clusters[0].ID, clusters[1].ID}
+	err = simulator.TriggerNetworkPartition(clusterIDs, time.Millisecond*100)
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_TriggerCoordinatorFailure(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 2, Location: "TestLoc", Coordinator: "coord1"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	err = simulator.TriggerCoordinatorFailure("coord1", time.Millisecond*100)
+	require.NoError(t, err)
+
+	// Non-existing coordinator
+	err = simulator.TriggerCoordinatorFailure("non-existing", time.Second)
+	assert.Error(t, err)
+}
+
+func TestClusterSimulator_GetOverallStats(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 3, Location: "Loc1"},
+			{Name: "Cluster2", MinerCount: 2, Location: "Loc2"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	stats := simulator.GetOverallStats()
+	require.NotNil(t, stats)
+	assert.Equal(t, uint32(2), stats.TotalClusters)
+	assert.Equal(t, uint32(5), stats.TotalMiners) // 3 + 2
+}
+
+func TestClusterSimulator_GetClusterStats(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 1)
+
+	stats := simulator.GetClusterStats(clusters[0].ID)
+	require.NotNil(t, stats)
+	assert.Equal(t, uint32(3), stats.MinerCount)
+
+	// Non-existing cluster
+	stats = simulator.GetClusterStats("non-existing")
+	assert.Nil(t, stats)
+}
+
+func TestClusterSimulator_ExecuteMigration(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 3, Location: "Loc1", CurrentPool: "pool_A"},
+			{Name: "Cluster2", MinerCount: 2, Location: "Loc2", CurrentPool: "pool_A"},
+		},
+		MigrationConfig: MigrationConfig{
+			EnableCoordinatedMigration: true,
+			MigrationStrategies: []MigrationStrategy{
+				{Type: "gradual", Duration: time.Second, BatchSize: 1},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	clusters := simulator.GetClusters()
+	clusterIDs := make([]string, len(clusters))
+	for i, c := range clusters {
+		clusterIDs[i] = c.ID
+	}
+
+	plan := MigrationPlan{
+		SourcePool:        "pool_A",
+		TargetPool:        "pool_B",
+		ClusterIDs:        clusterIDs,
+		Strategy:          "gradual",
+		StartTime:         time.Now(),
+		EstimatedDuration: time.Second,
+	}
+
+	err = simulator.ExecuteMigration(plan)
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_GetMigrationProgress(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{Name: "TestCluster", MinerCount: 2, Location: "TestLoc", CurrentPool: "pool_A"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// No migration in progress
+	progress := simulator.GetMigrationProgress("pool_A", "pool_B")
+	assert.Nil(t, progress)
+}
+
+func TestClusterSimulator_ElectLeader(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 2, Location: "Loc1"},
+			{Name: "Cluster2", MinerCount: 2, Location: "Loc2"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	clusters := simulator.GetClusters()
+	clusterIDs := make([]string, len(clusters))
+	for i, c := range clusters {
+		clusterIDs[i] = c.ID
+	}
+
+	leaderID, err := simulator.ElectLeader(clusterIDs)
+	require.NoError(t, err)
+	assert.NotEmpty(t, leaderID)
+
+	// Empty cluster list - may or may not error depending on implementation
+	emptyLeader, _ := simulator.ElectLeader([]string{})
+	// Just verify it handles empty list gracefully
+	_ = emptyLeader
+}
+
+func TestClusterSimulator_SynchronizeClusters(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 2, Location: "Loc1"},
+			{Name: "Cluster2", MinerCount: 2, Location: "Loc2"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	clusters := simulator.GetClusters()
+	clusterIDs := make([]string, len(clusters))
+	for i, c := range clusters {
+		clusterIDs[i] = c.ID
+	}
+
+	err = simulator.SynchronizeClusters(clusterIDs)
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_GetGeographicalDistribution(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 3,
+		ClustersConfig: []ClusterConfig{
+			{Name: "Cluster1", MinerCount: 2, Location: "US-East"},
+			{Name: "Cluster2", MinerCount: 3, Location: "US-East"},
+			{Name: "Cluster3", MinerCount: 2, Location: "EU-West"},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	distribution := simulator.GetGeographicalDistribution()
+	require.NotNil(t, distribution)
+	assert.Contains(t, distribution, "US-East")
+	assert.Contains(t, distribution, "EU-West")
+}
+
+// =============================================================================
+// BLOCKCHAIN SIMULATOR ADDITIONAL TESTS
+// =============================================================================
+
+func TestBlockchainSimulator_WithNetworkLatency(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Millisecond * 100,
+		InitialDifficulty: 10,
+		NetworkLatency: NetworkLatencyConfig{
+			MinLatency:   time.Millisecond * 10,
+			MaxLatency:   time.Millisecond * 50,
+			Distribution: "uniform",
+		},
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+	require.NotNil(t, simulator)
+}
+
+func TestBlockchainSimulator_WithDifficultyCurve(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:                "testnet",
+		BlockTime:                  time.Millisecond * 100,
+		InitialDifficulty:          10,
+		DifficultyAdjustmentWindow: 10,
+		CustomDifficultyCurve: &DifficultyCurve{
+			Type: "exponential",
+			Parameters: map[string]float64{
+				"growth_rate": 1.1,
+			},
+		},
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+	require.NotNil(t, simulator)
+}
+
+// =============================================================================
+// TYPE STRUCTURE TESTS (ISP Compliance)
+// =============================================================================
+
+func TestBlockchainConfig_Structure(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:                "mainnet",
+		BlockTime:                  time.Second * 60,
+		InitialDifficulty:          1000000,
+		DifficultyAdjustmentWindow: 2016,
+		MaxBlockSize:               1000000,
+	}
+
+	assert.Equal(t, "mainnet", config.NetworkType)
+	assert.Equal(t, time.Second*60, config.BlockTime)
+	assert.Equal(t, uint64(1000000), config.InitialDifficulty)
+	assert.Equal(t, 2016, config.DifficultyAdjustmentWindow)
+	assert.Equal(t, 1000000, config.MaxBlockSize)
+}
+
+func TestClusterConfig_Structure(t *testing.T) {
+	config := ClusterConfig{
+		Name:        "ProductionCluster",
+		MinerCount:  100,
+		Location:    "US-East",
+		Coordinator: "coord-main",
+		FarmType:    "ASIC",
+		PowerLimit:  50000,
+		IsBackup:    false,
+		CurrentPool: "pool_main",
+	}
+
+	assert.Equal(t, "ProductionCluster", config.Name)
+	assert.Equal(t, 100, config.MinerCount)
+	assert.Equal(t, "ASIC", config.FarmType)
+	assert.Equal(t, uint32(50000), config.PowerLimit)
+}
+
+func TestMigrationPlan_Structure(t *testing.T) {
+	plan := MigrationPlan{
+		ID:                "migration-001",
+		SourcePool:        "pool_old",
+		TargetPool:        "pool_new",
+		ClusterIDs:        []string{"cluster1", "cluster2"},
+		Strategy:          "gradual",
+		StartTime:         time.Now(),
+		EstimatedDuration: time.Hour,
+		Status:            "planned",
+	}
+
+	assert.Equal(t, "migration-001", plan.ID)
+	assert.Len(t, plan.ClusterIDs, 2)
+	assert.Equal(t, "gradual", plan.Strategy)
+	assert.Equal(t, "planned", plan.Status)
+}
+
+func TestMigrationProgress_Structure(t *testing.T) {
+	progress := MigrationProgress{
+		PlanID:                 "migration-001",
+		TotalMiners:            100,
+		MigratedMiners:         50,
+		FailedMiners:           2,
+		ProgressPercent:        50.0,
+		EstimatedTimeRemaining: time.Minute * 30,
+		Status:                 "in_progress",
+		Errors:                 []string{},
+	}
+
+	assert.Equal(t, uint32(100), progress.TotalMiners)
+	assert.Equal(t, uint32(50), progress.MigratedMiners)
+	assert.Equal(t, float64(50.0), progress.ProgressPercent)
+}
+
+func TestClusterStatistics_Structure(t *testing.T) {
+	stats := ClusterStatistics{
+		MinerCount:       50,
+		ActiveMiners:     48,
+		TotalHashRate:    5000000000,
+		AverageHashRate:  100000000,
+		TotalShares:      10000,
+		ValidShares:      9800,
+		InvalidShares:    200,
+		UptimePercentage: 99.5,
+		PowerEfficiency:  0.5,
+		FailoverEvents:   1,
+		SyncEvents:       100,
+		MigrationEvents:  0,
+	}
+
+	assert.Equal(t, uint32(50), stats.MinerCount)
+	assert.Equal(t, float64(99.5), stats.UptimePercentage)
+	assert.Equal(t, uint64(9800), stats.ValidShares)
+}
+
+func TestBlock_Structure(t *testing.T) {
+	block := Block{
+		Height:       12345,
+		Hash:         "0000000000000000000abc123",
+		PreviousHash: "0000000000000000000abc122",
+		Timestamp:    time.Now(),
+		Difficulty:   1000000,
+		Nonce:        987654321,
+		MinerID:      42,
+	}
+
+	assert.Equal(t, uint64(12345), block.Height)
+	assert.NotEmpty(t, block.Hash)
+	assert.Equal(t, uint64(1000000), block.Difficulty)
+}
+
+func TestTransaction_Structure(t *testing.T) {
+	tx := Transaction{
+		ID:        "tx-001",
+		From:      "addr_sender",
+		To:        "addr_receiver",
+		Amount:    1000000,
+		Fee:       1000,
+		Timestamp: time.Now(),
+	}
+
+	assert.Equal(t, "tx-001", tx.ID)
+	assert.Equal(t, uint64(1000000), tx.Amount)
+	assert.Equal(t, uint64(1000), tx.Fee)
+}
+
+func TestNetworkStats_Structure(t *testing.T) {
+	stats := NetworkStats{
+		NetworkType:       "mainnet",
+		AverageBlockTime:  time.Minute * 10,
+		CurrentDifficulty: 50000000000000,
+		TotalTransactions: 1000000,
+		AverageLatency:    time.Millisecond * 100,
+		BlocksGenerated:   750000,
+		HashRate:          100000000000000,
+	}
+
+	assert.Equal(t, "mainnet", stats.NetworkType)
+	assert.Equal(t, uint64(750000), stats.BlocksGenerated)
+}
+
+// =============================================================================
+// ADDITIONAL BENCHMARK TESTS
+// =============================================================================
+
+func BenchmarkClusterSimulator_GetClusters(b *testing.B) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 10,
+		ClustersConfig: []ClusterConfig{
+			{Name: "C1", MinerCount: 10, Location: "L1"},
+			{Name: "C2", MinerCount: 10, Location: "L2"},
+			{Name: "C3", MinerCount: 10, Location: "L3"},
+			{Name: "C4", MinerCount: 10, Location: "L4"},
+			{Name: "C5", MinerCount: 10, Location: "L5"},
+			{Name: "C6", MinerCount: 10, Location: "L6"},
+			{Name: "C7", MinerCount: 10, Location: "L7"},
+			{Name: "C8", MinerCount: 10, Location: "L8"},
+			{Name: "C9", MinerCount: 10, Location: "L9"},
+			{Name: "C10", MinerCount: 10, Location: "L10"},
+		},
+	}
+	simulator, _ := NewClusterSimulator(config)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		simulator.GetClusters()
+	}
+}
+
+func BenchmarkClusterSimulator_GetOverallStats(b *testing.B) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 5,
+		ClustersConfig: []ClusterConfig{
+			{Name: "C1", MinerCount: 20, Location: "L1"},
+			{Name: "C2", MinerCount: 20, Location: "L2"},
+			{Name: "C3", MinerCount: 20, Location: "L3"},
+			{Name: "C4", MinerCount: 20, Location: "L4"},
+			{Name: "C5", MinerCount: 20, Location: "L5"},
+		},
+	}
+	simulator, _ := NewClusterSimulator(config)
+	simulator.Start()
+	defer simulator.Stop()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		simulator.GetOverallStats()
+	}
+}
