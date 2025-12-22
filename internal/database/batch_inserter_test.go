@@ -192,3 +192,160 @@ func benchmarkBuildBatchInsert(b *testing.B, count int) {
 		bi.buildBatchInsert(shares)
 	}
 }
+
+// =============================================================================
+// ADDITIONAL COMPREHENSIVE TESTS FOR HIGHER COVERAGE
+// =============================================================================
+
+func TestNewShareBatchInserter_DefaultsApplied(t *testing.T) {
+	// Test with zero values - defaults should be applied
+	config := BatchInserterConfig{}
+	bi := NewShareBatchInserter(nil, config)
+
+	assert.Equal(t, 1000, bi.config.BatchSize)
+	assert.Equal(t, 100*time.Millisecond, bi.config.FlushInterval)
+	assert.Equal(t, 4, bi.config.WorkerCount)
+	assert.Equal(t, 100, bi.config.QueueSize)
+	assert.Equal(t, 30*time.Second, bi.config.InsertTimeout)
+}
+
+func TestNewShareBatchInserter_CustomConfig(t *testing.T) {
+	config := BatchInserterConfig{
+		BatchSize:     500,
+		FlushInterval: 50 * time.Millisecond,
+		WorkerCount:   8,
+		QueueSize:     200,
+		InsertTimeout: 60 * time.Second,
+	}
+	bi := NewShareBatchInserter(nil, config)
+
+	assert.Equal(t, 500, bi.config.BatchSize)
+	assert.Equal(t, 50*time.Millisecond, bi.config.FlushInterval)
+	assert.Equal(t, 8, bi.config.WorkerCount)
+	assert.Equal(t, 200, bi.config.QueueSize)
+	assert.Equal(t, 60*time.Second, bi.config.InsertTimeout)
+}
+
+func TestNewShareBatchInserter_NegativeValuesUseDefaults(t *testing.T) {
+	config := BatchInserterConfig{
+		BatchSize:     -1,
+		FlushInterval: -1,
+		WorkerCount:   -1,
+		QueueSize:     -1,
+		InsertTimeout: -1,
+	}
+	bi := NewShareBatchInserter(nil, config)
+
+	assert.Equal(t, 1000, bi.config.BatchSize)
+	assert.Equal(t, 100*time.Millisecond, bi.config.FlushInterval)
+	assert.Equal(t, 4, bi.config.WorkerCount)
+	assert.Equal(t, 100, bi.config.QueueSize)
+	assert.Equal(t, 30*time.Second, bi.config.InsertTimeout)
+}
+
+func TestShareBatchInserter_InsertBatch_EmptyShares(t *testing.T) {
+	config := DefaultBatchInserterConfig()
+	bi := NewShareBatchInserter(nil, config)
+
+	err := bi.InsertBatch(nil)
+	assert.NoError(t, err)
+
+	err = bi.InsertBatch([]*Share{})
+	assert.NoError(t, err)
+}
+
+func TestGenericBatchInserter_InsertBatchReturning_EmptyValues(t *testing.T) {
+	gbi := &GenericBatchInserter{}
+
+	ids, err := gbi.InsertBatchReturning(context.Background(), "test", []string{"a"}, nil, "id")
+	assert.NoError(t, err)
+	assert.Nil(t, ids)
+}
+
+func TestBatchInserterConfig_Structure(t *testing.T) {
+	config := BatchInserterConfig{
+		BatchSize:     2000,
+		FlushInterval: 200 * time.Millisecond,
+		WorkerCount:   16,
+		QueueSize:     500,
+		InsertTimeout: 45 * time.Second,
+	}
+
+	assert.Equal(t, 2000, config.BatchSize)
+	assert.Equal(t, 200*time.Millisecond, config.FlushInterval)
+	assert.Equal(t, 16, config.WorkerCount)
+	assert.Equal(t, 500, config.QueueSize)
+	assert.Equal(t, 45*time.Second, config.InsertTimeout)
+}
+
+func TestShareBatchInserter_BuildBatchInsert_SingleShare(t *testing.T) {
+	bi := &ShareBatchInserter{
+		config: DefaultBatchInserterConfig(),
+	}
+
+	shares := []*Share{
+		{
+			MinerID:    1,
+			UserID:     10,
+			Difficulty: 500.0,
+			IsValid:    true,
+			Nonce:      "nonce1",
+			Hash:       "hash1",
+			Timestamp:  time.Now(),
+		},
+	}
+
+	query, args := bi.buildBatchInsert(shares)
+
+	assert.Contains(t, query, "INSERT INTO shares")
+	assert.Contains(t, query, "$1")
+	assert.Contains(t, query, "$7")
+	assert.NotContains(t, query, "$8") // Only 7 columns for 1 row
+	assert.Len(t, args, 7)
+}
+
+func TestShareBatchInserter_BuildBatchInsert_ManyShares(t *testing.T) {
+	bi := &ShareBatchInserter{
+		config: DefaultBatchInserterConfig(),
+	}
+
+	// Create 100 shares
+	shares := make([]*Share, 100)
+	for i := 0; i < 100; i++ {
+		shares[i] = &Share{
+			MinerID:    int64(i),
+			UserID:     int64(i % 10),
+			Difficulty: float64(1000 + i),
+			IsValid:    i%2 == 0,
+			Nonce:      "nonce",
+			Hash:       "hash",
+			Timestamp:  time.Now(),
+		}
+	}
+
+	query, args := bi.buildBatchInsert(shares)
+
+	assert.Contains(t, query, "INSERT INTO shares")
+	assert.Contains(t, query, "$700") // 100 rows * 7 columns
+	assert.Len(t, args, 700)
+}
+
+func TestNewGenericBatchInserter(t *testing.T) {
+	config := DefaultBatchInserterConfig()
+	gbi := NewGenericBatchInserter(nil, config)
+
+	assert.NotNil(t, gbi)
+	assert.Equal(t, config, gbi.config)
+}
+
+func TestBatchInsertStats_ZeroValues(t *testing.T) {
+	stats := BatchInsertStats{}
+
+	assert.Equal(t, int64(0), stats.TotalInserted)
+	assert.Equal(t, int64(0), stats.TotalBatches)
+	assert.Equal(t, int64(0), stats.TotalErrors)
+	assert.Equal(t, int64(0), stats.AvgBatchTimeNs)
+	assert.Equal(t, int64(0), stats.MaxBatchTimeNs)
+	assert.Equal(t, int64(0), stats.PendingShares)
+	assert.Equal(t, int64(0), stats.InsertRate)
+}
