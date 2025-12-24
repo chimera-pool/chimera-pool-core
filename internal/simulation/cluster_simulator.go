@@ -344,8 +344,9 @@ func (cs *clusterSimulator) CancelMigration(planID string) error {
 
 // GetOverallStats returns overall cluster statistics
 func (cs *clusterSimulator) GetOverallStats() *OverallClusterStats {
-	cs.mutex.RLock()
-	defer cs.mutex.RUnlock()
+	// Use write lock because calculateOverallStats modifies cs.overallStats
+	cs.mutex.Lock()
+	defer cs.mutex.Unlock()
 
 	cs.calculateOverallStats()
 
@@ -374,8 +375,9 @@ func (cs *clusterSimulator) GetOverallStats() *OverallClusterStats {
 
 // GetClusterStats returns statistics for a specific cluster
 func (cs *clusterSimulator) GetClusterStats(clusterID string) *ClusterStatistics {
-	cs.mutex.RLock()
-	defer cs.mutex.RUnlock()
+	// Use write lock because calculateClusterStats modifies cluster.Statistics
+	cs.mutex.Lock()
+	defer cs.mutex.Unlock()
 
 	cluster := cs.clusters[clusterID]
 	if cluster == nil {
@@ -383,7 +385,22 @@ func (cs *clusterSimulator) GetClusterStats(clusterID string) *ClusterStatistics
 	}
 
 	cs.calculateClusterStats(cluster)
-	return cluster.Statistics
+
+	// Return a COPY to prevent race conditions
+	return &ClusterStatistics{
+		MinerCount:       cluster.Statistics.MinerCount,
+		ActiveMiners:     cluster.Statistics.ActiveMiners,
+		TotalHashRate:    cluster.Statistics.TotalHashRate,
+		AverageHashRate:  cluster.Statistics.AverageHashRate,
+		TotalShares:      cluster.Statistics.TotalShares,
+		ValidShares:      cluster.Statistics.ValidShares,
+		InvalidShares:    cluster.Statistics.InvalidShares,
+		UptimePercentage: cluster.Statistics.UptimePercentage,
+		PowerEfficiency:  cluster.Statistics.PowerEfficiency,
+		FailoverEvents:   cluster.Statistics.FailoverEvents,
+		MigrationEvents:  cluster.Statistics.MigrationEvents,
+		SyncEvents:       cluster.Statistics.SyncEvents,
+	}
 }
 
 // GetGeographicalDistribution returns geographical distribution of clusters

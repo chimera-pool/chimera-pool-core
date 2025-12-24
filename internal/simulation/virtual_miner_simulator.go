@@ -166,7 +166,15 @@ func (vms *virtualMinerSimulator) GetMinerStats(id string) *MinerStatistics {
 		return nil
 	}
 
-	return miner.Statistics
+	// Return a COPY to prevent race conditions
+	return &MinerStatistics{
+		TotalShares:   miner.Statistics.TotalShares,
+		ValidShares:   miner.Statistics.ValidShares,
+		InvalidShares: miner.Statistics.InvalidShares,
+		BurstEvents:   miner.Statistics.BurstEvents,
+		DropEvents:    miner.Statistics.DropEvents,
+		AttackEvents:  miner.Statistics.AttackEvents,
+	}
 }
 
 // TriggerBurst triggers burst mining for a specific miner
