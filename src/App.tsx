@@ -6,6 +6,9 @@ import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 're
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
+// Real-time data provider for synchronized mining data across all components
+import { RealTimeDataProvider } from './services/realtime';
+
 // Lazy-loaded components for code splitting
 import {
   MiningGraphsLazy,
@@ -81,13 +84,15 @@ function App() {
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
   // Equipment registration enforcement state
+  // TEST PHASE: Equipment restrictions disabled - all users can see full dashboard
+  // TODO: Set hasEquipment: false and hasOnlineEquipment: false when launching production
   const [userEquipmentStatus, setUserEquipmentStatus] = useState<{
     hasEquipment: boolean;
     hasOnlineEquipment: boolean;
     equipmentCount: number;
     onlineCount: number;
     pendingSupport: boolean;
-  }>({ hasEquipment: false, hasOnlineEquipment: false, equipmentCount: 0, onlineCount: 0, pendingSupport: false });
+  }>({ hasEquipment: true, hasOnlineEquipment: true, equipmentCount: 1, onlineCount: 1, pendingSupport: false });
   const [showEquipmentSupportModal, setShowEquipmentSupportModal] = useState(false);
   const [equipmentSupportForm, setEquipmentSupportForm] = useState({
     issue_type: 'connection',
@@ -454,6 +459,7 @@ function App() {
   };
 
   return (
+    <RealTimeDataProvider initialTimeRange="24h" autoRefreshEnabled={true}>
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
@@ -1333,6 +1339,7 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpa
         </p>
       </footer>
     </div>
+    </RealTimeDataProvider>
   );
 }
 
@@ -1645,18 +1652,7 @@ function EquipmentSupportModal({
 // NOTE: EquipmentPage extracted to src/components/equipment/EquipmentPage.tsx
 // Using EquipmentPageLazy from LazyComponents for code splitting
 
-const graphStyles: { [key: string]: React.CSSProperties } = {
-  section: { background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', borderRadius: '12px', padding: '24px', border: '1px solid #2a2a4a', marginBottom: '20px' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' },
-  title: { fontSize: '1.3rem', color: '#00d4ff', margin: 0 },
-  timeSelector: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  timeBtn: { padding: '6px 12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '0.85rem' },
-  timeBtnActive: { backgroundColor: '#00d4ff', color: '#0a0a0f', borderColor: '#00d4ff' },
-  loading: { textAlign: 'center', padding: '60px', color: '#00d4ff' },
-  chartsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' },
-  chartCard: { backgroundColor: '#0a0a15', borderRadius: '10px', padding: '20px', border: '1px solid #2a2a4a' },
-  chartTitle: { color: '#e0e0e0', fontSize: '1rem', marginTop: 0, marginBottom: '15px' },
-};
+// NOTE: graphStyles removed - was dead code (AdminPanel has its own copy)
 
 // NOTE: CommunityPage extracted to src/components/community/CommunityPage.tsx
 // Using CommunityPageLazy from LazyComponents for code splitting
@@ -1762,59 +1758,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   authLink: { color: '#00d4ff', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' },
 };
 
-const adminStyles: { [key: string]: React.CSSProperties } = {
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px', zIndex: 2000, overflowY: 'auto' },
-  panel: { backgroundColor: '#1a1a2e', borderRadius: '12px', width: '100%', maxWidth: '1200px', maxHeight: '90vh', overflow: 'auto', position: 'relative' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #2a2a4a' },
-  title: { color: '#9b59b6', margin: 0, fontSize: '1.5rem' },
-  closeBtn: { background: 'none', border: 'none', color: '#888', fontSize: '28px', cursor: 'pointer' },
-  tabs: { display: 'flex', borderBottom: '1px solid #2a2a4a', padding: '0 20px' },
-  tab: { padding: '15px 25px', backgroundColor: 'transparent', border: 'none', color: '#888', fontSize: '1rem', cursor: 'pointer', borderBottom: '3px solid transparent', marginBottom: '-1px' },
-  tabActive: { color: '#9b59b6', borderBottomColor: '#9b59b6' },
-  searchBar: { padding: '15px 20px' },
-  searchInput: { width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' as const },
-  loading: { padding: '40px', textAlign: 'center', color: '#00d4ff' },
-  tableContainer: { overflowX: 'auto', padding: '0 20px' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '12px', textAlign: 'left', borderBottom: '2px solid #2a2a4a', color: '#00d4ff', fontSize: '0.85rem', textTransform: 'uppercase' },
-  tr: { borderBottom: '1px solid #2a2a4a' },
-  td: { padding: '12px', color: '#e0e0e0' },
-  adminBadge: { color: '#f1c40f' },
-  activeBadge: { backgroundColor: '#1a4d1a', color: '#4ade80', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' },
-  inactiveBadge: { backgroundColor: '#4d1a1a', color: '#f87171', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem' },
-  actionBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '4px 8px' },
-  pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '20px' },
-  pageBtn: { padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '4px', color: '#e0e0e0', cursor: 'pointer' },
-  pageInfo: { color: '#888' },
-  editModal: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: '#0a0a15', padding: '30px', borderRadius: '12px', border: '1px solid #9b59b6', minWidth: '400px', zIndex: 10 },
-  editTitle: { color: '#9b59b6', marginTop: 0 },
-  formGroup: { marginBottom: '15px' },
-  label: { display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' },
-  formInput: { width: '100%', padding: '10px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '4px', color: '#e0e0e0', boxSizing: 'border-box' as const },
-  checkboxLabel: { display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#e0e0e0', marginRight: '20px' },
-  editActions: { display: 'flex', gap: '10px', marginTop: '20px' },
-  cancelBtn: { flex: 1, padding: '10px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '4px', color: '#e0e0e0', cursor: 'pointer' },
-  saveBtn: { flex: 1, padding: '10px', backgroundColor: '#9b59b6', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' },
-  detailModal: { position: 'absolute', top: '10px', right: '10px', bottom: '10px', width: '400px', backgroundColor: '#0a0a15', borderRadius: '8px', border: '1px solid #2a2a4a', padding: '20px', overflowY: 'auto' },
-  closeDetailBtn: { position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' },
-  detailTitle: { color: '#00d4ff', marginTop: 0 },
-  detailCard: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '8px', marginBottom: '15px' },
-  subTitle: { color: '#00d4ff', marginTop: '20px', marginBottom: '10px' },
-  minerRow: { display: 'flex', justifyContent: 'space-between', padding: '8px', borderBottom: '1px solid #2a2a4a', backgroundColor: '#1a1a2e', marginBottom: '5px', borderRadius: '4px' },
-  algorithmContainer: { padding: '20px' },
-  algoHeader: { marginBottom: '25px' },
-  algoTitle: { color: '#9b59b6', marginTop: 0, marginBottom: '10px' },
-  algoDesc: { color: '#888', margin: 0 },
-  algoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '25px' },
-  algoCard: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', border: '1px solid #2a2a4a' },
-  algoLabel: { display: 'block', color: '#00d4ff', marginBottom: '10px', fontSize: '0.9rem', textTransform: 'uppercase' },
-  algoSelect: { width: '100%', padding: '12px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem' },
-  algoInput: { width: '100%', padding: '12px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' as const },
-  algoTextarea: { width: '100%', padding: '12px', backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', fontFamily: 'monospace', resize: 'vertical' as const, boxSizing: 'border-box' as const },
-  algoHint: { color: '#666', fontSize: '0.85rem', margin: '8px 0 0' },
-  algoActions: { textAlign: 'center', marginBottom: '20px' },
-  algoSaveBtn: { padding: '15px 40px', backgroundColor: '#9b59b6', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' },
-  algoWarning: { backgroundColor: '#4d3a1a', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', color: '#fbbf24', fontSize: '0.9rem', lineHeight: '1.5' },
-};
+// NOTE: adminStyles removed - was dead code (AdminPanel.tsx has its own copy)
 
 export default App;

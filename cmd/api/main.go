@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/chimera-pool/chimera-pool-core/internal/api"
+	"github.com/chimera-pool/chimera-pool-core/internal/stats"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang-migrate/migrate/v4"
@@ -90,6 +91,9 @@ func main() {
 
 		// Public routes (no rate limiting needed)
 		apiGroup.GET("/pool/stats", handlePoolStats(db))
+		apiGroup.GET("/pool/stats/hashrate", handlePublicPoolHashrateHistory(db))
+		apiGroup.GET("/pool/stats/shares", handlePublicPoolSharesHistory(db))
+		apiGroup.GET("/pool/stats/miners", handlePublicPoolMinersHistory(db))
 		apiGroup.GET("/pool/blocks", handleBlocks(db))
 		apiGroup.GET("/miners/locations", handlePublicMinerLocations(db))
 		apiGroup.GET("/miners/locations/stats", handleMinerLocationStats(db))
@@ -224,6 +228,12 @@ func main() {
 			admin.POST("/networks/switch", handleAdminSwitchNetwork(db))
 			admin.GET("/networks/history", handleAdminNetworkHistory(db))
 			admin.POST("/networks/:id/test", handleAdminTestNetworkConnection(db))
+
+			// Miner monitoring routes
+			admin.GET("/monitoring/miners", handleAdminGetAllMiners(db))
+			admin.GET("/monitoring/miners/:id", handleAdminGetMinerDetail(db))
+			admin.GET("/monitoring/miners/:id/shares", handleAdminGetMinerShares(db))
+			admin.GET("/monitoring/users/:id/miners", handleAdminGetUserMiners(db))
 		}
 
 		// Public network info route
@@ -452,18 +462,196 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 
 		db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
 		db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
+
+		// Try to get hashrate from miners table first
 		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE is_active = true").Scan(&totalHashrate)
+
+		// If no hashrate from miners table, calculate from recent shares
+		if totalHashrate == 0 {
+			var shareCount int64
+			var totalDifficulty float64
+			// Get shares from last 5 minutes for hashrate calculation
+			db.QueryRow(`
+				SELECT COUNT(*), COALESCE(SUM(difficulty), 0) 
+				FROM shares 
+				WHERE timestamp > NOW() - INTERVAL '5 minutes' AND is_valid = true
+			`).Scan(&shareCount, &totalDifficulty)
+
+			if shareCount > 0 {
+				// Hashrate = (total_difficulty * 2^32) / time_window_seconds
+				// 2^32 = 4294967296
+				totalHashrate = (totalDifficulty * 4294967296.0) / 300.0 // 5 minutes = 300 seconds
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"total_miners":     totalMiners,
 			"total_hashrate":   totalHashrate,
 			"blocks_found":     totalBlocks,
 			"pool_fee":         1.0,
-			"minimum_payout":   1.0,
+			"minimum_payout":   0.01,
 			"payment_interval": "1 hour",
-			"network":          "BlockDAG Awakening",
-			"currency":         "BDAG",
+			"network":          "Litecoin",
+			"currency":         "LTC",
+			"algorithm":        "Scrypt",
 		})
+	}
+}
+
+// handlePublicPoolHashrateHistory returns pool hashrate history calculated from shares
+func handlePublicPoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
+	timeService := stats.NewTimeRangeService()
+
+	return func(c *gin.Context) {
+		rangeStr := c.DefaultQuery("range", "24h")
+		pgInterval := timeService.GetPostgresInterval(rangeStr)
+		dateTrunc := timeService.GetDateTrunc(rangeStr)
+
+		// Calculate seconds per bucket for hashrate calculation
+		secondsPerBucket := getSecondsPerBucket(dateTrunc)
+
+		// Calculate hashrate from shares table grouped by time buckets
+		query := fmt.Sprintf(`
+			SELECT 
+				date_trunc('%s', timestamp) as time_bucket,
+				(COALESCE(SUM(difficulty), 0) * 4294967296.0 / %d) as hashrate
+			FROM shares 
+			WHERE timestamp > NOW() - INTERVAL '%s' AND is_valid = true
+			GROUP BY time_bucket
+			ORDER BY time_bucket ASC
+		`, dateTrunc, secondsPerBucket, pgInterval)
+
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr, "error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var data []gin.H
+		for rows.Next() {
+			var timeBucket time.Time
+			var hashrate float64
+			if err := rows.Scan(&timeBucket, &hashrate); err != nil {
+				continue
+			}
+			data = append(data, gin.H{
+				"time":     timeBucket,
+				"hashrate": hashrate,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+	}
+}
+
+// handlePublicPoolSharesHistory returns pool shares history
+func handlePublicPoolSharesHistory(db *sql.DB) gin.HandlerFunc {
+	timeService := stats.NewTimeRangeService()
+
+	return func(c *gin.Context) {
+		rangeStr := c.DefaultQuery("range", "24h")
+		pgInterval := timeService.GetPostgresInterval(rangeStr)
+		dateTrunc := timeService.GetDateTrunc(rangeStr)
+
+		query := fmt.Sprintf(`
+			SELECT 
+				date_trunc('%s', timestamp) as time_bucket,
+				COUNT(*) FILTER (WHERE is_valid = true) as valid_shares,
+				COUNT(*) FILTER (WHERE is_valid = false) as invalid_shares
+			FROM shares 
+			WHERE timestamp > NOW() - INTERVAL '%s'
+			GROUP BY time_bucket
+			ORDER BY time_bucket ASC
+		`, dateTrunc, pgInterval)
+
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr})
+			return
+		}
+		defer rows.Close()
+
+		var data []gin.H
+		for rows.Next() {
+			var timeBucket time.Time
+			var validShares, invalidShares int64
+			if err := rows.Scan(&timeBucket, &validShares, &invalidShares); err != nil {
+				continue
+			}
+			data = append(data, gin.H{
+				"time":          timeBucket,
+				"validShares":   validShares,
+				"invalidShares": invalidShares,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+	}
+}
+
+// handlePublicPoolMinersHistory returns pool active miners history over time
+func handlePublicPoolMinersHistory(db *sql.DB) gin.HandlerFunc {
+	timeService := stats.NewTimeRangeService()
+
+	return func(c *gin.Context) {
+		rangeStr := c.DefaultQuery("range", "24h")
+		pgInterval := timeService.GetPostgresInterval(rangeStr)
+		dateTrunc := timeService.GetDateTrunc(rangeStr)
+
+		// Query to get unique active miners per time bucket
+		query := fmt.Sprintf(`
+			SELECT 
+				date_trunc('%s', timestamp) as time_bucket,
+				COUNT(DISTINCT miner_id) as active_miners,
+				COUNT(DISTINCT user_id) as unique_users
+			FROM shares 
+			WHERE timestamp > NOW() - INTERVAL '%s'
+			GROUP BY time_bucket
+			ORDER BY time_bucket ASC
+		`, dateTrunc, pgInterval)
+
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr})
+			return
+		}
+		defer rows.Close()
+
+		var data []gin.H
+		for rows.Next() {
+			var timeBucket time.Time
+			var activeMiners, uniqueUsers int64
+			if err := rows.Scan(&timeBucket, &activeMiners, &uniqueUsers); err != nil {
+				continue
+			}
+			data = append(data, gin.H{
+				"time":         timeBucket,
+				"activeMiners": activeMiners,
+				"uniqueUsers":  uniqueUsers,
+				"totalMiners":  activeMiners,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+	}
+}
+
+// getSecondsPerBucket returns seconds per time bucket for hashrate calculation
+func getSecondsPerBucket(dateTrunc string) int {
+	switch dateTrunc {
+	case "minute":
+		return 60
+	case "hour":
+		return 3600
+	case "day":
+		return 86400
+	case "week":
+		return 604800
+	case "month":
+		return 2592000 // 30 days
+	default:
+		return 3600
 	}
 }
 
@@ -517,7 +705,8 @@ func handleUserProfile(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"user_id":        userID,
+			"id":             userID, // Use 'id' for consistency with message user objects
+			"user_id":        userID, // Keep for backwards compatibility
 			"username":       username,
 			"email":          email,
 			"payout_address": payoutAddress.String,
@@ -873,7 +1062,7 @@ func adminMiddleware(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// handleAdminListUsers returns paginated list of all users with stats
+// handleAdminListUsers returns paginated list of all users with stats, badges, and clout
 func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		page := 1
@@ -894,20 +1083,37 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 		}
 		offset := (page - 1) * pageSize
 
-		// Build query with optional search (includes wallet info)
+		// Enhanced query with role, badges, and engagement metrics
 		baseQuery := `
 			SELECT 
 				u.id, u.username, u.email, u.payout_address, u.pool_fee_percent,
-				u.is_active, u.is_admin, u.created_at,
+				u.is_active, u.is_admin, u.role, u.created_at,
 				COALESCE(SUM(p.amount), 0) as total_earnings,
 				COALESCE((SELECT SUM(amount) FROM payouts WHERE user_id = u.id AND status = 'pending'), 0) as pending_payout,
 				COALESCE((SELECT SUM(hashrate) FROM miners WHERE user_id = u.id AND is_active = true), 0) as total_hashrate,
 				COALESCE((SELECT COUNT(*) FROM miners WHERE user_id = u.id AND is_active = true), 0) as active_miners,
 				COALESCE((SELECT COUNT(*) FROM user_wallets WHERE user_id = u.id), 0) as wallet_count,
 				COALESCE((SELECT address FROM user_wallets WHERE user_id = u.id AND is_primary = true LIMIT 1), '') as primary_wallet,
-				COALESCE((SELECT SUM(percentage) FROM user_wallets WHERE user_id = u.id AND is_active = true), 0) as total_allocated
+				COALESCE((SELECT SUM(percentage) FROM user_wallets WHERE user_id = u.id AND is_active = true), 0) as total_allocated,
+				COALESCE((SELECT COUNT(*) FROM blocks WHERE finder_id = u.id), 0) as blocks_found,
+				COALESCE((SELECT SUM(share_count) FROM miners WHERE user_id = u.id), 0) as total_shares,
+				COALESCE(up.forum_post_count, 0) as forum_posts,
+				COALESCE(up.reputation, 0) as reputation,
+				-- Engagement/Clout score calculation
+				(
+					COALESCE(up.forum_post_count, 0) * 10 +
+					COALESCE(up.reputation, 0) +
+					COALESCE((SELECT COUNT(*) FROM blocks WHERE finder_id = u.id), 0) * 100 +
+					COALESCE((SELECT COUNT(*) FROM channel_messages WHERE user_id = u.id AND is_deleted = false), 0) * 2
+				) as engagement_score,
+				COALESCE(pb.icon, '🌱') as primary_badge_icon,
+				COALESCE(pb.color, '#4ade80') as primary_badge_color,
+				COALESCE(pb.name, 'Newcomer') as primary_badge_name
 			FROM users u
 			LEFT JOIN payouts p ON u.id = p.user_id AND p.status = 'confirmed'
+			LEFT JOIN user_profiles up ON u.id = up.user_id
+			LEFT JOIN user_badges ub ON ub.user_id = u.id AND ub.is_primary = true
+			LEFT JOIN badges pb ON ub.badge_id = pb.id
 		`
 		countQuery := "SELECT COUNT(*) FROM users"
 
@@ -921,7 +1127,7 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 			argIdx += 2
 		}
 
-		baseQuery += " GROUP BY u.id ORDER BY u.created_at DESC"
+		baseQuery += " GROUP BY u.id, up.forum_post_count, up.reputation, pb.icon, pb.color, pb.name ORDER BY u.created_at DESC"
 		baseQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 		args = append(args, pageSize, offset)
 
@@ -934,24 +1140,40 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 		defer rows.Close()
 
 		var users []gin.H
+		var userIDs []int64
 		for rows.Next() {
 			var id int64
 			var username, email string
 			var payoutAddress sql.NullString
 			var poolFeePercent sql.NullFloat64
 			var isActive, isAdmin bool
+			var role sql.NullString
 			var createdAt time.Time
 			var totalEarnings, pendingPayout, totalHashrate float64
 			var activeMiners, walletCount int
 			var primaryWallet string
 			var totalAllocated float64
+			var blocksFound, forumPosts, reputation int
+			var totalShares, engagementScore int64
+			var primaryBadgeIcon, primaryBadgeColor, primaryBadgeName string
 
 			err := rows.Scan(&id, &username, &email, &payoutAddress, &poolFeePercent,
-				&isActive, &isAdmin, &createdAt, &totalEarnings, &pendingPayout,
-				&totalHashrate, &activeMiners, &walletCount, &primaryWallet, &totalAllocated)
+				&isActive, &isAdmin, &role, &createdAt, &totalEarnings, &pendingPayout,
+				&totalHashrate, &activeMiners, &walletCount, &primaryWallet, &totalAllocated,
+				&blocksFound, &totalShares, &forumPosts, &reputation, &engagementScore,
+				&primaryBadgeIcon, &primaryBadgeColor, &primaryBadgeName)
 			if err != nil {
 				log.Printf("Error scanning user row: %v", err)
 				continue
+			}
+
+			// Determine effective role
+			userRole := "user"
+			if role.Valid {
+				userRole = role.String
+			}
+			if isAdmin {
+				userRole = "admin"
 			}
 
 			users = append(users, gin.H{
@@ -962,6 +1184,8 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 				"pool_fee_percent": poolFeePercent.Float64,
 				"is_active":        isActive,
 				"is_admin":         isAdmin,
+				"role":             userRole,
+				"roleBadge":        getRoleBadge(userRole),
 				"created_at":       createdAt,
 				"total_earnings":   totalEarnings,
 				"pending_payout":   pendingPayout,
@@ -970,7 +1194,57 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 				"wallet_count":     walletCount,
 				"primary_wallet":   primaryWallet,
 				"total_allocated":  totalAllocated,
+				// Clout/engagement metrics
+				"blocks_found":     blocksFound,
+				"total_shares":     totalShares,
+				"forum_posts":      forumPosts,
+				"reputation":       reputation,
+				"engagement_score": engagementScore,
+				// Primary badge
+				"primaryBadge": gin.H{
+					"icon":  primaryBadgeIcon,
+					"color": primaryBadgeColor,
+					"name":  primaryBadgeName,
+				},
+				"badges": []gin.H{}, // Will be populated below
 			})
+			userIDs = append(userIDs, id)
+		}
+
+		// Fetch all badges for users
+		if len(userIDs) > 0 {
+			badgeQuery := `
+				SELECT ub.user_id, b.icon, b.color, b.name, b.badge_type, ub.is_primary
+				FROM user_badges ub
+				JOIN badges b ON ub.badge_id = b.id
+				WHERE ub.user_id = ANY($1)
+				ORDER BY ub.is_primary DESC, ub.earned_at DESC
+			`
+			badgeRows, err := db.Query(badgeQuery, pq.Array(userIDs))
+			if err == nil {
+				defer badgeRows.Close()
+				userBadges := make(map[int64][]gin.H)
+				for badgeRows.Next() {
+					var uid int64
+					var icon, color, name, badgeType string
+					var isPrimary bool
+					badgeRows.Scan(&uid, &icon, &color, &name, &badgeType, &isPrimary)
+					userBadges[uid] = append(userBadges[uid], gin.H{
+						"icon":      icon,
+						"color":     color,
+						"name":      name,
+						"type":      badgeType,
+						"isPrimary": isPrimary,
+					})
+				}
+				// Assign badges to users
+				for i, user := range users {
+					uid := user["id"].(int64)
+					if badges, ok := userBadges[uid]; ok {
+						users[i]["badges"] = badges
+					}
+				}
+			}
 		}
 
 		// Get total count
@@ -2213,31 +2487,38 @@ func generateSampleEarningsData(duration time.Duration) []gin.H {
 	return data
 }
 
-// Pool-wide statistics handlers
+// Pool-wide statistics handlers - calculates real-time hashrate from shares
 func handlePoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rangeStr := c.DefaultQuery("range", "24h")
 		duration := parseTimeRange(rangeStr)
 		interval := getInterval(duration)
 
+		// Calculate bucket duration in seconds for hashrate calculation
+		bucketSeconds := getBucketSeconds(interval)
+
+		// Query hashrate from shares - sum difficulty and convert to hashrate
+		// Hashrate = (difficulty * 2^32) / time_window_seconds
 		query := fmt.Sprintf(`
 			SELECT 
-				date_trunc('%s', created_at) as time_bucket,
-				SUM(hashrate) as total_hashrate,
-				AVG(hashrate) as avg_hashrate,
+				date_trunc('%s', timestamp) as time_bucket,
+				COALESCE(SUM(difficulty) * 4294967296.0 / %d, 0) as total_hashrate,
+				COUNT(DISTINCT miner_id) as active_miners,
 				COUNT(DISTINCT user_id) as active_users
-			FROM miners 
-			WHERE created_at > NOW() - INTERVAL '%s' AND is_active = true
+			FROM shares 
+			WHERE timestamp > NOW() - INTERVAL '%s' AND is_valid = true
 			GROUP BY time_bucket
 			ORDER BY time_bucket ASC
-		`, interval, rangeStr)
+		`, interval, bucketSeconds, rangeStr)
 
 		rows, err := db.Query(query)
 		if err != nil {
+			log.Printf("Hashrate history query error: %v", err)
 			c.JSON(http.StatusOK, gin.H{
-				"data":     generateSamplePoolHashrateData(duration),
+				"data":     []gin.H{},
 				"range":    rangeStr,
 				"interval": interval,
+				"error":    "Query failed",
 			})
 			return
 		}
@@ -2246,21 +2527,22 @@ func handlePoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 		var data []gin.H
 		for rows.Next() {
 			var timeBucket time.Time
-			var totalHashrate, avgHashrate float64
-			var activeUsers int
-			if err := rows.Scan(&timeBucket, &totalHashrate, &avgHashrate, &activeUsers); err != nil {
+			var totalHashrate float64
+			var activeMiners, activeUsers int
+			if err := rows.Scan(&timeBucket, &totalHashrate, &activeMiners, &activeUsers); err != nil {
 				continue
+			}
+			avgHashrate := totalHashrate
+			if activeMiners > 0 {
+				avgHashrate = totalHashrate / float64(activeMiners)
 			}
 			data = append(data, gin.H{
 				"time":          timeBucket,
 				"totalHashrate": totalHashrate,
 				"avgHashrate":   avgHashrate,
+				"activeMiners":  activeMiners,
 				"activeUsers":   activeUsers,
 			})
-		}
-
-		if len(data) == 0 {
-			data = generateSamplePoolHashrateData(duration)
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -2268,6 +2550,24 @@ func handlePoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 			"range":    rangeStr,
 			"interval": interval,
 		})
+	}
+}
+
+// getBucketSeconds returns seconds per bucket for hashrate calculation
+func getBucketSeconds(interval string) int {
+	switch interval {
+	case "minute":
+		return 60
+	case "hour":
+		return 3600
+	case "day":
+		return 86400
+	case "week":
+		return 604800
+	case "month":
+		return 2592000
+	default:
+		return 3600
 	}
 }
 
@@ -2305,20 +2605,21 @@ func handlePoolSharesHistory(db *sql.DB) gin.HandlerFunc {
 
 		query := fmt.Sprintf(`
 			SELECT 
-				date_trunc('%s', created_at) as time_bucket,
+				date_trunc('%s', timestamp) as time_bucket,
 				COUNT(*) FILTER (WHERE is_valid = true) as valid_shares,
 				COUNT(*) FILTER (WHERE is_valid = false) as invalid_shares,
 				COUNT(*) as total_shares
 			FROM shares 
-			WHERE created_at > NOW() - INTERVAL '%s'
+			WHERE timestamp > NOW() - INTERVAL '%s'
 			GROUP BY time_bucket
 			ORDER BY time_bucket ASC
 		`, interval, rangeStr)
 
 		rows, err := db.Query(query)
 		if err != nil {
+			log.Printf("Shares history query error: %v", err)
 			c.JSON(http.StatusOK, gin.H{
-				"data":     generateSamplePoolSharesData(duration),
+				"data":     []gin.H{},
 				"range":    rangeStr,
 				"interval": interval,
 			})
@@ -2344,10 +2645,6 @@ func handlePoolSharesHistory(db *sql.DB) gin.HandlerFunc {
 				"totalShares":    totalShares,
 				"acceptanceRate": acceptanceRate,
 			})
-		}
-
-		if len(data) == 0 {
-			data = generateSamplePoolSharesData(duration)
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -2387,22 +2684,23 @@ func handlePoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 		duration := parseTimeRange(rangeStr)
 		interval := getInterval(duration)
 
+		// Query from shares table for real-time miner activity
 		query := fmt.Sprintf(`
 			SELECT 
-				date_trunc('%s', last_seen) as time_bucket,
-				COUNT(*) FILTER (WHERE is_active = true) as active_miners,
-				COUNT(*) as total_miners,
+				date_trunc('%s', timestamp) as time_bucket,
+				COUNT(DISTINCT miner_id) as active_miners,
 				COUNT(DISTINCT user_id) as unique_users
-			FROM miners 
-			WHERE last_seen > NOW() - INTERVAL '%s'
+			FROM shares 
+			WHERE timestamp > NOW() - INTERVAL '%s'
 			GROUP BY time_bucket
 			ORDER BY time_bucket ASC
 		`, interval, rangeStr)
 
 		rows, err := db.Query(query)
 		if err != nil {
+			log.Printf("Miners history query error: %v", err)
 			c.JSON(http.StatusOK, gin.H{
-				"data":     generateSampleMinersData(duration),
+				"data":     []gin.H{},
 				"range":    rangeStr,
 				"interval": interval,
 			})
@@ -2413,20 +2711,15 @@ func handlePoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 		var data []gin.H
 		for rows.Next() {
 			var timeBucket time.Time
-			var activeMiners, totalMiners, uniqueUsers int
-			if err := rows.Scan(&timeBucket, &activeMiners, &totalMiners, &uniqueUsers); err != nil {
+			var activeMiners, uniqueUsers int
+			if err := rows.Scan(&timeBucket, &activeMiners, &uniqueUsers); err != nil {
 				continue
 			}
 			data = append(data, gin.H{
 				"time":         timeBucket,
 				"activeMiners": activeMiners,
-				"totalMiners":  totalMiners,
 				"uniqueUsers":  uniqueUsers,
 			})
-		}
-
-		if len(data) == 0 {
-			data = generateSampleMinersData(duration)
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -2612,6 +2905,9 @@ func generateSamplePayoutsData(duration time.Duration) []gin.H {
 }
 
 func handlePoolDistribution(db *sql.DB) gin.HandlerFunc {
+	// Color palette for pie chart
+	colors := []string{"#00d4ff", "#ff6b6b", "#4ecdc4", "#ffe66d", "#95e1d3", "#f38181", "#aa96da", "#fcbad3"}
+
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT 
@@ -2629,7 +2925,7 @@ func handlePoolDistribution(db *sql.DB) gin.HandlerFunc {
 
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"distribution": generateSampleDistributionData(),
+				"distribution": generateDefaultDistribution(),
 			})
 			return
 		}
@@ -2656,24 +2952,29 @@ func handlePoolDistribution(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		// Calculate percentages
-		for _, d := range tempData {
+		// Build distribution with format expected by frontend PieChart
+		// Frontend expects: { name: string, value: number, color: string }
+		for i, d := range tempData {
 			hashrate := d["hashrate"].(float64)
 			percentage := float64(0)
 			if totalPoolHashrate > 0 {
 				percentage = (hashrate / totalPoolHashrate) * 100
 			}
+			color := colors[i%len(colors)]
 			distribution = append(distribution, gin.H{
+				// Fields for PieChart component
+				"name":  d["username"],
+				"value": percentage,
+				"color": color,
+				// Additional data
 				"userId":     d["userId"],
-				"username":   d["username"],
 				"hashrate":   hashrate,
 				"minerCount": d["minerCount"],
-				"percentage": percentage,
 			})
 		}
 
 		if len(distribution) == 0 {
-			distribution = generateSampleDistributionData()
+			distribution = generateDefaultDistribution()
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -2683,26 +2984,15 @@ func handlePoolDistribution(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func generateSampleDistributionData() []gin.H {
-	users := []string{"miner_alpha", "crypto_king", "hash_master", "block_hunter", "node_runner"}
-	var distribution []gin.H
-	totalHashrate := 5000000000.0
-
-	for i, username := range users {
-		percentage := 30.0 - float64(i)*5
-		if percentage < 5 {
-			percentage = 5
-		}
-		hashrate := totalHashrate * (percentage / 100)
-		distribution = append(distribution, gin.H{
-			"userId":     i + 1,
-			"username":   username,
-			"hashrate":   hashrate,
-			"minerCount": 3 - (i / 2),
-			"percentage": percentage,
-		})
+func generateDefaultDistribution() []gin.H {
+	// Return single "No miners" entry when no data
+	return []gin.H{
+		{
+			"name":  "No active miners",
+			"value": 100,
+			"color": "#444444",
+		},
 	}
-	return distribution
 }
 
 // Miner Location Handlers
@@ -3412,10 +3702,13 @@ func handleGetChannelMessages(db *sql.DB) gin.HandlerFunc {
 		before := c.Query("before")
 		limit := 50
 
+		// Enhanced query to include user role and all badges
 		query := `
 			SELECT cm.id, cm.content, cm.is_edited, cm.created_at, cm.reply_to_id,
-				   u.id as user_id, u.username,
-				   COALESCE(b.icon, '🌱') as badge_icon, COALESCE(b.color, '#4ade80') as badge_color
+				   u.id as user_id, u.username, u.role, u.is_admin,
+				   COALESCE(b.icon, '🌱') as badge_icon, 
+				   COALESCE(b.color, '#4ade80') as badge_color,
+				   COALESCE(b.name, 'Newcomer') as badge_name
 			FROM channel_messages cm
 			JOIN users u ON cm.user_id = u.id
 			LEFT JOIN user_badges ub ON ub.user_id = u.id AND ub.is_primary = true
@@ -3440,6 +3733,7 @@ func handleGetChannelMessages(db *sql.DB) gin.HandlerFunc {
 		defer rows.Close()
 
 		messages := []gin.H{}
+		userIDs := []int64{}
 		for rows.Next() {
 			var id int64
 			var content string
@@ -3447,9 +3741,21 @@ func handleGetChannelMessages(db *sql.DB) gin.HandlerFunc {
 			var createdAt time.Time
 			var replyToID sql.NullInt64
 			var userID int64
-			var username, badgeIcon, badgeColor string
+			var username string
+			var role sql.NullString
+			var isAdmin bool
+			var badgeIcon, badgeColor, badgeName string
 
-			rows.Scan(&id, &content, &isEdited, &createdAt, &replyToID, &userID, &username, &badgeIcon, &badgeColor)
+			rows.Scan(&id, &content, &isEdited, &createdAt, &replyToID, &userID, &username, &role, &isAdmin, &badgeIcon, &badgeColor, &badgeName)
+
+			// Determine user role
+			userRole := "user"
+			if role.Valid {
+				userRole = role.String
+			}
+			if isAdmin {
+				userRole = "admin"
+			}
 
 			msg := gin.H{
 				"id":        id,
@@ -3459,14 +3765,65 @@ func handleGetChannelMessages(db *sql.DB) gin.HandlerFunc {
 				"user": gin.H{
 					"id":         userID,
 					"username":   username,
+					"role":       userRole,
+					"roleBadge":  getRoleBadge(userRole),
 					"badgeIcon":  badgeIcon,
 					"badgeColor": badgeColor,
+					"badgeName":  badgeName,
 				},
 			}
 			if replyToID.Valid {
 				msg["replyToId"] = replyToID.Int64
 			}
 			messages = append(messages, msg)
+			userIDs = append(userIDs, userID)
+		}
+
+		// Fetch all badges for message authors
+		if len(userIDs) > 0 {
+			uniqueUserIDs := make(map[int64]bool)
+			for _, uid := range userIDs {
+				uniqueUserIDs[uid] = true
+			}
+			userIDList := make([]int64, 0, len(uniqueUserIDs))
+			for uid := range uniqueUserIDs {
+				userIDList = append(userIDList, uid)
+			}
+
+			badgeQuery := `
+				SELECT ub.user_id, b.icon, b.color, b.name, b.badge_type, ub.is_primary
+				FROM user_badges ub
+				JOIN badges b ON ub.badge_id = b.id
+				WHERE ub.user_id = ANY($1)
+				ORDER BY ub.is_primary DESC, ub.earned_at DESC
+			`
+			badgeRows, err := db.Query(badgeQuery, pq.Array(userIDList))
+			if err == nil {
+				defer badgeRows.Close()
+				userBadges := make(map[int64][]gin.H)
+				for badgeRows.Next() {
+					var uid int64
+					var icon, color, name, badgeType string
+					var isPrimary bool
+					badgeRows.Scan(&uid, &icon, &color, &name, &badgeType, &isPrimary)
+					userBadges[uid] = append(userBadges[uid], gin.H{
+						"icon":      icon,
+						"color":     color,
+						"name":      name,
+						"type":      badgeType,
+						"isPrimary": isPrimary,
+					})
+				}
+				// Assign badges to messages
+				for i, msg := range messages {
+					user := msg["user"].(gin.H)
+					uid := user["id"].(int64)
+					if badges, ok := userBadges[uid]; ok {
+						user["badges"] = badges
+						messages[i]["user"] = user
+					}
+				}
+			}
 		}
 
 		// Reverse to chronological order
@@ -3555,9 +3912,25 @@ func handleDeleteMessage(db *sql.DB) gin.HandlerFunc {
 		userID := c.GetInt64("user_id")
 		messageID := c.Param("id")
 
-		result, err := db.Exec(`
-			UPDATE channel_messages SET is_deleted = true WHERE id = $1 AND user_id = $2
-		`, messageID, userID)
+		// Check if user is moderator/admin
+		var userRole string
+		db.QueryRow("SELECT COALESCE(role, 'user') FROM users WHERE id = $1", userID).Scan(&userRole)
+		isModerator := userRole == "moderator" || userRole == "admin" || userRole == "super_admin"
+
+		var result sql.Result
+		var err error
+
+		if isModerator {
+			// Moderators can delete any message
+			result, err = db.Exec(`
+				UPDATE channel_messages SET is_deleted = true, updated_at = NOW() WHERE id = $1
+			`, messageID)
+		} else {
+			// Regular users can only delete their own messages
+			result, err = db.Exec(`
+				UPDATE channel_messages SET is_deleted = true, updated_at = NOW() WHERE id = $1 AND user_id = $2
+			`, messageID, userID)
+		}
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete message"})
@@ -4220,48 +4593,68 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 		_ = c.DefaultQuery("period", "all") // Reserved for future use
 		limit := 20
 
-		var rows *sql.Rows
-		var err error
-
+		// Comprehensive leaderboard query with all user stats and badges
+		var orderBy string
 		switch leaderboardType {
 		case "blocks":
-			rows, err = db.Query(`
-				SELECT u.id, u.username, COUNT(b.id) as score,
-					   COALESCE(bd.icon, '🌱') as badge_icon
-				FROM users u
-				LEFT JOIN blocks b ON u.id = b.finder_id
-				LEFT JOIN user_badges ub ON ub.user_id = u.id AND ub.is_primary = true
-				LEFT JOIN badges bd ON ub.badge_id = bd.id
-				GROUP BY u.id, u.username, bd.icon
-				ORDER BY score DESC
-				LIMIT $1
-			`, limit)
+			orderBy = "blocks_found DESC"
+		case "shares":
+			orderBy = "total_shares DESC"
 		case "forum":
-			rows, err = db.Query(`
-				SELECT u.id, u.username, COALESCE(up.forum_post_count, 0) as score,
-					   COALESCE(bd.icon, '🌱') as badge_icon
-				FROM users u
-				LEFT JOIN user_profiles up ON u.id = up.user_id
-				LEFT JOIN user_badges ub ON ub.user_id = u.id AND ub.is_primary = true
-				LEFT JOIN badges bd ON ub.badge_id = bd.id
-				ORDER BY score DESC
-				LIMIT $1
-			`, limit)
+			orderBy = "forum_posts DESC"
+		case "engagement":
+			orderBy = "engagement_score DESC"
 		default: // hashrate
-			rows, err = db.Query(`
-				SELECT u.id, u.username, COALESCE(SUM(m.hashrate), 0) as score,
-					   COALESCE(bd.icon, '🌱') as badge_icon
-				FROM users u
-				LEFT JOIN miners m ON u.id = m.user_id AND m.is_active = true
-				LEFT JOIN user_badges ub ON ub.user_id = u.id AND ub.is_primary = true
-				LEFT JOIN badges bd ON ub.badge_id = bd.id
-				GROUP BY u.id, u.username, bd.icon
-				ORDER BY score DESC
-				LIMIT $1
-			`, limit)
+			orderBy = "current_hashrate DESC"
 		}
 
+		query := fmt.Sprintf(`
+			WITH user_stats AS (
+				SELECT 
+					u.id,
+					u.username,
+					u.role,
+					u.is_admin,
+					u.created_at as join_date,
+					COALESCE(SUM(m.hashrate), 0) as current_hashrate,
+					COUNT(DISTINCT m.id) FILTER (WHERE m.is_active = true) as active_miners,
+					COALESCE(up.lifetime_hashrate, 0) as lifetime_hashrate,
+					COALESCE(up.forum_post_count, 0) as forum_posts,
+					COALESCE(up.reputation, 0) as reputation,
+					(
+						SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id
+					) as blocks_found,
+					(
+						SELECT COALESCE(SUM(share_count), 0) FROM miners WHERE user_id = u.id
+					) as total_shares,
+					-- Engagement score: weighted combination of activity
+					(
+						COALESCE(up.forum_post_count, 0) * 10 +
+						COALESCE(up.reputation, 0) +
+						(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 100 +
+						(SELECT COUNT(*) FROM channel_messages cm WHERE cm.user_id = u.id AND cm.is_deleted = false) * 2
+					) as engagement_score
+				FROM users u
+				LEFT JOIN miners m ON u.id = m.user_id AND m.is_active = true
+				LEFT JOIN user_profiles up ON u.id = up.user_id
+				WHERE u.is_active = true
+				GROUP BY u.id, u.username, u.role, u.is_admin, u.created_at, up.lifetime_hashrate, up.forum_post_count, up.reputation
+			)
+			SELECT 
+				us.*,
+				COALESCE(pb.icon, '🌱') as primary_badge_icon,
+				COALESCE(pb.color, '#4ade80') as primary_badge_color,
+				COALESCE(pb.name, 'Newcomer') as primary_badge_name
+			FROM user_stats us
+			LEFT JOIN user_badges ub ON ub.user_id = us.id AND ub.is_primary = true
+			LEFT JOIN badges pb ON ub.badge_id = pb.id
+			ORDER BY %s
+			LIMIT $1
+		`, orderBy)
+
+		rows, err := db.Query(query, limit)
 		if err != nil {
+			log.Printf("Leaderboard query error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leaderboard"})
 			return
 		}
@@ -4269,24 +4662,119 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 
 		leaders := []gin.H{}
 		rank := 1
+		userIDs := []int64{}
+
 		for rows.Next() {
 			var userID int64
 			var username string
-			var score float64
-			var badgeIcon string
+			var role sql.NullString
+			var isAdmin bool
+			var joinDate time.Time
+			var currentHashrate, lifetimeHashrate float64
+			var activeMiners, forumPosts, reputation, blocksFound int
+			var totalShares, engagementScore int64
+			var primaryBadgeIcon, primaryBadgeColor, primaryBadgeName string
 
-			rows.Scan(&userID, &username, &score, &badgeIcon)
+			err := rows.Scan(
+				&userID, &username, &role, &isAdmin, &joinDate,
+				&currentHashrate, &activeMiners, &lifetimeHashrate,
+				&forumPosts, &reputation, &blocksFound, &totalShares, &engagementScore,
+				&primaryBadgeIcon, &primaryBadgeColor, &primaryBadgeName,
+			)
+			if err != nil {
+				log.Printf("Leaderboard row scan error: %v", err)
+				continue
+			}
+
+			// Determine role badge
+			userRole := "user"
+			if role.Valid {
+				userRole = role.String
+			}
+			if isAdmin {
+				userRole = "admin"
+			}
+			roleBadge := getRoleBadge(userRole)
+
 			leaders = append(leaders, gin.H{
 				"rank":      rank,
 				"userId":    userID,
 				"username":  username,
-				"score":     score,
-				"badgeIcon": badgeIcon,
+				"role":      userRole,
+				"roleBadge": roleBadge,
+				"stats": gin.H{
+					"currentHashrate":  currentHashrate,
+					"lifetimeHashrate": lifetimeHashrate,
+					"activeMiners":     activeMiners,
+					"blocksFound":      blocksFound,
+					"totalShares":      totalShares,
+					"forumPosts":       forumPosts,
+					"reputation":       reputation,
+					"engagementScore":  engagementScore,
+					"joinDate":         joinDate,
+				},
+				"primaryBadge": gin.H{
+					"icon":  primaryBadgeIcon,
+					"color": primaryBadgeColor,
+					"name":  primaryBadgeName,
+				},
+				"badges": []gin.H{}, // Will be populated below
 			})
+			userIDs = append(userIDs, userID)
 			rank++
 		}
 
+		// Fetch all badges for each user
+		if len(userIDs) > 0 {
+			badgeQuery := `
+				SELECT ub.user_id, b.icon, b.color, b.name, b.badge_type, ub.is_primary
+				FROM user_badges ub
+				JOIN badges b ON ub.badge_id = b.id
+				WHERE ub.user_id = ANY($1)
+				ORDER BY ub.is_primary DESC, ub.earned_at DESC
+			`
+			badgeRows, err := db.Query(badgeQuery, pq.Array(userIDs))
+			if err == nil {
+				defer badgeRows.Close()
+				userBadges := make(map[int64][]gin.H)
+				for badgeRows.Next() {
+					var uid int64
+					var icon, color, name, badgeType string
+					var isPrimary bool
+					badgeRows.Scan(&uid, &icon, &color, &name, &badgeType, &isPrimary)
+					userBadges[uid] = append(userBadges[uid], gin.H{
+						"icon":      icon,
+						"color":     color,
+						"name":      name,
+						"type":      badgeType,
+						"isPrimary": isPrimary,
+					})
+				}
+				// Assign badges to leaders
+				for i, leader := range leaders {
+					uid := leader["userId"].(int64)
+					if badges, ok := userBadges[uid]; ok {
+						leaders[i]["badges"] = badges
+					}
+				}
+			}
+		}
+
 		c.JSON(http.StatusOK, gin.H{"leaderboard": leaders, "type": leaderboardType})
+	}
+}
+
+// getRoleBadge returns badge info for user roles (admin/moderator/super_admin)
+func getRoleBadge(role string) gin.H {
+	switch role {
+	case "super_admin":
+		return gin.H{"icon": "👑", "color": "#fbbf24", "name": "Super Admin", "type": "role"}
+	case "admin":
+		return gin.H{"icon": "⚔️", "color": "#ef4444", "name": "Admin", "type": "role"}
+	case "moderator":
+		return gin.H{"icon": "🛡️", "color": "#f97316", "name": "Moderator", "type": "role"}
+	default:
+		return nil
 	}
 }
 
@@ -6501,5 +6989,95 @@ func handleAdminTestNetworkConnection(db *sql.DB) gin.HandlerFunc {
 			"success": true,
 			"message": "RPC URL configured: " + rpcURL,
 		})
+	}
+}
+
+// =============================================================================
+// MINER MONITORING HANDLERS
+// =============================================================================
+
+// handleAdminGetAllMiners returns paginated list of all miners
+func handleAdminGetAllMiners(db *sql.DB) gin.HandlerFunc {
+	service := api.NewMinerMonitoringService(db)
+	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		search := c.Query("search")
+		activeOnly := c.Query("active") == "true"
+
+		miners, total, err := service.GetAllMinersForAdmin(page, limit, search, activeOnly)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch miners", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"miners": miners,
+			"total":  total,
+			"page":   page,
+			"limit":  limit,
+		})
+	}
+}
+
+// handleAdminGetMinerDetail returns comprehensive details for a miner
+func handleAdminGetMinerDetail(db *sql.DB) gin.HandlerFunc {
+	service := api.NewMinerMonitoringService(db)
+	return func(c *gin.Context) {
+		minerID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid miner ID"})
+			return
+		}
+
+		detail, err := service.GetMinerDetail(minerID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch miner details", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, detail)
+	}
+}
+
+// handleAdminGetMinerShares returns share history for a miner
+func handleAdminGetMinerShares(db *sql.DB) gin.HandlerFunc {
+	service := api.NewMinerMonitoringService(db)
+	return func(c *gin.Context) {
+		minerID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid miner ID"})
+			return
+		}
+
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+
+		shares, err := service.GetMinerShareHistory(minerID, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shares", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"shares": shares})
+	}
+}
+
+// handleAdminGetUserMiners returns all miners for a specific user
+func handleAdminGetUserMiners(db *sql.DB) gin.HandlerFunc {
+	service := api.NewMinerMonitoringService(db)
+	return func(c *gin.Context) {
+		userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		summary, err := service.GetUserMinerSummary(userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user miners", "details": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, summary)
 	}
 }

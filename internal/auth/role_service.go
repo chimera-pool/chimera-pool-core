@@ -101,13 +101,27 @@ func (s *RoleService) ListModerators(ctx context.Context, actor *User) ([]*User,
 	return s.repo.ListUsersByRole(ctx, RoleModerator)
 }
 
-// ListAdmins returns all users with admin role
+// ListAdmins returns all users with admin or super_admin role
 func (s *RoleService) ListAdmins(ctx context.Context, actor *User) ([]*User, error) {
 	// Only super admin can list admins
 	if actor.Role != RoleSuperAdmin {
 		return nil, ErrPermissionDenied
 	}
-	return s.repo.ListUsersByRole(ctx, RoleAdmin)
+
+	// Get both admins and super_admins
+	admins, err := s.repo.ListUsersByRole(ctx, RoleAdmin)
+	if err != nil {
+		return nil, err
+	}
+
+	superAdmins, err := s.repo.ListUsersByRole(ctx, RoleSuperAdmin)
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine both lists
+	allAdmins := append(admins, superAdmins...)
+	return allAdmins, nil
 }
 
 // PromoteToModerator promotes a user to moderator

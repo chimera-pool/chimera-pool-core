@@ -1,0 +1,122 @@
+# Chimera Pool Stratum Server Configuration
+# Optimized for BlockDAG X100 ASIC on Litecoin/Scrypt
+# Version: 1.0.0
+
+server:
+  # Stratum server port
+  port: 3333
+  # Maximum concurrent connections
+  max_connections: 1000
+  # Read timeout for client connections
+  read_timeout: 300s
+  # Write timeout for client responses
+  write_timeout: 30s
+
+# Variable Difficulty Configuration
+# Optimized for X100 ASIC (~15 TH/s on Scrypt)
+vardiff:
+  # Target time between share submissions
+  target_share_time: 10s
+  # How often to recalculate difficulty
+  retarget_interval: 3m
+  # Deadband percentage - no adjustment within this range
+  deadband_percent: 15
+  # Maximum change per retarget (as decimal, 0.15 = 15%)
+  max_change_per_retarget: 0.15
+  # Smoothing factor for exponential averaging
+  smoothing_factor: 0.4
+  # Minimum difficulty to prevent excessive small shares
+  min_difficulty: 1000
+  # Maximum difficulty for high-hashrate ASICs
+  max_difficulty: 10000000
+  # Initial difficulty for new miners (X100 on Scrypt)
+  # Formula: Hashrate * ShareTime / 2^32 = 15e12 * 10 / 4.295e9 ≈ 35000
+  initial_difficulty: 35000
+  # Number of shares to consider for averaging
+  share_window: 30
+  # Minimum change threshold to trigger adjustment
+  min_change_threshold: 0.02
+
+# Keepalive Configuration
+keepalive:
+  # Interval between keepalive checks
+  interval: 30s
+  # Timeout for response
+  timeout: 10s
+  # Maximum missed keepalives before disconnect
+  max_missed: 3
+  # Use work updates as keepalive signals
+  work_as_alive: true
+
+# Block Template Configuration
+block_template:
+  # Polling interval for new block templates
+  poll_interval: 5s
+  # Long-poll timeout (for future implementation)
+  long_poll_timeout: 30s
+  # Retry configuration for RPC failures
+  rpc_max_retries: 3
+  rpc_base_delay: 500ms
+  rpc_max_delay: 5s
+
+# Litecoin RPC Configuration
+litecoin:
+  rpc_url: "http://litecoind:9332"
+  rpc_user: "chimera"
+  rpc_pass: "ChimeraLTC2024!"
+  # Connection pool settings
+  max_idle_conns: 10
+  max_open_conns: 25
+  conn_max_lifetime: 5m
+
+# BlockDAG Configuration (for future migration)
+blockdag:
+  rpc_url: "https://rpc.awakening.bdagscan.com"
+  # BlockDAG uses Scrpy-variant algorithm
+  # X100 produces ~70 TH/s on Scrpy-variant (vs ~15 TH/s on Scrypt)
+  initial_difficulty_scrpy: 163000
+
+# Pool Configuration
+pool:
+  # Pool wallet address for rewards
+  wallet_address: "ltc1qgsm3fv44wprdcsh3trgarm05rr7l8ryggujr5w"
+  # Pool fee percentage
+  fee_percent: 1.0
+
+# Logging Configuration
+logging:
+  level: info
+  # Log share submissions
+  log_shares: true
+  # Log difficulty adjustments
+  log_vardiff: true
+  # Log RPC calls (verbose)
+  log_rpc: false
+
+# Performance Tuning
+performance:
+  # Enable TCP_NODELAY for lower latency
+  tcp_nodelay: true
+  # Socket buffer sizes
+  read_buffer_size: 4096
+  write_buffer_size: 4096
+  # Worker pool size for share validation
+  validation_workers: 4
+
+# Hardware-Specific Profiles
+hardware_profiles:
+  x100_scrypt:
+    name: "BlockDAG X100 on Scrypt/Litecoin"
+    expected_hashrate: 15e12  # 15 TH/s
+    optimal_difficulty: 35000
+    target_share_time: 10s
+  x100_scrpy:
+    name: "BlockDAG X100 on Scrpy-variant/BlockDAG"
+    expected_hashrate: 70e12  # 70 TH/s
+    optimal_difficulty: 163000
+    target_share_time: 10s
+  x30_scrypt:
+    name: "BlockDAG X30 on Scrypt/Litecoin"
+    expected_hashrate: 4.5e12  # 4.5 TH/s
+    optimal_difficulty: 10500
+    target_share_time: 10s

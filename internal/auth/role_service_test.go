@@ -310,13 +310,14 @@ func TestRoleService_ListAdmins_OnlySuperAdminCanList(t *testing.T) {
 	repo.users[admin1.ID] = admin1
 	repo.users[admin2.ID] = admin2
 
-	// Super admin can list admins
+	// Super admin can list admins (now returns both admins AND super_admins)
 	admins, err := service.ListAdmins(ctx, superAdmin)
 	if err != nil {
 		t.Fatalf("SuperAdmin should be able to list admins: %v", err)
 	}
-	if len(admins) != 2 {
-		t.Errorf("Expected 2 admins, got %d", len(admins))
+	// Expected: 2 admins + 1 super_admin = 3 total
+	if len(admins) != 3 {
+		t.Errorf("Expected 3 admins (2 admin + 1 super_admin), got %d", len(admins))
 	}
 
 	// Regular admin cannot list admins

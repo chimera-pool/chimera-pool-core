@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh, REFRESH_INTERVALS } from '../../hooks/useAutoRefresh';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { colors, gradients } from '../../styles/shared';
+import { useDashboardGraphs } from '../../services/realtime/useRealTimeData';
 
 // ============================================================================
 // MINING GRAPHS COMPONENT
@@ -120,16 +122,81 @@ const tooltipStyle = {
 };
 
 export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  // Use unified real-time data for pool-wide statistics
+  const dashboardData = useDashboardGraphs();
+  
   const [viewMode, setViewMode] = useState<ViewMode>(isLoggedIn ? 'personal' : 'pool');
   const [hashrateData, setHashrateData] = useState<any[]>([]);
   const [sharesData, setSharesData] = useState<any[]>([]);
   const [earningsData, setEarningsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(REFRESH_INTERVALS.FAST);
 
+  // Use unified time range from context for pool view
+  const timeRange = dashboardData.timeRange;
+  const setTimeRange = dashboardData.setTimeRange;
+
+  // Auto-refresh controls from unified context
+  const autoRefresh = {
+    isActive: dashboardData.isAutoRefreshEnabled,
+    toggle: dashboardData.toggleAutoRefresh,
+    refresh: dashboardData.refresh,
+    isRefreshing: dashboardData.isLoading,
+    nextRefreshIn: 10, // Default countdown - actual timing managed by context
+  };
+
+  // Direct fetch for pool data - fallback that always works
+  const fetchPoolData = async () => {
+    setLoading(true);
+    try {
+      const [hashRes, sharesRes, minersRes] = await Promise.all([
+        fetch(`/api/v1/pool/stats/hashrate?range=${timeRange}`),
+        fetch(`/api/v1/pool/stats/shares?range=${timeRange}`),
+        fetch(`/api/v1/pool/stats/miners?range=${timeRange}`)
+      ]);
+
+      if (hashRes.ok) {
+        const data = await hashRes.json();
+        setHashrateData((data.data || []).map((d: any) => ({
+          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          hashrateTH: (d.hashrate || 0) / 1e12,
+          hashrateMH: (d.hashrate || 0) / 1e6,
+        })));
+      }
+      if (sharesRes.ok) {
+        const data = await sharesRes.json();
+        setSharesData((data.data || []).map((d: any) => {
+          const valid = d.validShares || d.valid || 0;
+          const invalid = d.invalidShares || d.invalid || 0;
+          const total = valid + invalid;
+          return {
+            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            validShares: valid,
+            invalidShares: invalid,
+            acceptanceRate: total > 0 ? (valid / total) * 100 : 100,
+          };
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch pool data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch pool data when in pool view mode
   useEffect(() => {
-    fetchAllData();
-  }, [timeRange, viewMode]);
+    if (viewMode === 'pool') {
+      fetchPoolData();
+    }
+  }, [viewMode, timeRange]);
+
+  // Fetch personal data when in personal view mode
+  useEffect(() => {
+    if (viewMode === 'personal' && token) {
+      fetchPersonalData();
+    }
+  }, [timeRange, viewMode, token]);
 
   const generateMockPoolData = (type: string) => {
     const now = new Date();
@@ -155,72 +222,47 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
     return data;
   };
 
-  const fetchAllData = async () => {
+  // Fetch personal data (user-specific stats) - pool data comes from unified context
+  const fetchPersonalData = async () => {
+    if (!token) return;
+    
     setLoading(true);
     try {
-      if (viewMode === 'personal' && token) {
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const [hashRes, sharesRes, earningsRes] = await Promise.all([
-          fetch(`/api/v1/user/stats/hashrate?range=${timeRange}`, { headers }),
-          fetch(`/api/v1/user/stats/shares?range=${timeRange}`, { headers }),
-          fetch(`/api/v1/user/stats/earnings?range=${timeRange === '1h' || timeRange === '6h' ? '24h' : timeRange}`, { headers })
-        ]);
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [hashRes, sharesRes, earningsRes] = await Promise.all([
+        fetch(`/api/v1/user/stats/hashrate?range=${timeRange}`, { headers }),
+        fetch(`/api/v1/user/stats/shares?range=${timeRange}`, { headers }),
+        fetch(`/api/v1/user/stats/earnings?range=${timeRange === '1h' || timeRange === '6h' ? '24h' : timeRange}`, { headers })
+      ]);
 
-        if (hashRes.ok) {
-          const data = await hashRes.json();
-          setHashrateData(data.data?.map((d: any) => ({
-            ...d,
-            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            hashrateMH: d.hashrate / 1000000
-          })) || []);
-        }
-        if (sharesRes.ok) {
-          const data = await sharesRes.json();
-          setSharesData(data.data?.map((d: any) => ({
-            ...d,
-            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })) || []);
-        }
-        if (earningsRes.ok) {
-          const data = await earningsRes.json();
-          setEarningsData(data.data?.map((d: any) => ({
-            ...d,
-            time: new Date(d.time).toLocaleDateString([], { month: 'short', day: 'numeric' })
-          })) || []);
-        }
-      } else {
-        const [hashRes, sharesRes] = await Promise.all([
-          fetch(`/api/v1/pool/stats/hashrate?range=${timeRange}`),
-          fetch(`/api/v1/pool/stats/shares?range=${timeRange}`)
-        ]);
-
-        if (hashRes.ok) {
-          const data = await hashRes.json();
-          setHashrateData(data.data?.map((d: any) => ({
-            ...d,
-            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            hashrateMH: d.hashrate / 1000000000
-          })) || generateMockPoolData('hashrate'));
-        } else {
-          setHashrateData(generateMockPoolData('hashrate'));
-        }
-        if (sharesRes.ok) {
-          const data = await sharesRes.json();
-          setSharesData(data.data?.map((d: any) => ({
-            ...d,
-            time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })) || generateMockPoolData('shares'));
-        } else {
-          setSharesData(generateMockPoolData('shares'));
-        }
-        setEarningsData([]);
+      if (hashRes.ok) {
+        const data = await hashRes.json();
+        setHashrateData(data.data?.map((d: any) => ({
+          ...d,
+          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          hashrateMH: d.hashrate / 1000000,
+          hashrateTH: d.hashrate / 1000000000000
+        })) || []);
+      }
+      if (sharesRes.ok) {
+        const data = await sharesRes.json();
+        setSharesData(data.data?.map((d: any) => ({
+          ...d,
+          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          validShares: d.valid || d.validShares || 0,
+          invalidShares: d.invalid || d.invalidShares || 0,
+          acceptanceRate: d.acceptanceRate || d.acceptance_rate || 100
+        })) || []);
+      }
+      if (earningsRes.ok) {
+        const data = await earningsRes.json();
+        setEarningsData(data.data?.map((d: any) => ({
+          ...d,
+          time: new Date(d.time).toLocaleDateString([], { month: 'short', day: 'numeric' })
+        })) || []);
       }
     } catch (error) {
-      console.error('Failed to fetch graph data:', error);
-      if (viewMode === 'pool') {
-        setHashrateData(generateMockPoolData('hashrate'));
-        setSharesData(generateMockPoolData('shares'));
-      }
+      console.error('Failed to fetch personal graph data:', error);
     } finally {
       setLoading(false);
     }
@@ -258,19 +300,59 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
             </div>
           )}
         </div>
-        <div style={styles.timeSelector}>
-          {TIME_RANGES.map(({ value, label }) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' as const }}>
+          <div style={styles.timeSelector}>
+            {TIME_RANGES.map(({ value, label }) => (
+              <button
+                key={value}
+                style={{
+                  ...styles.timeBtn,
+                  ...(timeRange === value ? styles.timeBtnActive : {})
+                }}
+                onClick={() => setTimeRange(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Auto-Refresh Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', backgroundColor: colors.bgInput, borderRadius: '8px', border: `1px solid ${colors.border}` }}>
+            <span style={{ color: autoRefresh.isActive ? colors.success : colors.textSecondary, fontSize: '0.8rem' }}>
+              {autoRefresh.isActive ? '🔴 LIVE' : '⏸️'}
+            </span>
             <button
-              key={value}
+              onClick={autoRefresh.toggle}
               style={{
                 ...styles.timeBtn,
-                ...(timeRange === value ? styles.timeBtnActive : {})
+                backgroundColor: autoRefresh.isActive ? colors.success : colors.border,
+                color: autoRefresh.isActive ? colors.bgDark : colors.textSecondary,
+                borderColor: autoRefresh.isActive ? colors.success : colors.border,
+                padding: '4px 8px',
               }}
-              onClick={() => setTimeRange(value)}
             >
-              {label}
+              {autoRefresh.isActive ? 'Pause' : 'Live'}
             </button>
-          ))}
+            <button
+              onClick={() => autoRefresh.refresh()}
+              disabled={autoRefresh.isRefreshing}
+              style={{
+                ...styles.timeBtn,
+                backgroundColor: colors.primary,
+                color: colors.bgDark,
+                borderColor: colors.primary,
+                padding: '4px 8px',
+                opacity: autoRefresh.isRefreshing ? 0.5 : 1,
+              }}
+            >
+              ↻
+            </button>
+            {autoRefresh.isActive && (
+              <span style={{ color: colors.textSecondary, fontSize: '0.7rem' }}>
+                {autoRefresh.nextRefreshIn}s
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -291,9 +373,9 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
                 <XAxis dataKey="time" stroke={colors.textSecondary} fontSize={12} />
-                <YAxis stroke={colors.textSecondary} fontSize={12} tickFormatter={(v) => `${v.toFixed(0)} MH/s`} />
-                <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)} MH/s`, 'Hashrate']} />
-                <Area type="monotone" dataKey="hashrateMH" stroke={colors.primary} fill="url(#hashGradient)" strokeWidth={2} />
+                <YAxis stroke={colors.textSecondary} fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} TH/s`} />
+                <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)} TH/s`, 'Hashrate']} />
+                <Area type="monotone" dataKey="hashrateTH" stroke={colors.primary} fill="url(#hashGradient)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

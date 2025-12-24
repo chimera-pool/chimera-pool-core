@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useAutoRefresh, REFRESH_INTERVALS } from '../../hooks/useAutoRefresh';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -17,6 +18,7 @@ import {
   Legend
 } from 'recharts';
 import { formatHashrate } from '../../utils/formatters';
+import AdminStatsTab from './tabs/AdminStatsTab';
 
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
@@ -41,6 +43,7 @@ interface AdminUser {
   pool_fee_percent: number;
   is_active: boolean;
   is_admin: boolean;
+  role: string;
   created_at: string;
   total_earnings: number;
   pending_payout: number;
@@ -57,7 +60,7 @@ interface AdminPanelProps {
 }
 
 function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'network' | 'roles' | 'bugs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'network' | 'roles' | 'bugs' | 'miners'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -83,14 +86,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const [roleChangeUser, setRoleChangeUser] = useState<any>(null);
   const [newRole, setNewRole] = useState('');
 
-  // Pool statistics state
-  const [poolStatsRange, setPoolStatsRange] = useState<TimeRange>('24h');
-  const [poolHashrateData, setPoolHashrateData] = useState<any[]>([]);
-  const [poolSharesData, setPoolSharesData] = useState<any[]>([]);
-  const [poolMinersData, setPoolMinersData] = useState<any[]>([]);
-  const [poolPayoutsData, setPoolPayoutsData] = useState<any[]>([]);
-  const [poolDistribution, setPoolDistribution] = useState<any[]>([]);
-  const [statsLoading, setStatsLoading] = useState(false);
+  // Pool statistics state removed - now managed by isolated AdminStatsTab component
 
   // Algorithm settings state
   const [algorithmData, setAlgorithmData] = useState<any>(null);
@@ -105,6 +101,16 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
 
   // Network configuration state
   const [networks, setNetworks] = useState<any[]>([]);
+
+  // Miner monitoring state
+  const [allMiners, setAllMiners] = useState<any[]>([]);
+  const [minersLoading, setMinersLoading] = useState(false);
+  const [minerSearch, setMinerSearch] = useState('');
+  const [minerPage, setMinerPage] = useState(1);
+  const [minerTotal, setMinerTotal] = useState(0);
+  const [activeMinersOnly, setActiveMinersOnly] = useState(false);
+  const [selectedMiner, setSelectedMiner] = useState<any>(null);
+  const [selectedUserMiners, setSelectedUserMiners] = useState<any>(null);
   const [activeNetwork, setActiveNetwork] = useState<any>(null);
   const [networksLoading, setNetworksLoading] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<any>(null);
@@ -130,12 +136,67 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const [channelForm, setChannelForm] = useState({ name: '', description: '', category_id: '', type: 'text', is_read_only: false, admin_only_post: false });
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
 
+  // Stats tab auto-refresh removed - now managed by isolated AdminStatsTab component
+
   useEffect(() => { fetchUsers(); }, [page, search]);
   useEffect(() => { if (activeTab === 'algorithm') fetchAlgorithmSettings(); }, [activeTab]);
-  useEffect(() => { if (activeTab === 'stats') fetchPoolStats(); }, [activeTab, poolStatsRange]);
   useEffect(() => { if (activeTab === 'roles') fetchRoles(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'bugs') fetchAdminBugs(); }, [activeTab, bugFilter]);
   useEffect(() => { if (activeTab === 'network') fetchNetworks(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'miners') fetchAllMiners(); }, [activeTab, minerPage, minerSearch, activeMinersOnly]);
+
+  // Miner monitoring functions
+  const fetchAllMiners = async () => {
+    setMinersLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: minerPage.toString(),
+        limit: '20',
+        ...(minerSearch && { search: minerSearch }),
+        ...(activeMinersOnly && { active: 'true' })
+      });
+      const response = await fetch(`/api/v1/admin/monitoring/miners?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAllMiners(data.miners || []);
+        setMinerTotal(data.total || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch miners:', error);
+    } finally {
+      setMinersLoading(false);
+    }
+  };
+
+  const fetchMinerDetail = async (minerId: number) => {
+    try {
+      const response = await fetch(`/api/v1/admin/monitoring/miners/${minerId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedMiner(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch miner details:', error);
+    }
+  };
+
+  const fetchUserMiners = async (userId: number) => {
+    try {
+      const response = await fetch(`/api/v1/admin/monitoring/users/${userId}/miners`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedUserMiners(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user miners:', error);
+    }
+  };
 
   // Bug management functions
   const fetchAdminBugs = async () => {
@@ -471,57 +532,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
     });
   };
 
-  const fetchPoolStats = async () => {
-    setStatsLoading(true);
-    try {
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const [hashRes, sharesRes, minersRes, payoutsRes, distRes] = await Promise.all([
-        fetch(`/api/v1/admin/stats/hashrate?range=${poolStatsRange}`, { headers }),
-        fetch(`/api/v1/admin/stats/shares?range=${poolStatsRange}`, { headers }),
-        fetch(`/api/v1/admin/stats/miners?range=${poolStatsRange}`, { headers }),
-        fetch(`/api/v1/admin/stats/payouts?range=${poolStatsRange}`, { headers }),
-        fetch('/api/v1/admin/stats/distribution', { headers })
-      ]);
-
-      if (hashRes.ok) {
-        const data = await hashRes.json();
-        setPoolHashrateData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          totalGH: d.totalHashrate / 1000000000
-        })) || []);
-      }
-      if (sharesRes.ok) {
-        const data = await sharesRes.json();
-        setPoolSharesData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        })) || []);
-      }
-      if (minersRes.ok) {
-        const data = await minersRes.json();
-        setPoolMinersData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        })) || []);
-      }
-      if (payoutsRes.ok) {
-        const data = await payoutsRes.json();
-        setPoolPayoutsData(data.data?.map((d: any) => ({
-          ...d,
-          time: new Date(d.time).toLocaleDateString([], { month: 'short', day: 'numeric' })
-        })) || []);
-      }
-      if (distRes.ok) {
-        const data = await distRes.json();
-        setPoolDistribution(data.distribution || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch pool stats:', error);
-    } finally {
-      setStatsLoading(false);
-    }
-  };
+  // fetchPoolStatsInternal removed - now managed by isolated AdminStatsTab component
 
   const fetchAlgorithmSettings = async () => {
     try {
@@ -793,6 +804,13 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
               </span>
             )}
           </button>
+          <button 
+            style={{...adminStyles.tab, ...(activeTab === 'miners' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
+            onClick={() => setActiveTab('miners')}
+          >
+            ⛏️ Miners
+          </button>
         </div>
 
         {/* User Management Tab */}
@@ -847,9 +865,10 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                       <td style={adminStyles.td}>{user.pool_fee_percent || 'Default'}</td>
                       <td style={adminStyles.td}><span style={user.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{user.is_active ? 'Active' : 'Inactive'}</span></td>
                       <td style={adminStyles.td}>
-                        <button style={adminStyles.actionBtn} onClick={() => fetchUserDetail(user.id)}>👁️</button>
-                        <button style={adminStyles.actionBtn} onClick={() => handleEditUser(user)}>✏️</button>
-                        <button style={{...adminStyles.actionBtn, opacity: 0.7}} onClick={() => handleDeleteUser(user.id)}>🗑️</button>
+                        <button style={adminStyles.actionBtn} onClick={() => fetchUserDetail(user.id)} title="View Details">👁️</button>
+                        <button style={adminStyles.actionBtn} onClick={() => handleEditUser(user)} title="Edit User">✏️</button>
+                        <button style={{...adminStyles.actionBtn, backgroundColor: '#2a1a4a', borderColor: '#8b5cf6'}} onClick={() => setRoleChangeUser(user)} title="Change Role">👑</button>
+                        <button style={{...adminStyles.actionBtn, opacity: 0.7}} onClick={() => handleDeleteUser(user.id)} title="Delete User">🗑️</button>
                       </td>
                     </tr>
                   ))}
@@ -981,168 +1000,39 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
             ))}
           </div>
         )}
+
+        {/* Role Change Modal (accessible from Users tab) */}
+        {roleChangeUser && (
+          <div style={adminStyles.editModal}>
+            <h3 style={adminStyles.editTitle}>👑 Change Role: {roleChangeUser.username}</h3>
+            <p style={{ color: '#888', marginBottom: '15px' }}>
+              Current role: <strong style={{ color: '#00d4ff' }}>{roleChangeUser.role || 'user'}</strong>
+            </p>
+            <div style={adminStyles.formGroup}>
+              <label style={adminStyles.label}>New Role</label>
+              <select 
+                style={adminStyles.algoSelect} 
+                value={newRole} 
+                onChange={e => setNewRole(e.target.value)}
+              >
+                <option value="">Select a role</option>
+                <option value="user">👤 User</option>
+                <option value="moderator">🛡️ Moderator</option>
+                <option value="admin">👑 Admin</option>
+                <option value="super_admin">⭐ Super Admin</option>
+              </select>
+            </div>
+            <div style={adminStyles.editActions}>
+              <button style={adminStyles.cancelBtn} onClick={() => { setRoleChangeUser(null); setNewRole(''); }}>Cancel</button>
+              <button style={adminStyles.saveBtn} onClick={handleChangeRole} disabled={!newRole}>Change Role</button>
+            </div>
+          </div>
+        )}
           </>
         )}
 
-        {/* Pool Statistics Tab */}
-        {activeTab === 'stats' && (
-          <div style={adminStyles.algorithmContainer}>
-            <div style={adminStyles.algoHeader}>
-              <h3 style={adminStyles.algoTitle}>📊 Pool Statistics Dashboard</h3>
-              <div style={graphStyles.timeSelector}>
-                {([
-                  { value: '1h', label: '1H' },
-                  { value: '6h', label: '6H' },
-                  { value: '24h', label: '24H' },
-                  { value: '7d', label: '7D' },
-                  { value: '30d', label: '30D' },
-                  { value: '3m', label: '3M' },
-                  { value: '6m', label: '6M' },
-                  { value: '1y', label: '1Y' },
-                  { value: 'all', label: 'All' }
-                ] as { value: TimeRange; label: string }[]).map(({ value, label }) => (
-                  <button
-                    key={value}
-                    style={{...graphStyles.timeBtn, ...(poolStatsRange === value ? graphStyles.timeBtnActive : {})}}
-                    onClick={() => setPoolStatsRange(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {statsLoading ? (
-              <div style={graphStyles.loading}>Loading pool statistics...</div>
-            ) : (
-              <div style={graphStyles.chartsGrid}>
-                {/* Pool Hashrate Chart */}
-                <div style={graphStyles.chartCard}>
-                  <h3 style={graphStyles.chartTitle}>⚡ Pool Hashrate</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={poolHashrateData}>
-                      <defs>
-                        <linearGradient id="poolHashGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#9b59b6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#9b59b6" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={12} />
-                      <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} GH/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
-                        labelStyle={{ color: '#9b59b6' }}
-                        formatter={(value: number) => [`${value.toFixed(2)} GH/s`, 'Pool Hashrate']}
-                      />
-                      <Area type="monotone" dataKey="totalGH" stroke="#9b59b6" fill="url(#poolHashGradient)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Active Miners Chart */}
-                <div style={graphStyles.chartCard}>
-                  <h3 style={graphStyles.chartTitle}>👥 Active Miners</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={poolMinersData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={12} />
-                      <YAxis stroke="#888" fontSize={12} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
-                        labelStyle={{ color: '#00d4ff' }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="activeMiners" name="Active Miners" stroke="#00d4ff" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="uniqueUsers" name="Unique Users" stroke="#4ade80" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Pool Shares Chart */}
-                <div style={graphStyles.chartCard}>
-                  <h3 style={graphStyles.chartTitle}>📦 Pool Shares</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={poolSharesData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={12} />
-                      <YAxis stroke="#888" fontSize={12} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
-                        labelStyle={{ color: '#00d4ff' }}
-                      />
-                      <Legend />
-                      <Bar dataKey="validShares" name="Valid" fill="#4ade80" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="invalidShares" name="Invalid" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Pool Payouts Chart */}
-                <div style={graphStyles.chartCard}>
-                  <h3 style={graphStyles.chartTitle}>💰 Pool Payouts</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={poolPayoutsData}>
-                      <defs>
-                        <linearGradient id="payoutGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={12} />
-                      <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => `${v.toFixed(0)}`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
-                        labelStyle={{ color: '#f59e0b' }}
-                        formatter={(value: number) => [`${value.toFixed(2)} BDAG`, 'Cumulative Paid']}
-                      />
-                      <Area type="monotone" dataKey="cumulative" stroke="#f59e0b" fill="url(#payoutGradient)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Hashrate Distribution Pie Chart */}
-                <div style={{...graphStyles.chartCard, gridColumn: '1 / -1'}}>
-                  <h3 style={graphStyles.chartTitle}>🥧 Hashrate Distribution (Top Miners)</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap' }}>
-                    <ResponsiveContainer width={400} height={300}>
-                      <PieChart>
-                        <Pie
-                          data={poolDistribution}
-                          dataKey="percentage"
-                          nameKey="username"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={100}
-                          label={({ username, percentage }) => `${username}: ${percentage.toFixed(1)}%`}
-                        >
-                          {poolDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={['#00d4ff', '#9b59b6', '#4ade80', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'][index % 7]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
-                          formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div style={{ padding: '20px' }}>
-                      <h4 style={{ color: '#00d4ff', marginBottom: '15px' }}>Top Contributors</h4>
-                      {poolDistribution.slice(0, 5).map((user, idx) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '40px', padding: '8px 0', borderBottom: '1px solid #2a2a4a' }}>
-                          <span style={{ color: ['#00d4ff', '#9b59b6', '#4ade80', '#f59e0b', '#ef4444'][idx] }}>{user.username}</span>
-                          <span style={{ color: '#888' }}>{formatHashrate(user.hashrate)}</span>
-                          <span style={{ color: '#e0e0e0' }}>{user.percentage.toFixed(1)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Pool Statistics Tab - Isolated Component (prevents parent re-renders) */}
+        <AdminStatsTab token={token} isActive={activeTab === 'stats'} />
 
         {/* Algorithm Settings Tab */}
         {activeTab === 'algorithm' && (
@@ -2114,6 +2004,401 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                       </div>
                     ))}
                   </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Miner Monitoring Tab */}
+        {activeTab === 'miners' && (
+          <div style={adminStyles.algorithmContainer}>
+            {selectedMiner ? (
+              // Miner Detail View
+              <div>
+                <button 
+                  style={{ marginBottom: '20px', padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                  onClick={() => setSelectedMiner(null)}
+                >
+                  ← Back to Miners List
+                </button>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                  {/* Miner Info Card */}
+                  <div style={{ ...adminStyles.algoCard, borderColor: selectedMiner.is_active ? '#4ade80' : '#f87171' }}>
+                    <h3 style={{ color: '#00d4ff', marginTop: 0 }}>⛏️ {selectedMiner.name}</h3>
+                    <p><strong>User:</strong> {selectedMiner.username} (ID: {selectedMiner.user_id})</p>
+                    <p><strong>IP Address:</strong> {selectedMiner.address || 'Unknown'}</p>
+                    <p><strong>Status:</strong> <span style={selectedMiner.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{selectedMiner.is_active ? '🟢 Active' : '🔴 Offline'}</span></p>
+                    <p><strong>Connection:</strong> {selectedMiner.connection_duration}</p>
+                    <p><strong>Uptime (24h):</strong> {selectedMiner.uptime_percent?.toFixed(1)}%</p>
+                    <p><strong>Last Seen:</strong> {new Date(selectedMiner.last_seen).toLocaleString()}</p>
+                  </div>
+
+                  {/* Hashrate Card */}
+                  <div style={adminStyles.algoCard}>
+                    <h3 style={{ color: '#9b59b6', marginTop: 0 }}>⚡ Performance</h3>
+                    <p><strong>Reported Hashrate:</strong> {formatHashrate(selectedMiner.hashrate)}</p>
+                    <p><strong>Effective Hashrate:</strong> {formatHashrate(selectedMiner.performance?.effective_hashrate || 0)}</p>
+                    <p><strong>Efficiency:</strong> {selectedMiner.performance?.efficiency_percent?.toFixed(1) || 0}%</p>
+                    <p><strong>Shares/Min:</strong> {selectedMiner.performance?.shares_per_minute?.toFixed(2) || 0}</p>
+                    <p><strong>Avg Share Time:</strong> {selectedMiner.performance?.avg_share_time_seconds?.toFixed(1) || 0}s</p>
+                    <p><strong>Est. Daily Shares:</strong> {selectedMiner.performance?.estimated_daily_shares || 0}</p>
+                  </div>
+
+                  {/* Share Stats Card */}
+                  <div style={adminStyles.algoCard}>
+                    <h3 style={{ color: '#4ade80', marginTop: 0 }}>📊 Share Statistics</h3>
+                    <p><strong>Total Shares:</strong> {selectedMiner.share_stats?.total_shares || 0}</p>
+                    <p><strong>Valid:</strong> <span style={{ color: '#4ade80' }}>{selectedMiner.share_stats?.valid_shares || 0}</span></p>
+                    <p><strong>Invalid:</strong> <span style={{ color: '#f87171' }}>{selectedMiner.share_stats?.invalid_shares || 0}</span></p>
+                    <p><strong>Acceptance Rate:</strong> {selectedMiner.share_stats?.acceptance_rate?.toFixed(2) || 0}%</p>
+                    <p><strong>Last Hour:</strong> {selectedMiner.share_stats?.last_hour || 0}</p>
+                    <p><strong>Last 24h:</strong> {selectedMiner.share_stats?.last_24_hours || 0}</p>
+                    <p><strong>Avg Difficulty:</strong> {selectedMiner.share_stats?.avg_difficulty?.toFixed(4) || 0}</p>
+                  </div>
+
+                  {/* Troubleshooting Card */}
+                  <div style={{ ...adminStyles.algoCard, borderColor: '#f59e0b' }}>
+                    <h3 style={{ color: '#f59e0b', marginTop: 0 }}>🔧 Troubleshooting</h3>
+                    {selectedMiner.share_stats?.acceptance_rate < 95 && (
+                      <div style={{ backgroundColor: '#4d2a1a', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
+                        <strong style={{ color: '#f87171' }}>⚠️ Low Acceptance Rate</strong>
+                        <p style={{ margin: '5px 0 0', color: '#fbbf24', fontSize: '0.9rem' }}>
+                          {(100 - (selectedMiner.share_stats?.acceptance_rate || 0)).toFixed(1)}% of shares are invalid. Check miner configuration.
+                        </p>
+                      </div>
+                    )}
+                    {!selectedMiner.is_active && (
+                      <div style={{ backgroundColor: '#4d1a1a', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
+                        <strong style={{ color: '#f87171' }}>🔴 Miner Offline</strong>
+                        <p style={{ margin: '5px 0 0', color: '#fbbf24', fontSize: '0.9rem' }}>
+                          Last seen: {new Date(selectedMiner.last_seen).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedMiner.performance?.efficiency_percent < 80 && selectedMiner.performance?.efficiency_percent > 0 && (
+                      <div style={{ backgroundColor: '#4d3a1a', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
+                        <strong style={{ color: '#fbbf24' }}>⚡ Low Efficiency</strong>
+                        <p style={{ margin: '5px 0 0', color: '#fbbf24', fontSize: '0.9rem' }}>
+                          Effective hashrate is only {selectedMiner.performance?.efficiency_percent?.toFixed(1)}% of reported. Possible network issues.
+                        </p>
+                      </div>
+                    )}
+                    {selectedMiner.share_stats?.acceptance_rate >= 95 && selectedMiner.is_active && (
+                      <div style={{ backgroundColor: '#1a4d1a', padding: '10px', borderRadius: '6px' }}>
+                        <strong style={{ color: '#4ade80' }}>✅ Miner Healthy</strong>
+                        <p style={{ margin: '5px 0 0', color: '#4ade80', fontSize: '0.9rem' }}>
+                          No issues detected. Miner is operating normally.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual Charts Section */}
+                <h3 style={{ color: '#00d4ff', marginTop: '30px' }}>📊 Visual Analytics</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                  
+                  {/* Share Distribution Pie Chart */}
+                  <div style={graphStyles.chartCard}>
+                    <h4 style={graphStyles.chartTitle}>Share Distribution</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Valid', value: selectedMiner.share_stats?.valid_shares || 0, color: '#4ade80' },
+                            { name: 'Invalid', value: selectedMiner.share_stats?.invalid_shares || 0, color: '#f87171' }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        >
+                          <Cell fill="#4ade80" />
+                          <Cell fill="#f87171" />
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
+                          formatter={(value: number) => [value, 'Shares']}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Share Timeline Bar Chart */}
+                  <div style={graphStyles.chartCard}>
+                    <h4 style={graphStyles.chartTitle}>Recent Share Activity</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={
+                        (selectedMiner.recent_shares || []).slice(0, 10).reverse().map((share: any, idx: number) => ({
+                          name: `#${idx + 1}`,
+                          difficulty: share.difficulty,
+                          valid: share.is_valid ? share.difficulty : 0,
+                          invalid: !share.is_valid ? share.difficulty : 0
+                        }))
+                      }>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                        <XAxis dataKey="name" stroke="#888" fontSize={12} />
+                        <YAxis stroke="#888" fontSize={12} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
+                          formatter={(value: number) => [value.toFixed(4), 'Difficulty']}
+                        />
+                        <Bar dataKey="valid" stackId="a" fill="#4ade80" name="Valid" />
+                        <Bar dataKey="invalid" stackId="a" fill="#f87171" name="Invalid" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Performance Gauge */}
+                  <div style={graphStyles.chartCard}>
+                    <h4 style={graphStyles.chartTitle}>Efficiency Breakdown</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        layout="vertical"
+                        data={[
+                          { name: 'Acceptance', value: selectedMiner.share_stats?.acceptance_rate || 0, fill: '#4ade80' },
+                          { name: 'Efficiency', value: selectedMiner.performance?.efficiency_percent || 0, fill: '#00d4ff' },
+                          { name: 'Uptime (24h)', value: selectedMiner.uptime_percent || 0, fill: '#9b59b6' }
+                        ]}
+                        margin={{ left: 20, right: 30 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                        <XAxis type="number" domain={[0, 100]} stroke="#888" fontSize={12} tickFormatter={(v) => `${v}%`} />
+                        <YAxis type="category" dataKey="name" stroke="#888" fontSize={12} width={80} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
+                          formatter={(value: number) => [`${value.toFixed(1)}%`, 'Value']}
+                        />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          {[
+                            { name: 'Acceptance', fill: '#4ade80' },
+                            { name: 'Efficiency', fill: '#00d4ff' },
+                            { name: 'Uptime', fill: '#9b59b6' }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Hashrate Comparison */}
+                  <div style={graphStyles.chartCard}>
+                    <h4 style={graphStyles.chartTitle}>Hashrate Analysis</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        data={[
+                          { name: 'Reported', value: selectedMiner.hashrate || 0 },
+                          { name: 'Effective', value: selectedMiner.performance?.effective_hashrate || 0 }
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                        <XAxis dataKey="name" stroke="#888" fontSize={12} />
+                        <YAxis stroke="#888" fontSize={12} tickFormatter={(v) => formatHashrate(v)} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '8px' }}
+                          formatter={(value: number) => [formatHashrate(value), 'Hashrate']}
+                        />
+                        <Bar dataKey="value" fill="#9b59b6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Recent Shares Table */}
+                <h3 style={{ color: '#00d4ff', marginTop: '30px' }}>📋 Recent Shares</h3>
+                <div style={adminStyles.tableContainer}>
+                  <table style={adminStyles.table}>
+                    <thead>
+                      <tr>
+                        <th style={adminStyles.th}>Time</th>
+                        <th style={adminStyles.th}>Difficulty</th>
+                        <th style={adminStyles.th}>Status</th>
+                        <th style={adminStyles.th}>Nonce</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedMiner.recent_shares || []).map((share: any) => (
+                        <tr key={share.id} style={adminStyles.tr}>
+                          <td style={adminStyles.td}>{share.time_since}</td>
+                          <td style={adminStyles.td}>{share.difficulty?.toFixed(4)}</td>
+                          <td style={adminStyles.td}>
+                            <span style={share.is_valid ? adminStyles.activeBadge : adminStyles.inactiveBadge}>
+                              {share.is_valid ? '✓ Valid' : '✗ Invalid'}
+                            </span>
+                          </td>
+                          <td style={adminStyles.td}><code style={{ fontSize: '0.8rem' }}>{share.nonce?.substring(0, 16)}...</code></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : selectedUserMiners ? (
+              // User Miners Summary View
+              <div>
+                <button 
+                  style={{ marginBottom: '20px', padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                  onClick={() => setSelectedUserMiners(null)}
+                >
+                  ← Back to Miners List
+                </button>
+
+                <div style={{ ...adminStyles.algoCard, marginBottom: '20px' }}>
+                  <h3 style={{ color: '#00d4ff', marginTop: 0 }}>👤 {selectedUserMiners.username}'s Mining Overview</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginTop: '15px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', color: '#9b59b6' }}>{selectedUserMiners.total_miners}</div>
+                      <div style={{ color: '#888' }}>Total Miners</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', color: '#4ade80' }}>{selectedUserMiners.active_miners}</div>
+                      <div style={{ color: '#888' }}>Active</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', color: '#f87171' }}>{selectedUserMiners.inactive_miners}</div>
+                      <div style={{ color: '#888' }}>Offline</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', color: '#00d4ff' }}>{formatHashrate(selectedUserMiners.total_hashrate)}</div>
+                      <div style={{ color: '#888' }}>Total Hashrate</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', color: '#fbbf24' }}>{selectedUserMiners.total_shares_24h}</div>
+                      <div style={{ color: '#888' }}>Shares (24h)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <h3 style={{ color: '#00d4ff' }}>⛏️ Miners</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(selectedUserMiners.miners || []).map((miner: any) => (
+                    <div 
+                      key={miner.id} 
+                      style={{ ...adminStyles.algoCard, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onClick={() => fetchMinerDetail(miner.id)}
+                    >
+                      <div>
+                        <strong style={{ color: '#e0e0e0' }}>{miner.name}</strong>
+                        <span style={{ marginLeft: '10px', ...miner.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge }}>
+                          {miner.is_active ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '20px', color: '#888' }}>
+                        <span>⚡ {formatHashrate(miner.hashrate)}</span>
+                        <span>📊 {miner.shares_24h} shares</span>
+                        <span>✓ {miner.valid_percent?.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // All Miners List View
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+                  <div>
+                    <h3 style={{ color: '#9b59b6', margin: 0 }}>⛏️ Miner Monitoring</h3>
+                    <p style={{ color: '#888', margin: '5px 0 0', fontSize: '0.9rem' }}>
+                      {minerTotal} miners • View detailed performance and troubleshooting info
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <label style={{ color: '#888', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={activeMinersOnly} 
+                        onChange={e => { setActiveMinersOnly(e.target.checked); setMinerPage(1); }}
+                      />
+                      Active only
+                    </label>
+                    <button 
+                      style={{ padding: '8px 16px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                      onClick={fetchAllMiners}
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <div style={adminStyles.searchBar}>
+                  <input 
+                    style={adminStyles.searchInput} 
+                    type="text" 
+                    placeholder="Search miners by name..." 
+                    value={minerSearch} 
+                    onChange={e => { setMinerSearch(e.target.value); setMinerPage(1); }} 
+                  />
+                </div>
+
+                {minersLoading ? (
+                  <div style={adminStyles.loading}>Loading miners...</div>
+                ) : allMiners.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                    <p style={{ fontSize: '1.2rem', margin: '0 0 10px' }}>No miners found</p>
+                    <p style={{ margin: 0 }}>No miners are currently registered in the pool.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={adminStyles.tableContainer}>
+                      <table style={adminStyles.table}>
+                        <thead>
+                          <tr>
+                            <th style={adminStyles.th}>Miner Name</th>
+                            <th style={adminStyles.th}>IP Address</th>
+                            <th style={adminStyles.th}>Hashrate</th>
+                            <th style={adminStyles.th}>Shares (24h)</th>
+                            <th style={adminStyles.th}>Valid %</th>
+                            <th style={adminStyles.th}>Status</th>
+                            <th style={adminStyles.th}>Last Seen</th>
+                            <th style={adminStyles.th}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allMiners.map((miner: any) => (
+                            <tr key={miner.id} style={adminStyles.tr}>
+                              <td style={adminStyles.td}><strong>{miner.name}</strong></td>
+                              <td style={adminStyles.td}>{miner.address || 'Unknown'}</td>
+                              <td style={adminStyles.td}>{formatHashrate(miner.hashrate)}</td>
+                              <td style={adminStyles.td}>{miner.shares_24h}</td>
+                              <td style={adminStyles.td}>
+                                <span style={{ color: miner.valid_percent >= 95 ? '#4ade80' : miner.valid_percent >= 80 ? '#fbbf24' : '#f87171' }}>
+                                  {miner.valid_percent?.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td style={adminStyles.td}>
+                                <span style={miner.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>
+                                  {miner.is_active ? '🟢 Online' : '🔴 Offline'}
+                                </span>
+                              </td>
+                              <td style={adminStyles.td}>{new Date(miner.last_seen).toLocaleString()}</td>
+                              <td style={adminStyles.td}>
+                                <button 
+                                  style={{ ...adminStyles.actionBtn, backgroundColor: '#1a3a4a', borderRadius: '4px' }} 
+                                  onClick={() => fetchMinerDetail(miner.id)}
+                                  title="View Details"
+                                >
+                                  🔍
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={adminStyles.pagination}>
+                      <button style={adminStyles.pageBtn} disabled={minerPage <= 1} onClick={() => setMinerPage(p => p - 1)}>← Prev</button>
+                      <span style={adminStyles.pageInfo}>Page {minerPage} of {Math.ceil(minerTotal / 20)} ({minerTotal} miners)</span>
+                      <button style={adminStyles.pageBtn} disabled={minerPage >= Math.ceil(minerTotal / 20)} onClick={() => setMinerPage(p => p + 1)}>Next →</button>
+                    </div>
+                  </>
                 )}
               </>
             )}

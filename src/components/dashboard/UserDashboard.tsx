@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, gradients } from '../../styles/shared';
 import { formatHashrate } from '../../utils/formatters';
+import { useUserDashboard } from '../../services/realtime/useRealTimeData';
 
 // ============================================================================
 // USER DASHBOARD COMPONENT
@@ -126,8 +127,16 @@ const styles: { [key: string]: React.CSSProperties } = {
 };
 
 export function UserDashboard({ token }: UserDashboardProps) {
+  // Unified real-time data from context
+  const dashboardData = useUserDashboard();
+  
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Set auth token in context on mount
+  useEffect(() => {
+    dashboardData.setAuthToken(token);
+  }, [token, dashboardData.setAuthToken]);
 
   useEffect(() => {
     fetchUserStats();

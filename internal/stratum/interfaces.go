@@ -330,3 +330,58 @@ type MetricsCollector interface {
 	GetPoolHashrate() float64
 	GetActiveMiners() int
 }
+
+// -----------------------------------------------------------------------------
+// Keepalive Interfaces
+// -----------------------------------------------------------------------------
+
+// KeepaliveConfig holds keepalive configuration
+type KeepaliveConfig struct {
+	Interval        time.Duration // How often to send keepalive
+	Timeout         time.Duration // How long to wait for response
+	MaxMissed       int           // Max missed keepalives before disconnect
+	SendWorkAsAlive bool          // Use work updates as keepalive
+}
+
+// KeepaliveManager handles connection keepalive
+type KeepaliveManager interface {
+	Start(minerID string)
+	Stop(minerID string)
+	RecordActivity(minerID string) // Called when miner sends any message
+	IsAlive(minerID string) bool
+	GetConfig() KeepaliveConfig
+}
+
+// -----------------------------------------------------------------------------
+// Work Broadcaster Interfaces
+// -----------------------------------------------------------------------------
+
+// WorkBroadcasterConfig holds work broadcaster configuration
+type WorkBroadcasterConfig struct {
+	MinInterval   time.Duration // Minimum time between work updates
+	MaxInterval   time.Duration // Maximum time without work update (forces update)
+	OnBlockChange bool          // Broadcast immediately on new block
+	OnDiffChange  bool          // Broadcast when difficulty changes
+}
+
+// WorkBroadcaster manages work distribution to miners
+type WorkBroadcaster interface {
+	Start() error
+	Stop() error
+	BroadcastToMiner(minerID string, job Job) error
+	BroadcastToAll(job Job) error
+	SetInterval(interval time.Duration)
+	GetConfig() WorkBroadcasterConfig
+}
+
+// -----------------------------------------------------------------------------
+// Merkle Tree Interfaces
+// -----------------------------------------------------------------------------
+
+// MerkleTreeBuilder builds merkle trees for block templates
+type MerkleTreeBuilder interface {
+	// BuildBranch computes the merkle branch for coinbase at index 0
+	BuildBranch(txHashes [][]byte) [][]byte
+	// ComputeRoot computes the merkle root given coinbase and branch
+	ComputeRoot(coinbaseHash []byte, branch [][]byte) []byte
+}
