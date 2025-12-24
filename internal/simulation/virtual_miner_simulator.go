@@ -9,13 +9,13 @@ import (
 
 // virtualMinerSimulator implements the VirtualMinerSimulator interface
 type virtualMinerSimulator struct {
-	config      VirtualMinerConfig
-	miners      map[string]*VirtualMiner
-	isRunning   bool
-	stopChan    chan struct{}
-	mutex       sync.RWMutex
-	stats       *SimulationStats
-	startTime   time.Time
+	config    VirtualMinerConfig
+	miners    map[string]*VirtualMiner
+	isRunning bool
+	stopChan  chan struct{}
+	mutex     sync.RWMutex
+	stats     *SimulationStats
+	startTime time.Time
 }
 
 // NewVirtualMinerSimulator creates a new virtual miner simulator
@@ -132,11 +132,12 @@ func (vms *virtualMinerSimulator) RemoveMiner(id string) error {
 
 // GetSimulationStats returns overall simulation statistics
 func (vms *virtualMinerSimulator) GetSimulationStats() *SimulationStats {
-	vms.mutex.RLock()
-	defer vms.mutex.RUnlock()
+	// Use write lock since calculateStatsLocked modifies vms.stats
+	vms.mutex.Lock()
+	defer vms.mutex.Unlock()
 
 	// Update stats before returning
-	vms.calculateStats()
+	vms.calculateStatsLocked()
 	return vms.stats
 }
 
@@ -190,7 +191,7 @@ func (vms *virtualMinerSimulator) TriggerDrop(minerID string, duration time.Dura
 		time.Sleep(duration)
 		vms.mutex.Lock()
 		defer vms.mutex.Unlock()
-		
+
 		if miner := vms.miners[minerID]; miner != nil {
 			miner.CurrentState.IsDisconnected = false
 			if vms.isRunning {
@@ -227,13 +228,60 @@ func (vms *virtualMinerSimulator) TriggerAttack(minerID string, attackType strin
 		time.Sleep(duration)
 		vms.mutex.Lock()
 		defer vms.mutex.Unlock()
-		
+
 		if miner := vms.miners[minerID]; miner != nil && miner.AttackProfile != nil {
 			miner.AttackProfile.IsAttacking = false
 		}
 	}()
 
 	return nil
+}
+
+// triggerDropLocked is the internal version called when mutex is already held
+func (vms *virtualMinerSimulator) triggerDropLocked(miner *VirtualMiner, duration time.Duration) {
+	miner.CurrentState.IsDisconnected = true
+	miner.IsActive = false
+	miner.Statistics.DropEvents++
+
+	minerID := miner.ID
+	// Schedule reconnection
+	go func() {
+		time.Sleep(duration)
+		vms.mutex.Lock()
+		defer vms.mutex.Unlock()
+
+		if miner := vms.miners[minerID]; miner != nil {
+			miner.CurrentState.IsDisconnected = false
+			if vms.isRunning {
+				miner.IsActive = true
+				miner.CurrentState.LastSeen = time.Now()
+			}
+		}
+	}()
+}
+
+// triggerAttackLocked is the internal version called when mutex is already held
+func (vms *virtualMinerSimulator) triggerAttackLocked(miner *VirtualMiner, attackType string, duration time.Duration) {
+	if !miner.IsMalicious {
+		return
+	}
+
+	miner.AttackProfile.IsAttacking = true
+	miner.AttackProfile.AttackStarted = time.Now()
+	miner.AttackProfile.AttackDuration = duration
+	miner.Statistics.AttackEvents++
+
+	minerID := miner.ID
+	// Schedule attack end
+	go func() {
+		time.Sleep(duration)
+		vms.mutex.Lock()
+		defer vms.mutex.Unlock()
+
+		if miner := vms.miners[minerID]; miner != nil && miner.AttackProfile != nil {
+			miner.AttackProfile.IsAttacking = false
+		}
+	}()
 }
 
 // UpdateMinerHashRate updates a miner's hash rate
@@ -273,7 +321,7 @@ func (vms *virtualMinerSimulator) generateMiners() error {
 	for i := 0; i < vms.config.MinerCount; i++ {
 		minerType := vms.selectMinerType(typeDistribution)
 		isMalicious := vms.shouldBeMalicious()
-		
+
 		miner := vms.createMiner(minerType, isMalicious)
 		vms.miners[miner.ID] = miner
 	}
@@ -315,9 +363,9 @@ func (vms *virtualMinerSimulator) shouldBeMalicious() bool {
 
 func (vms *virtualMinerSimulator) createMiner(minerType MinerType, isMalicious bool) *VirtualMiner {
 	id := fmt.Sprintf("miner_%d_%d", time.Now().UnixNano(), rand.Intn(10000))
-	
+
 	// Calculate hash rate
-	baseHashRate := vms.config.HashRateRange.Min + 
+	baseHashRate := vms.config.HashRateRange.Min +
 		uint64(rand.Float64()*float64(vms.config.HashRateRange.Max-vms.config.HashRateRange.Min))
 	hashRate := uint64(float64(baseHashRate) * minerType.HashRateMultiplier)
 
@@ -331,7 +379,7 @@ func (vms *virtualMinerSimulator) createMiner(minerType MinerType, isMalicious b
 			PowerConsumption: minerType.PowerConsumption,
 			EfficiencyRating: minerType.EfficiencyRating,
 			FailureRate:      minerType.FailureRate,
-			Temperature:      20.0 + rand.Float64()*60.0, // 20-80°C
+			Temperature:      20.0 + rand.Float64()*60.0,     // 20-80°C
 			FanSpeed:         uint32(1000 + rand.Intn(2000)), // 1000-3000 RPM
 		},
 		NetworkProfile: vms.createNetworkProfile(),
@@ -365,7 +413,7 @@ func (vms *virtualMinerSimulator) createNetworkProfile() *NetworkProfile {
 
 	// Select connection quality based on distribution
 	quality := vms.selectConnectionQuality()
-	
+
 	// Generate latency within range
 	latencyRange := vms.config.NetworkConditions.LatencyRange
 	latencyDiff := latencyRange.Max - latencyRange.Min
@@ -438,10 +486,10 @@ func (vms *virtualMinerSimulator) processBehaviors() {
 
 		// Process burst mining
 		vms.processBurstMining(miner)
-		
+
 		// Process connection drops
 		vms.processConnectionDrops(miner)
-		
+
 		// Process malicious behavior
 		if miner.IsMalicious {
 			vms.processMaliciousBehavior(miner)
@@ -449,7 +497,7 @@ func (vms *virtualMinerSimulator) processBehaviors() {
 
 		// Simulate share submission
 		vms.simulateShareSubmission(miner)
-		
+
 		// Update miner state
 		miner.CurrentState.LastSeen = time.Now()
 	}
@@ -457,7 +505,7 @@ func (vms *virtualMinerSimulator) processBehaviors() {
 
 func (vms *virtualMinerSimulator) processBurstMining(miner *VirtualMiner) {
 	config := vms.config.BehaviorPatterns.BurstMining
-	
+
 	// Check if burst should end
 	if miner.CurrentState.IsBursting {
 		if time.Since(miner.CurrentState.BurstStarted) >= miner.CurrentState.BurstDuration {
@@ -468,9 +516,9 @@ func (vms *virtualMinerSimulator) processBurstMining(miner *VirtualMiner) {
 
 	// Check if burst should start
 	if config.Probability > 0 && rand.Float64() < config.Probability/3600 { // Per second probability
-		duration := config.DurationRange.Min + 
+		duration := config.DurationRange.Min +
 			time.Duration(rand.Float64()*float64(config.DurationRange.Max-config.DurationRange.Min))
-		
+
 		miner.CurrentState.IsBursting = true
 		miner.CurrentState.BurstStarted = time.Now()
 		miner.CurrentState.BurstDuration = duration
@@ -480,12 +528,13 @@ func (vms *virtualMinerSimulator) processBurstMining(miner *VirtualMiner) {
 
 func (vms *virtualMinerSimulator) processConnectionDrops(miner *VirtualMiner) {
 	config := vms.config.BehaviorPatterns.ConnectionDrops
-	
+
 	if config.Probability > 0 && rand.Float64() < config.Probability/3600 { // Per second probability
-		duration := config.DurationRange.Min + 
+		duration := config.DurationRange.Min +
 			time.Duration(rand.Float64()*float64(config.DurationRange.Max-config.DurationRange.Min))
-		
-		vms.TriggerDrop(miner.ID, duration)
+
+		// Use internal version since we already hold the lock
+		vms.triggerDropLocked(miner, duration)
 	}
 }
 
@@ -502,7 +551,8 @@ func (vms *virtualMinerSimulator) processMaliciousBehavior(miner *VirtualMiner) 
 	for _, attackType := range miner.AttackProfile.AttackTypes {
 		if rand.Float64() < attackType.Probability/3600 { // Per second probability
 			duration := time.Duration(30+rand.Intn(300)) * time.Second // 30s to 5min
-			vms.TriggerAttack(miner.ID, attackType.Type, duration)
+			// Use internal version since we already hold the lock
+			vms.triggerAttackLocked(miner, attackType.Type, duration)
 			break
 		}
 	}
@@ -512,7 +562,7 @@ func (vms *virtualMinerSimulator) simulateShareSubmission(miner *VirtualMiner) {
 	// Calculate shares per second based on hash rate and difficulty
 	// Simplified: assume 1 share per 10 seconds at base hash rate
 	baseShareRate := float64(miner.HashRate) / 10000000.0 // shares per second
-	
+
 	// Apply burst multiplier if bursting
 	if miner.CurrentState.IsBursting {
 		baseShareRate *= vms.config.BehaviorPatterns.BurstMining.IntensityMultiplier
@@ -522,7 +572,7 @@ func (vms *virtualMinerSimulator) simulateShareSubmission(miner *VirtualMiner) {
 	if rand.Float64() < baseShareRate {
 		miner.CurrentState.SharesSubmitted++
 		miner.Statistics.TotalShares++
-		
+
 		// Determine if share is valid
 		isValid := true
 		if miner.IsMalicious && miner.AttackProfile.IsAttacking {
@@ -542,7 +592,7 @@ func (vms *virtualMinerSimulator) simulateShareSubmission(miner *VirtualMiner) {
 			miner.CurrentState.InvalidShares++
 			miner.Statistics.InvalidShares++
 		}
-		
+
 		miner.Statistics.LastShareTime = time.Now()
 	}
 }
@@ -556,12 +606,16 @@ func (vms *virtualMinerSimulator) updateStatistics() {
 		case <-vms.stopChan:
 			return
 		case <-ticker.C:
-			vms.calculateStats()
+			vms.mutex.Lock()
+			vms.calculateStatsLocked()
+			vms.mutex.Unlock()
 		}
 	}
 }
 
-func (vms *virtualMinerSimulator) calculateStats() {
+// calculateStatsLocked updates stats - caller MUST hold vms.mutex
+func (vms *virtualMinerSimulator) calculateStatsLocked() {
+
 	totalMiners := uint32(len(vms.miners))
 	activeMiners := uint32(0)
 	totalHashRate := uint64(0)
@@ -577,7 +631,7 @@ func (vms *virtualMinerSimulator) calculateStats() {
 			activeMiners++
 			totalHashRate += miner.HashRate
 		}
-		
+
 		totalShares += miner.Statistics.TotalShares
 		validShares += miner.Statistics.ValidShares
 		invalidShares += miner.Statistics.InvalidShares

@@ -139,10 +139,12 @@ func (sm *SimulationManager) Stop() error {
 
 // GetOverallStats returns comprehensive simulation statistics
 func (sm *SimulationManager) GetOverallStats() *OverallSimulationStats {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
+	// Update stats first (this handles its own locking)
+	sm.updateOverallStats()
 
-	sm.updateOverallStatsLocked()
+	// Return the stats under read lock
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
 	return sm.stats
 }
 
@@ -288,21 +290,17 @@ func (sm *SimulationManager) performCoordination() {
 	// - Coordinating cluster behaviors with individual miner behaviors
 	// - Adjusting simulation parameters based on performance
 
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
-
-	// Get current blockchain difficulty
+	// Get stats from sub-simulators WITHOUT holding sm.mutex to avoid deadlock
 	blockchainStats := sm.blockchain.GetNetworkStats()
+	clusterStats := sm.clusters.GetOverallStats()
+	minerStats := sm.virtualMiners.GetSimulationStats()
 
+	// Now we can use the stats for coordination logic
 	// Adjust miner behavior based on blockchain state
 	if blockchainStats.CurrentDifficulty > 0 {
 		// Could adjust miner hash rates or behavior patterns
 		// based on blockchain difficulty
 	}
-
-	// Coordinate cluster and individual miner activities
-	clusterStats := sm.clusters.GetOverallStats()
-	minerStats := sm.virtualMiners.GetSimulationStats()
 
 	// Balance load between clusters and individual miners
 	totalHashRate := clusterStats.TotalHashRate + minerStats.TotalHashRate
@@ -320,19 +318,21 @@ func (sm *SimulationManager) collectStatistics() {
 		case <-sm.stopChan:
 			return
 		case <-ticker.C:
-			sm.mutex.Lock()
-			sm.updateOverallStatsLocked()
-			sm.mutex.Unlock()
+			sm.updateOverallStats()
 		}
 	}
 }
 
-// updateOverallStatsLocked updates stats - caller MUST hold sm.mutex
-func (sm *SimulationManager) updateOverallStatsLocked() {
-	// Collect stats from all components
+// updateOverallStats updates stats from all components
+func (sm *SimulationManager) updateOverallStats() {
+	// Collect stats from sub-simulators WITHOUT holding sm.mutex to avoid deadlock
 	blockchainStats := sm.blockchain.GetNetworkStats()
 	minerStats := sm.virtualMiners.GetSimulationStats()
 	clusterStats := sm.clusters.GetOverallStats()
+
+	// Now acquire lock to update our own stats
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 
 	// Calculate combined metrics
 	totalHashRate := minerStats.TotalHashRate + clusterStats.TotalHashRate
