@@ -86,9 +86,10 @@ func (vms *virtualMinerSimulator) GetMiners() []*VirtualMiner {
 	vms.mutex.RLock()
 	defer vms.mutex.RUnlock()
 
+	// Return deep COPIES to prevent race conditions
 	miners := make([]*VirtualMiner, 0, len(vms.miners))
 	for _, miner := range vms.miners {
-		miners = append(miners, miner)
+		miners = append(miners, vms.copyMiner(miner))
 	}
 	return miners
 }
@@ -98,7 +99,97 @@ func (vms *virtualMinerSimulator) GetMiner(id string) *VirtualMiner {
 	vms.mutex.RLock()
 	defer vms.mutex.RUnlock()
 
-	return vms.miners[id]
+	miner := vms.miners[id]
+	if miner == nil {
+		return nil
+	}
+
+	// Return a deep COPY to prevent race conditions
+	return vms.copyMiner(miner)
+}
+
+// copyMiner creates a deep copy of a VirtualMiner
+func (vms *virtualMinerSimulator) copyMiner(m *VirtualMiner) *VirtualMiner {
+	if m == nil {
+		return nil
+	}
+
+	copy := &VirtualMiner{
+		ID:          m.ID,
+		Type:        m.Type,
+		HashRate:    m.HashRate,
+		IsActive:    m.IsActive,
+		IsMalicious: m.IsMalicious,
+		Location:    m.Location,
+	}
+
+	if m.PerformanceProfile != nil {
+		copy.PerformanceProfile = &PerformanceProfile{
+			PowerConsumption: m.PerformanceProfile.PowerConsumption,
+			EfficiencyRating: m.PerformanceProfile.EfficiencyRating,
+			FailureRate:      m.PerformanceProfile.FailureRate,
+			Temperature:      m.PerformanceProfile.Temperature,
+			FanSpeed:         m.PerformanceProfile.FanSpeed,
+		}
+	}
+
+	if m.NetworkProfile != nil {
+		copy.NetworkProfile = &NetworkProfile{
+			Quality:    m.NetworkProfile.Quality,
+			Latency:    m.NetworkProfile.Latency,
+			PacketLoss: m.NetworkProfile.PacketLoss,
+			Jitter:     m.NetworkProfile.Jitter,
+			Bandwidth:  m.NetworkProfile.Bandwidth,
+		}
+	}
+
+	if m.AttackProfile != nil {
+		copy.AttackProfile = &AttackProfile{
+			IsAttacking:    m.AttackProfile.IsAttacking,
+			AttackStarted:  m.AttackProfile.AttackStarted,
+			AttackDuration: m.AttackProfile.AttackDuration,
+		}
+		if m.AttackProfile.AttackTypes != nil {
+			copy.AttackProfile.AttackTypes = make([]AttackType, len(m.AttackProfile.AttackTypes))
+			for i, at := range m.AttackProfile.AttackTypes {
+				copy.AttackProfile.AttackTypes[i] = AttackType{
+					Type:        at.Type,
+					Probability: at.Probability,
+					Intensity:   at.Intensity,
+				}
+			}
+		}
+	}
+
+	if m.CurrentState != nil {
+		copy.CurrentState = &MinerState{
+			IsBursting:      m.CurrentState.IsBursting,
+			IsDisconnected:  m.CurrentState.IsDisconnected,
+			BurstStarted:    m.CurrentState.BurstStarted,
+			BurstDuration:   m.CurrentState.BurstDuration,
+			LastSeen:        m.CurrentState.LastSeen,
+			SharesSubmitted: m.CurrentState.SharesSubmitted,
+			ValidShares:     m.CurrentState.ValidShares,
+			InvalidShares:   m.CurrentState.InvalidShares,
+		}
+	}
+
+	if m.Statistics != nil {
+		copy.Statistics = &MinerStatistics{
+			TotalShares:      m.Statistics.TotalShares,
+			ValidShares:      m.Statistics.ValidShares,
+			InvalidShares:    m.Statistics.InvalidShares,
+			TotalHashRate:    m.Statistics.TotalHashRate,
+			AverageHashRate:  m.Statistics.AverageHashRate,
+			UptimePercentage: m.Statistics.UptimePercentage,
+			LastShareTime:    m.Statistics.LastShareTime,
+			BurstEvents:      m.Statistics.BurstEvents,
+			DropEvents:       m.Statistics.DropEvents,
+			AttackEvents:     m.Statistics.AttackEvents,
+		}
+	}
+
+	return copy
 }
 
 // AddMiner adds a new miner to the simulation

@@ -104,9 +104,10 @@ func (cs *clusterSimulator) GetClusters() []*Cluster {
 	cs.mutex.RLock()
 	defer cs.mutex.RUnlock()
 
+	// Return deep COPIES to prevent race conditions
 	clusters := make([]*Cluster, 0, len(cs.clusters))
 	for _, cluster := range cs.clusters {
-		clusters = append(clusters, cluster)
+		clusters = append(clusters, cs.copyCluster(cluster))
 	}
 	return clusters
 }
@@ -116,7 +117,84 @@ func (cs *clusterSimulator) GetCluster(id string) *Cluster {
 	cs.mutex.RLock()
 	defer cs.mutex.RUnlock()
 
-	return cs.clusters[id]
+	cluster := cs.clusters[id]
+	if cluster == nil {
+		return nil
+	}
+	// Return a deep COPY to prevent race conditions
+	return cs.copyCluster(cluster)
+}
+
+// copyCluster creates a deep copy of a Cluster
+func (cs *clusterSimulator) copyCluster(c *Cluster) *Cluster {
+	if c == nil {
+		return nil
+	}
+
+	copy := &Cluster{
+		ID:                 c.ID,
+		Name:               c.Name,
+		Location:           c.Location,
+		Coordinator:        c.Coordinator,
+		FarmType:           c.FarmType,
+		PowerLimit:         c.PowerLimit,
+		CurrentPowerUsage:  c.CurrentPowerUsage,
+		IsActive:           c.IsActive,
+		IsLeader:           c.IsLeader,
+		IsBackup:           c.IsBackup,
+		IsInFailure:        c.IsInFailure,
+		CurrentPool:        c.CurrentPool,
+		LastSyncTime:       c.LastSyncTime,
+		FailoverConfig:     c.FailoverConfig,
+		CoordinationConfig: c.CoordinationConfig,
+	}
+
+	// Deep copy miners slice (just copy IDs and basic info, not full miner data)
+	if c.Miners != nil {
+		copy.Miners = make([]*VirtualMiner, len(c.Miners))
+		for i, m := range c.Miners {
+			if m != nil {
+				copy.Miners[i] = &VirtualMiner{
+					ID:          m.ID,
+					Type:        m.Type,
+					HashRate:    m.HashRate,
+					IsActive:    m.IsActive,
+					IsMalicious: m.IsMalicious,
+					Location:    m.Location,
+				}
+				if m.Statistics != nil {
+					copy.Miners[i].Statistics = &MinerStatistics{
+						TotalShares:   m.Statistics.TotalShares,
+						ValidShares:   m.Statistics.ValidShares,
+						InvalidShares: m.Statistics.InvalidShares,
+					}
+				}
+			}
+		}
+	}
+
+	if c.Statistics != nil {
+		copy.Statistics = &ClusterStatistics{
+			MinerCount:       c.Statistics.MinerCount,
+			ActiveMiners:     c.Statistics.ActiveMiners,
+			TotalHashRate:    c.Statistics.TotalHashRate,
+			AverageHashRate:  c.Statistics.AverageHashRate,
+			TotalShares:      c.Statistics.TotalShares,
+			ValidShares:      c.Statistics.ValidShares,
+			InvalidShares:    c.Statistics.InvalidShares,
+			UptimePercentage: c.Statistics.UptimePercentage,
+			PowerEfficiency:  c.Statistics.PowerEfficiency,
+			FailoverEvents:   c.Statistics.FailoverEvents,
+			SyncEvents:       c.Statistics.SyncEvents,
+			MigrationEvents:  c.Statistics.MigrationEvents,
+			LastFailureTime:  c.Statistics.LastFailureTime,
+			LastRecoveryTime: c.Statistics.LastRecoveryTime,
+			IsActive:         c.Statistics.IsActive,
+			IsInFailure:      c.Statistics.IsInFailure,
+		}
+	}
+
+	return copy
 }
 
 // AddCluster adds a new cluster to the simulation
