@@ -469,3 +469,80 @@ func TestBlockchainSimulator_StartStop_NoSkip(t *testing.T) {
 	err = simulator.Stop()
 	require.NoError(t, err)
 }
+
+// =============================================================================
+// Quick Unit Tests (No SIMULATION_TEST required)
+// =============================================================================
+
+func TestBlockchainSimulator_MineNextBlock_Quick(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second * 5,
+		InitialDifficulty: 100,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	// Mine a block
+	block, err := simulator.MineNextBlock()
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Equal(t, uint64(1), block.Height)
+
+	// Mine another block
+	block2, err := simulator.MineNextBlock()
+	require.NoError(t, err)
+	require.NotNil(t, block2)
+	assert.Equal(t, uint64(2), block2.Height)
+}
+
+func TestBlockchainSimulator_MineBlockWithMiner(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second * 5,
+		InitialDifficulty: 100,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	// Mine block with specific miner ID
+	block, err := simulator.MineBlockWithMiner(42)
+	require.NoError(t, err)
+	require.NotNil(t, block)
+	assert.Equal(t, 42, block.MinerID)
+}
+
+func TestBlockchainSimulator_ValidateChain_Genesis(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second * 5,
+		InitialDifficulty: 100,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	// Chain with just genesis should be valid
+	valid := simulator.ValidateChain()
+	assert.True(t, valid)
+}
+
+func TestBlockchainSimulator_GetGenesisBlock_Detailed(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second * 5,
+		InitialDifficulty: 100,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	genesis := simulator.GetGenesisBlock()
+	require.NotNil(t, genesis)
+	assert.Equal(t, uint64(0), genesis.Height)
+	assert.Empty(t, genesis.PreviousHash)
+	assert.NotEmpty(t, genesis.Hash)
+	assert.Equal(t, -1, genesis.MinerID) // Genesis has no miner
+}

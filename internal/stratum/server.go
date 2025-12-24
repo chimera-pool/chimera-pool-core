@@ -134,6 +134,11 @@ func (s *StratumServer) GetConnectionCount() int {
 	return int(atomic.LoadInt64(&s.connectionCount))
 }
 
+// SetDifficulty sets the server's default mining difficulty
+func (s *StratumServer) SetDifficulty(difficulty float64) {
+	s.difficulty = difficulty
+}
+
 // handleConnection handles a new client connection
 func (s *StratumServer) handleConnection(conn net.Conn) {
 	defer s.wg.Done()

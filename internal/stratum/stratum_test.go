@@ -455,3 +455,251 @@ func TestStratumNotificationGeneration(t *testing.T) {
 		assert.Contains(t, jsonStr, "1024.5")
 	})
 }
+
+// =============================================================================
+// Additional Coverage Tests
+// =============================================================================
+
+func TestNewSubscribeResponse(t *testing.T) {
+	response := NewSubscribeResponse(1, "sub_123", "extra_456", 4)
+
+	assert.Equal(t, 1, response.ID)
+	assert.Nil(t, response.Error)
+
+	result, ok := response.Result.([]interface{})
+	require.True(t, ok)
+	assert.Len(t, result, 3)
+
+	// Check subscription info
+	subInfo, ok := result[0].([]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "mining.notify", subInfo[0])
+	assert.Equal(t, "sub_123", subInfo[1])
+
+	// Check extranonce
+	assert.Equal(t, "extra_456", result[1])
+	assert.Equal(t, 4, result[2])
+
+	// Test JSON conversion
+	jsonStr, err := response.ToJSON()
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, "sub_123")
+	assert.Contains(t, jsonStr, "extra_456")
+}
+
+func TestNewAuthorizeResponse(t *testing.T) {
+	t.Run("Authorized", func(t *testing.T) {
+		response := NewAuthorizeResponse(2, true)
+		assert.Equal(t, 2, response.ID)
+		assert.Equal(t, true, response.Result)
+		assert.Nil(t, response.Error)
+
+		jsonStr, err := response.ToJSON()
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"result":true`)
+	})
+
+	t.Run("NotAuthorized", func(t *testing.T) {
+		response := NewAuthorizeResponse(3, false)
+		assert.Equal(t, 3, response.ID)
+		assert.Equal(t, false, response.Result)
+		assert.Nil(t, response.Error)
+
+		jsonStr, err := response.ToJSON()
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"result":false`)
+	})
+}
+
+func TestNewSubmitResponse(t *testing.T) {
+	t.Run("Accepted", func(t *testing.T) {
+		response := NewSubmitResponse(4, true)
+		assert.Equal(t, 4, response.ID)
+		assert.Equal(t, true, response.Result)
+		assert.Nil(t, response.Error)
+	})
+
+	t.Run("Rejected", func(t *testing.T) {
+		response := NewSubmitResponse(5, false)
+		assert.Equal(t, 5, response.ID)
+		assert.Equal(t, false, response.Result)
+		assert.Nil(t, response.Error)
+	})
+}
+
+func TestNewErrorResponse(t *testing.T) {
+	response := NewErrorResponse(6, 21, "Job not found")
+
+	assert.Equal(t, 6, response.ID)
+	assert.Nil(t, response.Result)
+
+	errArray, ok := response.Error.([]interface{})
+	require.True(t, ok)
+	assert.Len(t, errArray, 3)
+	assert.Equal(t, 21, errArray[0])
+	assert.Equal(t, "Job not found", errArray[1])
+	assert.Nil(t, errArray[2])
+
+	jsonStr, err := response.ToJSON()
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, "Job not found")
+	assert.Contains(t, jsonStr, "21")
+}
+
+func TestParseStratumMessage_EdgeCases(t *testing.T) {
+	t.Run("EmptyParams", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":1,"method":"mining.ping","params":[]}`)
+		require.NoError(t, err)
+		assert.Equal(t, "mining.ping", msg.Method)
+		assert.Empty(t, msg.Params)
+	})
+
+	t.Run("NullParams", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":1,"method":"mining.ping","params":null}`)
+		require.NoError(t, err)
+		assert.Equal(t, "mining.ping", msg.Method)
+		assert.Nil(t, msg.Params)
+	})
+
+	t.Run("NoParams", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":1,"method":"mining.ping"}`)
+		require.NoError(t, err)
+		assert.Equal(t, "mining.ping", msg.Method)
+	})
+
+	t.Run("ZeroID", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":0,"method":"mining.subscribe","params":[]}`)
+		require.NoError(t, err)
+		assert.Equal(t, 0, msg.ID)
+	})
+
+	t.Run("LargeID", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":999999,"method":"mining.submit","params":[]}`)
+		require.NoError(t, err)
+		assert.Equal(t, 999999, msg.ID)
+	})
+
+	t.Run("EmptyMethod", func(t *testing.T) {
+		_, err := ParseStratumMessage(`{"id":1,"method":"","params":[]}`)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "method")
+	})
+
+	t.Run("ComplexParams", func(t *testing.T) {
+		msg, err := ParseStratumMessage(`{"id":1,"method":"test","params":["string",123,true,null,1.5]}`)
+		require.NoError(t, err)
+		assert.Len(t, msg.Params, 5)
+		assert.Equal(t, "string", msg.Params[0])
+		assert.Equal(t, float64(123), msg.Params[1]) // JSON numbers are float64
+		assert.Equal(t, true, msg.Params[2])
+		assert.Nil(t, msg.Params[3])
+		assert.Equal(t, 1.5, msg.Params[4])
+	})
+}
+
+func TestStratumServer_SetDifficulty(t *testing.T) {
+	server := NewStratumServer(":0")
+
+	// Test initial difficulty
+	assert.Equal(t, 1.0, server.difficulty)
+
+	// Set new difficulty
+	server.SetDifficulty(256.0)
+	assert.Equal(t, 256.0, server.difficulty)
+}
+
+func TestStratumServer_GetAddress(t *testing.T) {
+	server := NewStratumServer(":3333")
+	assert.Equal(t, ":3333", server.address)
+}
+
+func TestStratumServer_StartStop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	server := NewStratumServer(":0")
+
+	// Start in goroutine
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- server.Start()
+	}()
+
+	// Give server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Stop server
+	err := server.Stop()
+	assert.NoError(t, err)
+
+	// Wait for Start to return
+	select {
+	case err := <-errChan:
+		assert.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server did not stop in time")
+	}
+}
+
+func TestStratumServer_MultipleConnections(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	server := NewStratumServer(":0")
+
+	go server.Start()
+	defer server.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Get the actual port
+	server.listenerMu.RLock()
+	addr := server.listener.Addr().String()
+	server.listenerMu.RUnlock()
+
+	// Create multiple connections
+	conns := make([]net.Conn, 5)
+	for i := 0; i < 5; i++ {
+		conn, err := net.Dial("tcp", addr)
+		require.NoError(t, err)
+		conns[i] = conn
+
+		// Subscribe
+		_, err = conn.Write([]byte(`{"id":1,"method":"mining.subscribe","params":[]}` + "\n"))
+		require.NoError(t, err)
+
+		// Read response
+		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		buf := make([]byte, 1024)
+		conn.Read(buf)
+	}
+
+	// Give time for connections to register
+	time.Sleep(100 * time.Millisecond)
+
+	assert.GreaterOrEqual(t, server.GetConnectionCount(), 1)
+
+	// Clean up
+	for _, conn := range conns {
+		conn.Close()
+	}
+}
+
+func TestClientConnection_Fields(t *testing.T) {
+	conn := &ClientConnection{
+		ID:           "test-123",
+		Subscribed:   true,
+		Authorized:   true,
+		WorkerName:   "worker1",
+		Extranonce1:  "abc123",
+		LastActivity: time.Now(),
+	}
+
+	assert.Equal(t, "test-123", conn.ID)
+	assert.True(t, conn.Subscribed)
+	assert.True(t, conn.Authorized)
+	assert.Equal(t, "worker1", conn.WorkerName)
+	assert.Equal(t, "abc123", conn.Extranonce1)
+}
