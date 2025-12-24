@@ -8,33 +8,33 @@ import (
 
 // SimulationManager coordinates all simulation components
 type SimulationManager struct {
-	blockchain      BlockchainSimulator
-	virtualMiners   VirtualMinerSimulator
-	clusters        ClusterSimulator
-	isRunning       bool
-	mutex           sync.RWMutex
-	stopChan        chan struct{}
-	stats           *OverallSimulationStats
+	blockchain    BlockchainSimulator
+	virtualMiners VirtualMinerSimulator
+	clusters      ClusterSimulator
+	isRunning     bool
+	mutex         sync.RWMutex
+	stopChan      chan struct{}
+	stats         *OverallSimulationStats
 }
 
 // OverallSimulationStats provides comprehensive simulation statistics
 type OverallSimulationStats struct {
 	// Blockchain stats
 	BlockchainStats NetworkStats
-	
+
 	// Virtual miner stats
 	VirtualMinerStats *SimulationStats
-	
+
 	// Cluster stats
 	ClusterStats *OverallClusterStats
-	
+
 	// Combined metrics
 	TotalHashRate     uint64
 	TotalMiners       uint32
 	TotalActiveMiners uint32
 	OverallUptime     float64
 	SimulationTime    time.Duration
-	
+
 	// Performance metrics
 	SharesPerSecond   float64
 	BlocksPerHour     float64
@@ -43,11 +43,11 @@ type OverallSimulationStats struct {
 
 // SimulationConfig defines overall simulation configuration
 type SimulationConfig struct {
-	BlockchainConfig BlockchainConfig
-	MinerConfig      VirtualMinerConfig
-	ClusterConfig    ClusterSimulatorConfig
+	BlockchainConfig  BlockchainConfig
+	MinerConfig       VirtualMinerConfig
+	ClusterConfig     ClusterSimulatorConfig
 	EnableIntegration bool
-	SyncInterval     time.Duration
+	SyncInterval      time.Duration
 }
 
 // NewSimulationManager creates a new simulation manager
@@ -139,10 +139,10 @@ func (sm *SimulationManager) Stop() error {
 
 // GetOverallStats returns comprehensive simulation statistics
 func (sm *SimulationManager) GetOverallStats() *OverallSimulationStats {
-	sm.mutex.RLock()
-	defer sm.mutex.RUnlock()
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 
-	sm.updateOverallStats()
+	sm.updateOverallStatsLocked()
 	return sm.stats
 }
 
@@ -241,7 +241,7 @@ func (sm *SimulationManager) ExecutePoolMigration(sourcePool, targetPool string,
 	// Find clusters in source pool
 	clusters := sm.clusters.GetClusters()
 	clusterIDs := make([]string, 0)
-	
+
 	for _, cluster := range clusters {
 		if cluster.CurrentPool == sourcePool {
 			clusterIDs = append(clusterIDs, cluster.ID)
@@ -293,7 +293,7 @@ func (sm *SimulationManager) performCoordination() {
 
 	// Get current blockchain difficulty
 	blockchainStats := sm.blockchain.GetNetworkStats()
-	
+
 	// Adjust miner behavior based on blockchain state
 	if blockchainStats.CurrentDifficulty > 0 {
 		// Could adjust miner hash rates or behavior patterns
@@ -303,7 +303,7 @@ func (sm *SimulationManager) performCoordination() {
 	// Coordinate cluster and individual miner activities
 	clusterStats := sm.clusters.GetOverallStats()
 	minerStats := sm.virtualMiners.GetSimulationStats()
-	
+
 	// Balance load between clusters and individual miners
 	totalHashRate := clusterStats.TotalHashRate + minerStats.TotalHashRate
 	if totalHashRate > 0 {
@@ -320,12 +320,15 @@ func (sm *SimulationManager) collectStatistics() {
 		case <-sm.stopChan:
 			return
 		case <-ticker.C:
-			sm.updateOverallStats()
+			sm.mutex.Lock()
+			sm.updateOverallStatsLocked()
+			sm.mutex.Unlock()
 		}
 	}
 }
 
-func (sm *SimulationManager) updateOverallStats() {
+// updateOverallStatsLocked updates stats - caller MUST hold sm.mutex
+func (sm *SimulationManager) updateOverallStatsLocked() {
 	// Collect stats from all components
 	blockchainStats := sm.blockchain.GetNetworkStats()
 	minerStats := sm.virtualMiners.GetSimulationStats()
@@ -408,21 +411,21 @@ func (sm *SimulationManager) ValidateSimulationAccuracy() error {
 // GetPerformanceMetrics returns detailed performance metrics
 func (sm *SimulationManager) GetPerformanceMetrics() map[string]interface{} {
 	stats := sm.GetOverallStats()
-	
+
 	return map[string]interface{}{
-		"total_hash_rate":     stats.TotalHashRate,
-		"total_miners":        stats.TotalMiners,
-		"active_miners":       stats.TotalActiveMiners,
-		"overall_uptime":      stats.OverallUptime,
-		"shares_per_second":   stats.SharesPerSecond,
-		"blocks_per_hour":     stats.BlocksPerHour,
-		"network_efficiency":  stats.NetworkEfficiency,
-		"simulation_time":     stats.SimulationTime.Seconds(),
-		"blockchain_blocks":   stats.BlockchainStats.BlocksGenerated,
-		"blockchain_txs":      stats.BlockchainStats.TotalTransactions,
-		"miner_burst_events":  stats.VirtualMinerStats.TotalBurstEvents,
-		"miner_drop_events":   stats.VirtualMinerStats.TotalDropEvents,
-		"cluster_failovers":   stats.ClusterStats.FailoverEvents,
-		"cluster_migrations":  stats.ClusterStats.MigrationEvents,
+		"total_hash_rate":    stats.TotalHashRate,
+		"total_miners":       stats.TotalMiners,
+		"active_miners":      stats.TotalActiveMiners,
+		"overall_uptime":     stats.OverallUptime,
+		"shares_per_second":  stats.SharesPerSecond,
+		"blocks_per_hour":    stats.BlocksPerHour,
+		"network_efficiency": stats.NetworkEfficiency,
+		"simulation_time":    stats.SimulationTime.Seconds(),
+		"blockchain_blocks":  stats.BlockchainStats.BlocksGenerated,
+		"blockchain_txs":     stats.BlockchainStats.TotalTransactions,
+		"miner_burst_events": stats.VirtualMinerStats.TotalBurstEvents,
+		"miner_drop_events":  stats.VirtualMinerStats.TotalDropEvents,
+		"cluster_failovers":  stats.ClusterStats.FailoverEvents,
+		"cluster_migrations": stats.ClusterStats.MigrationEvents,
 	}
 }
