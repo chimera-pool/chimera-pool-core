@@ -106,9 +106,40 @@ func (bs *blockchainSimulator) GetGenesisBlock() *Block {
 	defer bs.mutex.RUnlock()
 
 	if len(bs.chain) > 0 {
-		return bs.chain[0]
+		// Return a COPY to prevent race conditions
+		return bs.copyBlock(bs.chain[0])
 	}
 	return nil
+}
+
+// copyBlock creates a deep copy of a Block
+func (bs *blockchainSimulator) copyBlock(b *Block) *Block {
+	if b == nil {
+		return nil
+	}
+	copy := &Block{
+		Height:       b.Height,
+		Hash:         b.Hash,
+		PreviousHash: b.PreviousHash,
+		Timestamp:    b.Timestamp,
+		Difficulty:   b.Difficulty,
+		Nonce:        b.Nonce,
+		MinerID:      b.MinerID,
+	}
+	if b.Transactions != nil {
+		copy.Transactions = make([]Transaction, len(b.Transactions))
+		for i, tx := range b.Transactions {
+			copy.Transactions[i] = Transaction{
+				ID:        tx.ID,
+				From:      tx.From,
+				To:        tx.To,
+				Amount:    tx.Amount,
+				Fee:       tx.Fee,
+				Timestamp: tx.Timestamp,
+			}
+		}
+	}
+	return copy
 }
 
 // MineNextBlock mines the next block in the chain
@@ -147,7 +178,8 @@ func (bs *blockchainSimulator) MineBlockWithMiner(minerID int) (*Block, error) {
 	// Update statistics
 	bs.updateNetworkStats()
 
-	return newBlock, nil
+	// Return a COPY to prevent race conditions
+	return bs.copyBlock(newBlock), nil
 }
 
 // ValidateChain validates the entire blockchain
