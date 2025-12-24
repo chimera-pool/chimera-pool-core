@@ -124,15 +124,22 @@ func TestTOTPValidationWithCurrentTime(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate current TOTP code
-	currentCode := mfaService.GenerateTOTPCode(secret, time.Now())
+	now := time.Now()
+	currentCode := mfaService.GenerateTOTPCode(secret, now)
 
 	// Current code should be valid
 	assert.True(t, mfaService.ValidateTOTP(secret, currentCode), "Current TOTP code should be valid")
 
 	// Code from 10 minutes ago should be invalid (well outside any reasonable time window)
 	// Using 10 minutes to avoid any edge cases with period boundaries
-	oldCode := mfaService.GenerateTOTPCode(secret, time.Now().Add(-10*time.Minute))
-	assert.False(t, mfaService.ValidateTOTP(secret, oldCode), "10-minute-old TOTP code should be invalid")
+	oldCode := mfaService.GenerateTOTPCode(secret, now.Add(-10*time.Minute))
+
+	// Only test if codes are actually different (extremely rare collision case)
+	if currentCode != oldCode {
+		assert.False(t, mfaService.ValidateTOTP(secret, oldCode), "10-minute-old TOTP code should be invalid")
+	} else {
+		t.Log("Skipping old code test due to rare TOTP collision")
+	}
 }
 
 func TestBackupCodesGeneration(t *testing.T) {
