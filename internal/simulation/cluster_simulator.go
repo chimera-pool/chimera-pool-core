@@ -348,7 +348,28 @@ func (cs *clusterSimulator) GetOverallStats() *OverallClusterStats {
 	defer cs.mutex.RUnlock()
 
 	cs.calculateOverallStats()
-	return cs.overallStats
+
+	// Deep copy the map to prevent race conditions
+	geoDist := make(map[string]uint32, len(cs.overallStats.GeographicalDistribution))
+	for k, v := range cs.overallStats.GeographicalDistribution {
+		geoDist[k] = v
+	}
+
+	// Return a COPY to prevent race conditions
+	return &OverallClusterStats{
+		TotalClusters:            cs.overallStats.TotalClusters,
+		ActiveClusters:           cs.overallStats.ActiveClusters,
+		TotalMiners:              cs.overallStats.TotalMiners,
+		ActiveMiners:             cs.overallStats.ActiveMiners,
+		TotalHashRate:            cs.overallStats.TotalHashRate,
+		AverageHashRate:          cs.overallStats.AverageHashRate,
+		TotalPowerUsage:          cs.overallStats.TotalPowerUsage,
+		PowerEfficiency:          cs.overallStats.PowerEfficiency,
+		UptimePercentage:         cs.overallStats.UptimePercentage,
+		FailoverEvents:           cs.overallStats.FailoverEvents,
+		MigrationEvents:          cs.overallStats.MigrationEvents,
+		GeographicalDistribution: geoDist,
+	}
 }
 
 // GetClusterStats returns statistics for a specific cluster

@@ -138,7 +138,22 @@ func (vms *virtualMinerSimulator) GetSimulationStats() *SimulationStats {
 
 	// Update stats before returning
 	vms.calculateStatsLocked()
-	return vms.stats
+
+	// Return a COPY to prevent race conditions
+	return &SimulationStats{
+		TotalMiners:       vms.stats.TotalMiners,
+		ActiveMiners:      vms.stats.ActiveMiners,
+		TotalHashRate:     vms.stats.TotalHashRate,
+		AverageHashRate:   vms.stats.AverageHashRate,
+		TotalShares:       vms.stats.TotalShares,
+		ValidShares:       vms.stats.ValidShares,
+		InvalidShares:     vms.stats.InvalidShares,
+		TotalBurstEvents:  vms.stats.TotalBurstEvents,
+		TotalDropEvents:   vms.stats.TotalDropEvents,
+		TotalAttackEvents: vms.stats.TotalAttackEvents,
+		UptimePercentage:  vms.stats.UptimePercentage,
+		SimulationTime:    vms.stats.SimulationTime,
+	}
 }
 
 // GetMinerStats returns statistics for a specific miner
