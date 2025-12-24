@@ -544,8 +544,9 @@ func (bs *blockchainSimulator) updateNetworkStats() {
 	}
 
 	// Estimate hash rate based on difficulty and block time
-	if bs.networkStats.AverageBlockTime > 0 {
-		bs.networkStats.HashRate = bs.difficulty * 1000000 / uint64(bs.networkStats.AverageBlockTime.Seconds())
+	avgBlockSeconds := bs.networkStats.AverageBlockTime.Seconds()
+	if avgBlockSeconds > 0 {
+		bs.networkStats.HashRate = bs.difficulty * 1000000 / uint64(avgBlockSeconds)
 	}
 }
 
