@@ -142,10 +142,25 @@ func (sm *SimulationManager) GetOverallStats() *OverallSimulationStats {
 	// Update stats first (this handles its own locking)
 	sm.updateOverallStats()
 
-	// Return the stats under read lock
+	// Return a COPY of the stats under read lock to avoid race conditions
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
-	return sm.stats
+
+	// Deep copy to prevent race conditions when caller reads returned pointer
+	statsCopy := &OverallSimulationStats{
+		BlockchainStats:   sm.stats.BlockchainStats,
+		VirtualMinerStats: sm.stats.VirtualMinerStats,
+		ClusterStats:      sm.stats.ClusterStats,
+		TotalHashRate:     sm.stats.TotalHashRate,
+		TotalMiners:       sm.stats.TotalMiners,
+		TotalActiveMiners: sm.stats.TotalActiveMiners,
+		OverallUptime:     sm.stats.OverallUptime,
+		SimulationTime:    sm.stats.SimulationTime,
+		SharesPerSecond:   sm.stats.SharesPerSecond,
+		BlocksPerHour:     sm.stats.BlocksPerHour,
+		NetworkEfficiency: sm.stats.NetworkEfficiency,
+	}
+	return statsCopy
 }
 
 // GetBlockchainSimulator returns the blockchain simulator
@@ -165,7 +180,10 @@ func (sm *SimulationManager) GetClusterSimulator() ClusterSimulator {
 
 // TriggerStressTest triggers a comprehensive stress test
 func (sm *SimulationManager) TriggerStressTest(duration time.Duration) error {
-	if !sm.isRunning {
+	sm.mutex.RLock()
+	running := sm.isRunning
+	sm.mutex.RUnlock()
+	if !running {
 		return fmt.Errorf("simulation is not running")
 	}
 
@@ -193,7 +211,10 @@ func (sm *SimulationManager) TriggerStressTest(duration time.Duration) error {
 
 // TriggerFailureScenario triggers various failure scenarios
 func (sm *SimulationManager) TriggerFailureScenario(scenario string) error {
-	if !sm.isRunning {
+	sm.mutex.RLock()
+	running := sm.isRunning
+	sm.mutex.RUnlock()
+	if !running {
 		return fmt.Errorf("simulation is not running")
 	}
 
@@ -236,7 +257,10 @@ func (sm *SimulationManager) TriggerFailureScenario(scenario string) error {
 
 // ExecutePoolMigration executes a coordinated pool migration
 func (sm *SimulationManager) ExecutePoolMigration(sourcePool, targetPool string, strategy string) error {
-	if !sm.isRunning {
+	sm.mutex.RLock()
+	running := sm.isRunning
+	sm.mutex.RUnlock()
+	if !running {
 		return fmt.Errorf("simulation is not running")
 	}
 
