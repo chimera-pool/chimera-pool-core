@@ -146,11 +146,51 @@ func (sm *SimulationManager) GetOverallStats() *OverallSimulationStats {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
 
-	// Deep copy to prevent race conditions when caller reads returned pointer
+	// Deep copy nested structs to prevent race conditions
+	var minerStatsCopy *SimulationStats
+	if sm.stats.VirtualMinerStats != nil {
+		minerStatsCopy = &SimulationStats{
+			TotalMiners:       sm.stats.VirtualMinerStats.TotalMiners,
+			ActiveMiners:      sm.stats.VirtualMinerStats.ActiveMiners,
+			TotalHashRate:     sm.stats.VirtualMinerStats.TotalHashRate,
+			AverageHashRate:   sm.stats.VirtualMinerStats.AverageHashRate,
+			TotalShares:       sm.stats.VirtualMinerStats.TotalShares,
+			ValidShares:       sm.stats.VirtualMinerStats.ValidShares,
+			InvalidShares:     sm.stats.VirtualMinerStats.InvalidShares,
+			TotalBurstEvents:  sm.stats.VirtualMinerStats.TotalBurstEvents,
+			TotalDropEvents:   sm.stats.VirtualMinerStats.TotalDropEvents,
+			TotalAttackEvents: sm.stats.VirtualMinerStats.TotalAttackEvents,
+			UptimePercentage:  sm.stats.VirtualMinerStats.UptimePercentage,
+			SimulationTime:    sm.stats.VirtualMinerStats.SimulationTime,
+		}
+	}
+
+	var clusterStatsCopy *OverallClusterStats
+	if sm.stats.ClusterStats != nil {
+		geoDist := make(map[string]uint32)
+		for k, v := range sm.stats.ClusterStats.GeographicalDistribution {
+			geoDist[k] = v
+		}
+		clusterStatsCopy = &OverallClusterStats{
+			TotalClusters:            sm.stats.ClusterStats.TotalClusters,
+			ActiveClusters:           sm.stats.ClusterStats.ActiveClusters,
+			TotalMiners:              sm.stats.ClusterStats.TotalMiners,
+			ActiveMiners:             sm.stats.ClusterStats.ActiveMiners,
+			TotalHashRate:            sm.stats.ClusterStats.TotalHashRate,
+			AverageHashRate:          sm.stats.ClusterStats.AverageHashRate,
+			TotalPowerUsage:          sm.stats.ClusterStats.TotalPowerUsage,
+			PowerEfficiency:          sm.stats.ClusterStats.PowerEfficiency,
+			UptimePercentage:         sm.stats.ClusterStats.UptimePercentage,
+			FailoverEvents:           sm.stats.ClusterStats.FailoverEvents,
+			MigrationEvents:          sm.stats.ClusterStats.MigrationEvents,
+			GeographicalDistribution: geoDist,
+		}
+	}
+
 	statsCopy := &OverallSimulationStats{
 		BlockchainStats:   sm.stats.BlockchainStats,
-		VirtualMinerStats: sm.stats.VirtualMinerStats,
-		ClusterStats:      sm.stats.ClusterStats,
+		VirtualMinerStats: minerStatsCopy,
+		ClusterStats:      clusterStatsCopy,
 		TotalHashRate:     sm.stats.TotalHashRate,
 		TotalMiners:       sm.stats.TotalMiners,
 		TotalActiveMiners: sm.stats.TotalActiveMiners,
