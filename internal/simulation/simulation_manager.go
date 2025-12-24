@@ -218,6 +218,13 @@ func (sm *SimulationManager) GetClusterSimulator() ClusterSimulator {
 	return sm.clusters
 }
 
+// IsRunning returns whether the simulation is currently running
+func (sm *SimulationManager) IsRunning() bool {
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+	return sm.isRunning
+}
+
 // TriggerStressTest triggers a comprehensive stress test
 func (sm *SimulationManager) TriggerStressTest(duration time.Duration) error {
 	sm.mutex.RLock()

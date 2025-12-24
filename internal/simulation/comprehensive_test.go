@@ -70,7 +70,7 @@ func TestSimulationManager_StartStop(t *testing.T) {
 	// Start simulation
 	err = manager.Start()
 	require.NoError(t, err)
-	assert.True(t, manager.isRunning)
+	assert.True(t, manager.IsRunning())
 
 	// Try to start again - should error
 	err = manager.Start()
@@ -80,7 +80,7 @@ func TestSimulationManager_StartStop(t *testing.T) {
 	// Stop simulation
 	err = manager.Stop()
 	require.NoError(t, err)
-	assert.False(t, manager.isRunning)
+	assert.False(t, manager.IsRunning())
 
 	// Stop again - should be no-op
 	err = manager.Stop()
