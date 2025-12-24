@@ -55,7 +55,7 @@ func (m *MockMiner) SendMessage(msg *StratumMessage) error {
 // ReadResponse reads a response from the server
 func (m *MockMiner) ReadResponse() (*StratumResponse, error) {
 	m.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	
+
 	if !m.scanner.Scan() {
 		if err := m.scanner.Err(); err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)
@@ -64,7 +64,7 @@ func (m *MockMiner) ReadResponse() (*StratumResponse, error) {
 	}
 
 	line := strings.TrimSpace(m.scanner.Text())
-	
+
 	var response StratumResponse
 	if err := json.Unmarshal([]byte(line), &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -76,29 +76,29 @@ func (m *MockMiner) ReadResponse() (*StratumResponse, error) {
 // ReadAllResponses reads all available responses from the server
 func (m *MockMiner) ReadAllResponses() ([]*StratumResponse, error) {
 	var responses []*StratumResponse
-	
+
 	// Set a short deadline to read all available messages
 	m.conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	
+
 	for m.scanner.Scan() {
 		line := strings.TrimSpace(m.scanner.Text())
 		if line == "" {
 			continue
 		}
-		
+
 		var response StratumResponse
 		if err := json.Unmarshal([]byte(line), &response); err != nil {
 			// If we can't parse it, it might be a notification, skip it
 			continue
 		}
-		
+
 		responses = append(responses, &response)
 	}
-	
+
 	if len(responses) == 0 {
 		return nil, fmt.Errorf("no responses received")
 	}
-	
+
 	return responses, nil
 }
 
@@ -150,10 +150,13 @@ func (m *MockMiner) SubmitShare(jobID, extranonce2, ntime, nonce string) (*Strat
 
 // TestE2EStratumProtocolCompliance tests end-to-end Stratum protocol compliance
 func TestE2EStratumProtocolCompliance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 
@@ -193,10 +196,13 @@ func TestE2EStratumProtocolCompliance(t *testing.T) {
 
 // TestE2EMultipleMinersConcurrent tests multiple miners connecting concurrently
 func TestE2EMultipleMinersConcurrent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 
@@ -249,10 +255,13 @@ func TestE2EMultipleMinersConcurrent(t *testing.T) {
 
 // TestE2EProtocolErrorHandling tests error handling in the protocol
 func TestE2EProtocolErrorHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 
@@ -289,10 +298,13 @@ func TestE2EProtocolErrorHandling(t *testing.T) {
 
 // TestE2EConnectionCleanup tests that connections are properly cleaned up
 func TestE2EConnectionCleanup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 	defer server.Stop()
@@ -320,10 +332,13 @@ func TestE2EConnectionCleanup(t *testing.T) {
 
 // TestE2ESubmitWithoutAuthorization tests submitting without proper authorization
 func TestE2ESubmitWithoutAuthorization(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 

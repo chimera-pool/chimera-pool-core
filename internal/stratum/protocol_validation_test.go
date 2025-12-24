@@ -11,10 +11,13 @@ import (
 
 // TestStratumV1ProtocolCompliance validates compliance with Stratum v1 protocol
 func TestStratumV1ProtocolCompliance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 	defer server.Stop()
@@ -32,7 +35,7 @@ func TestStratumV1ProtocolCompliance(t *testing.T) {
 		// Validate response structure
 		assert.Equal(t, 1, subscribeResp.ID)
 		assert.Nil(t, subscribeResp.Error)
-		
+
 		// Result should be array with subscription details and extranonce info
 		result, ok := subscribeResp.Result.([]interface{})
 		require.True(t, ok, "Subscribe result must be an array")
@@ -42,7 +45,7 @@ func TestStratumV1ProtocolCompliance(t *testing.T) {
 		subscriptions, ok := result[0].([]interface{})
 		require.True(t, ok, "First element must be subscription array")
 		require.Len(t, subscriptions, 2, "Subscription must have method and ID")
-		
+
 		// Validate subscription method
 		assert.Equal(t, "mining.notify", subscriptions[0])
 		assert.NotEmpty(t, subscriptions[1], "Subscription ID must not be empty")
@@ -71,7 +74,7 @@ func TestStratumV1ProtocolCompliance(t *testing.T) {
 		// Validate response structure
 		assert.Equal(t, 2, authorizeResp.ID)
 		assert.Nil(t, authorizeResp.Error)
-		
+
 		// Result should be boolean true for successful authorization
 		result, ok := authorizeResp.Result.(bool)
 		require.True(t, ok, "Authorize result must be boolean")
@@ -92,7 +95,7 @@ func TestStratumV1ProtocolCompliance(t *testing.T) {
 		// Validate response structure
 		assert.Equal(t, 3, submitResp.ID)
 		assert.Nil(t, submitResp.Error)
-		
+
 		// Result should be boolean indicating acceptance
 		result, ok := submitResp.Result.(bool)
 		require.True(t, ok, "Submit result must be boolean")
@@ -107,7 +110,7 @@ func TestStratumV1ProtocolCompliance(t *testing.T) {
 			Method: "unknown.method",
 			Params: []interface{}{},
 		}
-		
+
 		err := miner.SendMessage(unknownMsg)
 		require.NoError(t, err)
 
@@ -141,10 +144,10 @@ func TestMessageFormatCompliance(t *testing.T) {
 	t.Run("Request Message Format", func(t *testing.T) {
 		// Test valid request message parsing
 		validRequest := `{"id": 1, "method": "mining.subscribe", "params": ["miner/1.0", null]}`
-		
+
 		msg, err := ParseStratumMessage(validRequest)
 		require.NoError(t, err)
-		
+
 		assert.Equal(t, 1, msg.ID)
 		assert.Equal(t, "mining.subscribe", msg.Method)
 		assert.Len(t, msg.Params, 2)
@@ -157,20 +160,20 @@ func TestMessageFormatCompliance(t *testing.T) {
 			Result: true,
 			Error:  nil,
 		}
-		
+
 		jsonStr, err := response.ToJSON()
 		require.NoError(t, err)
-		
+
 		// Parse back to validate structure
 		var parsed map[string]interface{}
 		err = json.Unmarshal([]byte(jsonStr), &parsed)
 		require.NoError(t, err)
-		
+
 		// Validate required fields
 		assert.Contains(t, parsed, "id")
 		assert.Contains(t, parsed, "result")
 		assert.Contains(t, parsed, "error")
-		
+
 		assert.Equal(t, float64(1), parsed["id"])
 		assert.Equal(t, true, parsed["result"])
 		assert.Nil(t, parsed["error"])
@@ -182,20 +185,20 @@ func TestMessageFormatCompliance(t *testing.T) {
 			Method: "mining.notify",
 			Params: []interface{}{"job_id", "prev_hash", "coinbase1", "coinbase2", []string{}, "version", "nbits", "ntime", true},
 		}
-		
+
 		jsonStr, err := notification.ToJSON()
 		require.NoError(t, err)
-		
+
 		// Parse back to validate structure
 		var parsed map[string]interface{}
 		err = json.Unmarshal([]byte(jsonStr), &parsed)
 		require.NoError(t, err)
-		
+
 		// Validate notification structure (no ID field)
 		assert.NotContains(t, parsed, "id")
 		assert.Contains(t, parsed, "method")
 		assert.Contains(t, parsed, "params")
-		
+
 		assert.Equal(t, "mining.notify", parsed["method"])
 		assert.NotNil(t, parsed["params"])
 	})
@@ -203,10 +206,13 @@ func TestMessageFormatCompliance(t *testing.T) {
 
 // TestConcurrentConnectionHandling validates requirement 2.3 - handle concurrent connections efficiently
 func TestConcurrentConnectionHandling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 	defer server.Stop()
@@ -225,7 +231,7 @@ func TestConcurrentConnectionHandling(t *testing.T) {
 			}()
 
 			// Create miner connection
-			miner, err := NewMockMiner(server.GetAddress(), 
+			miner, err := NewMockMiner(server.GetAddress(),
 				"worker_"+string(rune(workerID)), "password")
 			if err != nil {
 				results <- false
@@ -271,16 +277,19 @@ func TestConcurrentConnectionHandling(t *testing.T) {
 	}
 
 	// All connections should succeed
-	assert.Equal(t, numConnections, successCount, 
+	assert.Equal(t, numConnections, successCount,
 		"All concurrent connections should complete successfully")
 }
 
 // TestResourceCleanup validates requirement 2.4 - clean up resources and handle reconnection gracefully
 func TestResourceCleanup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
 	// Start server
 	server := NewStratumServer(":0")
 	go func() {
-		server.Start()
+		_ = server.Start()
 	}()
 	time.Sleep(100 * time.Millisecond)
 	defer server.Stop()
