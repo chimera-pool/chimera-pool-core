@@ -48,6 +48,7 @@ type BatchProcessor struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
+	stopped   int32 // Atomic flag to prevent sending to closed channel
 
 	// Lock-free statistics (atomic operations only)
 	stats BatchStatistics
@@ -140,6 +141,8 @@ func (bp *BatchProcessor) Start() {
 
 // Stop gracefully shuts down the processor
 func (bp *BatchProcessor) Stop() {
+	// Mark as stopped first to prevent new submissions
+	atomic.StoreInt32(&bp.stopped, 1)
 	bp.cancel()
 	close(bp.inputChan)
 	bp.wg.Wait()
@@ -149,6 +152,15 @@ func (bp *BatchProcessor) Stop() {
 // Returns a channel that will receive the result
 func (bp *BatchProcessor) Submit(share *Share) <-chan ShareProcessingResult {
 	resultCh := make(chan ShareProcessingResult, 1)
+
+	// Check if processor is stopped
+	if atomic.LoadInt32(&bp.stopped) != 0 {
+		resultCh <- ShareProcessingResult{
+			Success: false,
+			Error:   "processor stopped",
+		}
+		return resultCh
+	}
 
 	atomic.AddInt64(&bp.stats.TotalReceived, 1)
 
