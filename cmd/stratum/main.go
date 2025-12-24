@@ -124,7 +124,16 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-func initDatabase(url string) (*sql.DB, error) {
+// ResilientDB wraps sql.DB with automatic reconnection logic
+type ResilientDB struct {
+	db        *sql.DB
+	url       string
+	mu        sync.RWMutex
+	healthy   bool
+	lastCheck time.Time
+}
+
+func initDatabase(url string) (*ResilientDB, error) {
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		return nil, err
@@ -133,13 +142,169 @@ func initDatabase(url string) (*sql.DB, error) {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute) // Close idle connections faster
 
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
 
 	log.Println("✅ Connected to PostgreSQL database")
-	return db, nil
+	rdb := &ResilientDB{
+		db:      db,
+		url:     url,
+		healthy: true,
+	}
+
+	// Start background health checker
+	go rdb.healthChecker()
+
+	return rdb, nil
+}
+
+// healthChecker runs periodic health checks and reconnects if needed
+func (r *ResilientDB) healthChecker() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := r.db.Ping(); err != nil {
+			log.Printf("⚠️ Database health check failed: %v", err)
+			r.mu.Lock()
+			r.healthy = false
+			r.mu.Unlock()
+
+			// Attempt reconnection
+			r.reconnect()
+		} else {
+			r.mu.Lock()
+			if !r.healthy {
+				log.Println("✅ Database connection restored")
+			}
+			r.healthy = true
+			r.lastCheck = time.Now()
+			r.mu.Unlock()
+		}
+	}
+}
+
+// reconnect attempts to re-establish database connection
+func (r *ResilientDB) reconnect() {
+	for i := 0; i < 5; i++ {
+		log.Printf("🔄 Attempting database reconnection (attempt %d/5)...", i+1)
+
+		// Close existing connection
+		r.db.Close()
+
+		// Create new connection
+		db, err := sql.Open("postgres", r.url)
+		if err != nil {
+			log.Printf("❌ Reconnection failed: %v", err)
+			time.Sleep(time.Duration(i+1) * 2 * time.Second) // Exponential backoff
+			continue
+		}
+
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
+		db.SetConnMaxIdleTime(2 * time.Minute)
+
+		if err := db.Ping(); err != nil {
+			log.Printf("❌ Reconnection ping failed: %v", err)
+			db.Close()
+			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			continue
+		}
+
+		r.mu.Lock()
+		r.db = db
+		r.healthy = true
+		r.mu.Unlock()
+
+		log.Println("✅ Database reconnected successfully")
+		return
+	}
+
+	log.Println("❌ Failed to reconnect to database after 5 attempts")
+}
+
+// Exec executes a query with automatic retry on connection errors
+func (r *ResilientDB) Exec(query string, args ...interface{}) (sql.Result, error) {
+	for i := 0; i < 3; i++ {
+		r.mu.RLock()
+		db := r.db
+		r.mu.RUnlock()
+
+		result, err := db.Exec(query, args...)
+		if err == nil {
+			return result, nil
+		}
+
+		if isConnectionError(err) {
+			log.Printf("⚠️ DB connection error on Exec, retrying: %v", err)
+			r.reconnect()
+			continue
+		}
+		return nil, err
+	}
+	return nil, fmt.Errorf("database operation failed after 3 retries")
+}
+
+// QueryRow executes a query that returns a single row with retry
+func (r *ResilientDB) QueryRow(query string, args ...interface{}) *sql.Row {
+	r.mu.RLock()
+	db := r.db
+	r.mu.RUnlock()
+	return db.QueryRow(query, args...)
+}
+
+// Query executes a query that returns rows with retry
+func (r *ResilientDB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	for i := 0; i < 3; i++ {
+		r.mu.RLock()
+		db := r.db
+		r.mu.RUnlock()
+
+		rows, err := db.Query(query, args...)
+		if err == nil {
+			return rows, nil
+		}
+
+		if isConnectionError(err) {
+			log.Printf("⚠️ DB connection error on Query, retrying: %v", err)
+			r.reconnect()
+			continue
+		}
+		return nil, err
+	}
+	return nil, fmt.Errorf("database query failed after 3 retries")
+}
+
+// Close closes the database connection
+func (r *ResilientDB) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.db.Close()
+}
+
+// IsHealthy returns the current health status
+func (r *ResilientDB) IsHealthy() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.healthy
+}
+
+// isConnectionError checks if an error is a connection-related error
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "EOF") ||
+		strings.Contains(errStr, "i/o timeout")
 }
 
 func initRedis(url string) (*redis.Client, error) {
@@ -162,7 +327,7 @@ func initRedis(url string) (*redis.Client, error) {
 // StratumServer handles mining connections
 type StratumServer struct {
 	config           *Config
-	db               *sql.DB
+	db               *ResilientDB
 	redis            *redis.Client
 	miners           map[string]*Miner
 	minersMutex      sync.RWMutex
@@ -251,7 +416,7 @@ type StratumResponse struct {
 }
 
 // NewStratumServer creates a new stratum server
-func NewStratumServer(config *Config, db *sql.DB, redisClient *redis.Client) *StratumServer {
+func NewStratumServer(config *Config, db *ResilientDB, redisClient *redis.Client) *StratumServer {
 	// Configure vardiff - use X100-optimized configuration for Scrypt mining
 	// X100 on Scrypt produces ~15 TH/s (vs ~70 TH/s on BlockDAG Scrpy-variant)
 	vardiffConfig := vardiff.X100OptimizedConfig()
