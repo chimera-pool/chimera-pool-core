@@ -45,11 +45,15 @@ vendor/
 *.so
 *.dylib
 
-# Go compiled binaries (without extension)
-chimera-api
-chimera-stratum
-api
-stratum
+# Go compiled binaries (without extension) - use specific paths to avoid ignoring source
+/chimera-api
+/chimera-stratum
+/api
+/stratum
+cmd/api/api
+cmd/api/api.exe
+cmd/stratum/stratum
+cmd/stratum/stratum.exe
 
 # Test binaries
 *.test
