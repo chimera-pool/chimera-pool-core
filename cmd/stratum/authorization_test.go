@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +11,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// wrapMockDB wraps a sqlmock DB into a ResilientDB for testing
+func wrapMockDB(db *sql.DB) *ResilientDB {
+	return &ResilientDB{
+		db:      db,
+		url:     "mock://test",
+		mu:      sync.RWMutex{},
+		healthy: true,
+	}
+}
 
 // MockConn implements net.Conn for testing
 type MockConn struct {
@@ -56,7 +67,7 @@ func TestAuthorizeUserLookup(t *testing.T) {
 
 	server := &StratumServer{
 		config: &Config{Difficulty: 1.0},
-		db:     db,
+		db:     wrapMockDB(db),
 		miners: make(map[string]*Miner),
 	}
 
@@ -107,7 +118,7 @@ func TestAuthorizeUserNotFound(t *testing.T) {
 
 	server := &StratumServer{
 		config: &Config{Difficulty: 1.0},
-		db:     db,
+		db:     wrapMockDB(db),
 		miners: make(map[string]*Miner),
 	}
 
