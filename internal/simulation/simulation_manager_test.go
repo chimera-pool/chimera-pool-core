@@ -453,3 +453,190 @@ func TestSimulationManager_ComponentIntegration(t *testing.T) {
 	expectedTotalMiners := uint32(6 + 9) // 6 individual + 9 cluster miners
 	assert.Equal(t, expectedTotalMiners, overallStats.TotalMiners)
 }
+
+// =============================================================================
+// Quick Unit Tests (No SIMULATION_TEST required)
+// =============================================================================
+
+func TestSimulationManager_NewManager_Success(t *testing.T) {
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    5,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 5000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 10, Location: "TestLoc"},
+			},
+		},
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+	assert.False(t, manager.IsRunning())
+}
+
+func TestSimulationManager_GetSubSimulators(t *testing.T) {
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    3,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 5, Location: "TestLoc"},
+			},
+		},
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+
+	// Test getting sub-simulators before starting
+	blockchain := manager.GetBlockchainSimulator()
+	assert.NotNil(t, blockchain)
+
+	miners := manager.GetVirtualMinerSimulator()
+	assert.NotNil(t, miners)
+
+	clusters := manager.GetClusterSimulator()
+	assert.NotNil(t, clusters)
+}
+
+func TestSimulationManager_IsRunning_InitialState(t *testing.T) {
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    2,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+			},
+		},
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+
+	// Should not be running initially
+	assert.False(t, manager.IsRunning())
+}
+
+func TestSimulationManager_StartStop_Quick(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    2,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+			},
+		},
+		SyncInterval: time.Second * 1,
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+
+	// Start
+	err = manager.Start()
+	require.NoError(t, err)
+	assert.True(t, manager.IsRunning())
+
+	// Double start should fail
+	err = manager.Start()
+	assert.Error(t, err)
+
+	// Stop
+	manager.Stop()
+	assert.False(t, manager.IsRunning())
+
+	// Double stop should be safe
+	manager.Stop()
+	assert.False(t, manager.IsRunning())
+}
+
+func TestSimulationManager_GetOverallStats_BeforeStart(t *testing.T) {
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    2,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+			},
+		},
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+
+	// Should be able to get stats even before starting
+	stats := manager.GetOverallStats()
+	assert.NotNil(t, stats)
+}
+
+func TestSimulationManager_GetPerformanceMetrics_BeforeStart(t *testing.T) {
+	config := SimulationConfig{
+		BlockchainConfig: BlockchainConfig{
+			NetworkType:       "testnet",
+			BlockTime:         time.Second * 10,
+			InitialDifficulty: 1000,
+		},
+		MinerConfig: VirtualMinerConfig{
+			MinerCount:    2,
+			HashRateRange: HashRateRange{Min: 1000000, Max: 2000000},
+		},
+		ClusterConfig: ClusterSimulatorConfig{
+			ClusterCount: 1,
+			ClustersConfig: []ClusterConfig{
+				{Name: "TestCluster", MinerCount: 3, Location: "TestLoc"},
+			},
+		},
+	}
+
+	manager, err := NewSimulationManager(config)
+	require.NoError(t, err)
+
+	// Should be able to get metrics even before starting
+	metrics := manager.GetPerformanceMetrics()
+	assert.NotNil(t, metrics)
+}
