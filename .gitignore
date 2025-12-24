@@ -59,6 +59,13 @@ cmd/stratum/stratum.exe
 *.test
 *.test.exe
 
+# Coverage files
+coverage
+coverage.out
+coverage_*
+sim_coverage
+*.coverprofile
+
 # Temp files
 temp_*.html
 temp_*.txt
