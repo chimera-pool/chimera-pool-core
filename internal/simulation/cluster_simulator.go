@@ -393,7 +393,19 @@ func (cs *clusterSimulator) GetMigrationProgress(sourcePool, targetPool string) 
 	for _, progress := range cs.migrationProgress {
 		plan := cs.migrations[progress.PlanID]
 		if plan != nil && plan.SourcePool == sourcePool && plan.TargetPool == targetPool {
-			return progress
+			// Return a COPY to prevent race conditions
+			errorsCopy := make([]string, len(progress.Errors))
+			copy(errorsCopy, progress.Errors)
+			return &MigrationProgress{
+				PlanID:                 progress.PlanID,
+				TotalMiners:            progress.TotalMiners,
+				MigratedMiners:         progress.MigratedMiners,
+				FailedMiners:           progress.FailedMiners,
+				ProgressPercent:        progress.ProgressPercent,
+				EstimatedTimeRemaining: progress.EstimatedTimeRemaining,
+				Status:                 progress.Status,
+				Errors:                 errorsCopy,
+			}
 		}
 	}
 
