@@ -100,6 +100,11 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardType, setLeaderboardType] = useState('hashrate');
+  const [leaderboardPage, setLeaderboardPage] = useState(1);
+  const [leaderboardPageSize, setLeaderboardPageSize] = useState(20);
+  const [leaderboardPagination, setLeaderboardPagination] = useState({ totalUsers: 0, totalPages: 0 });
+  const [myRank, setMyRank] = useState<number | null>(null);
+  const [myPage, setMyPage] = useState<number | null>(null);
   
   // Admin channel management state
   const [showCreateChannel, setShowCreateChannel] = useState(false);
@@ -148,8 +153,8 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
   }, [selectedChannel]);
 
   useEffect(() => {
-    if (activeView === 'leaderboard') fetchLeaderboard();
-  }, [activeView, leaderboardType]);
+    if (activeView === 'leaderboard') fetchLeaderboard(leaderboardPage, leaderboardPageSize);
+  }, [activeView, leaderboardType, leaderboardPage, leaderboardPageSize]);
 
   const fetchMessages = async () => {
     if (!selectedChannel) return;
@@ -172,12 +177,15 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
     } catch (e) { console.error(e); }
   };
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (page = leaderboardPage, pageSize = leaderboardPageSize) => {
     try {
-      const res = await fetch(`/api/v1/community/leaderboard?type=${leaderboardType}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/v1/community/leaderboard?type=${leaderboardType}&page=${page}&pageSize=${pageSize}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setLeaderboard(data.leaderboard || []);
+        setLeaderboardPagination(data.pagination || { totalUsers: 0, totalPages: 0 });
+        setMyRank(data.myRank);
+        setMyPage(data.myPage);
       }
     } catch (e) { console.error(e); }
   };
@@ -765,6 +773,58 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
                 </div>
               ))}
             </div>
+            
+            {/* Pagination Controls */}
+            <div style={styles.paginationContainer}>
+              <div style={styles.paginationInfo}>
+                {myRank && (
+                  <button 
+                    style={styles.findMeButton}
+                    onClick={() => { if (myPage) { setLeaderboardPage(myPage); } }}
+                    title={`Your rank: #${myRank}`}
+                  >
+                    📍 Find Me (#{myRank})
+                  </button>
+                )}
+                <span style={styles.paginationText}>
+                  Showing {((leaderboardPage - 1) * leaderboardPageSize) + 1}-{Math.min(leaderboardPage * leaderboardPageSize, leaderboardPagination.totalUsers)} of {leaderboardPagination.totalUsers} miners
+                </span>
+              </div>
+              <div style={styles.paginationControls}>
+                <select 
+                  style={styles.pageSizeSelect}
+                  value={leaderboardPageSize}
+                  onChange={e => { setLeaderboardPageSize(Number(e.target.value)); setLeaderboardPage(1); }}
+                >
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                </select>
+                <button 
+                  style={{ ...styles.pageButton, opacity: leaderboardPage === 1 ? 0.5 : 1 }}
+                  onClick={() => setLeaderboardPage(1)}
+                  disabled={leaderboardPage === 1}
+                >⏮ First</button>
+                <button 
+                  style={{ ...styles.pageButton, opacity: leaderboardPage === 1 ? 0.5 : 1 }}
+                  onClick={() => setLeaderboardPage(p => Math.max(1, p - 1))}
+                  disabled={leaderboardPage === 1}
+                >◀ Prev</button>
+                <span style={styles.pageIndicator}>
+                  Page {leaderboardPage} of {leaderboardPagination.totalPages}
+                </span>
+                <button 
+                  style={{ ...styles.pageButton, opacity: leaderboardPage >= leaderboardPagination.totalPages ? 0.5 : 1 }}
+                  onClick={() => setLeaderboardPage(p => Math.min(leaderboardPagination.totalPages, p + 1))}
+                  disabled={leaderboardPage >= leaderboardPagination.totalPages}
+                >Next ▶</button>
+                <button 
+                  style={{ ...styles.pageButton, opacity: leaderboardPage >= leaderboardPagination.totalPages ? 0.5 : 1 }}
+                  onClick={() => setLeaderboardPage(leaderboardPagination.totalPages)}
+                  disabled={leaderboardPage >= leaderboardPagination.totalPages}
+                >Last ⏭</button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -965,6 +1025,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   editInput: { flex: 1, padding: '8px 12px', backgroundColor: '#0a0a15', border: '1px solid #00d4ff', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem' },
   editSaveBtn: { padding: '8px 16px', backgroundColor: '#4ade80', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' },
   editCancelBtn: { padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer', fontSize: '0.85rem' },
+  paginationContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', backgroundColor: '#1a1a2e', borderTop: '1px solid #2a2a4a', marginTop: '10px', borderRadius: '0 0 12px 12px', flexWrap: 'wrap' as const, gap: '10px' },
+  paginationInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
+  paginationText: { color: '#888', fontSize: '0.9rem' },
+  paginationControls: { display: 'flex', alignItems: 'center', gap: '8px' },
+  pageSizeSelect: { padding: '6px 10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.85rem', cursor: 'pointer' },
+  pageButton: { padding: '6px 12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' },
+  pageIndicator: { padding: '6px 12px', color: '#00d4ff', fontSize: '0.9rem', fontWeight: 'bold' },
+  findMeButton: { padding: '8px 16px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', transition: 'all 0.2s' },
 };
 
 export default CommunityPage;

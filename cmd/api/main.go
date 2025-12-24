@@ -4592,16 +4592,26 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 		leaderboardType := c.DefaultQuery("type", "hashrate")
 		_ = c.DefaultQuery("period", "all") // Reserved for future use
 
-		// Configurable limit with default 50, max 100
-		limit := 50
-		if limitParam := c.Query("limit"); limitParam != "" {
-			if parsed, err := strconv.Atoi(limitParam); err == nil && parsed > 0 {
-				limit = parsed
-				if limit > 100 {
-					limit = 100
+		// Pagination parameters
+		page := 1
+		pageSize := 20 // Default page size
+		if pageParam := c.Query("page"); pageParam != "" {
+			if parsed, err := strconv.Atoi(pageParam); err == nil && parsed > 0 {
+				page = parsed
+			}
+		}
+		if pageSizeParam := c.Query("pageSize"); pageSizeParam != "" {
+			if parsed, err := strconv.Atoi(pageSizeParam); err == nil && parsed > 0 {
+				pageSize = parsed
+				if pageSize > 100 {
+					pageSize = 100
 				}
 			}
 		}
+		offset := (page - 1) * pageSize
+
+		// Get current user ID if authenticated (for finding their rank)
+		currentUserID := c.GetInt64("user_id")
 
 		// Comprehensive leaderboard query with all user stats and badges
 		var orderBy string
@@ -4618,6 +4628,12 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 			orderBy = "current_hashrate DESC"
 		}
 
+		// Get total count of active users
+		var totalUsers int
+		db.QueryRow("SELECT COUNT(*) FROM users WHERE is_active = true").Scan(&totalUsers)
+		totalPages := (totalUsers + pageSize - 1) / pageSize
+
+		// Build the ranked CTE query with pagination
 		query := fmt.Sprintf(`
 			WITH user_stats AS (
 				SELECT 
@@ -4637,7 +4653,6 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 					(
 						SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id
 					) as total_shares,
-					-- Engagement score: weighted combination of activity
 					(
 						COALESCE(up.forum_post_count, 0) * 10 +
 						COALESCE(up.reputation, 0) +
@@ -4649,20 +4664,24 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 				LEFT JOIN user_profiles up ON u.id = up.user_id
 				WHERE u.is_active = true
 				GROUP BY u.id, u.username, u.role, u.is_admin, u.created_at, up.lifetime_hashrate, up.forum_post_count, up.reputation
+			),
+			ranked_stats AS (
+				SELECT us.*, ROW_NUMBER() OVER (ORDER BY %s, us.id) as rank
+				FROM user_stats us
 			)
 			SELECT 
-				us.*,
+				rs.*,
 				COALESCE(pb.icon, '🌱') as primary_badge_icon,
 				COALESCE(pb.color, '#4ade80') as primary_badge_color,
 				COALESCE(pb.name, 'Newcomer') as primary_badge_name
-			FROM user_stats us
-			LEFT JOIN user_badges ub ON ub.user_id = us.id AND ub.is_primary = true
+			FROM ranked_stats rs
+			LEFT JOIN user_badges ub ON ub.user_id = rs.id AND ub.is_primary = true
 			LEFT JOIN badges pb ON ub.badge_id = pb.id
-			ORDER BY %s
-			LIMIT $1
+			ORDER BY rs.rank
+			LIMIT $1 OFFSET $2
 		`, orderBy)
 
-		rows, err := db.Query(query, limit)
+		rows, err := db.Query(query, pageSize, offset)
 		if err != nil {
 			log.Printf("Leaderboard query error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch leaderboard"})
@@ -4671,7 +4690,6 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 		defer rows.Close()
 
 		leaders := []gin.H{}
-		rank := 1
 		userIDs := []int64{}
 
 		for rows.Next() {
@@ -4683,12 +4701,13 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 			var currentHashrate, lifetimeHashrate float64
 			var activeMiners, forumPosts, reputation, blocksFound int
 			var totalShares, engagementScore int64
+			var rank int
 			var primaryBadgeIcon, primaryBadgeColor, primaryBadgeName string
 
 			err := rows.Scan(
 				&userID, &username, &role, &isAdmin, &joinDate,
 				&currentHashrate, &activeMiners, &lifetimeHashrate,
-				&forumPosts, &reputation, &blocksFound, &totalShares, &engagementScore,
+				&forumPosts, &reputation, &blocksFound, &totalShares, &engagementScore, &rank,
 				&primaryBadgeIcon, &primaryBadgeColor, &primaryBadgeName,
 			)
 			if err != nil {
@@ -4731,7 +4750,6 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 				"badges": []gin.H{}, // Will be populated below
 			})
 			userIDs = append(userIDs, userID)
-			rank++
 		}
 
 		// Fetch all badges for each user
@@ -4770,7 +4788,56 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{"leaderboard": leaders, "type": leaderboardType})
+		// Get current user's rank if authenticated
+		var myRank interface{} = nil
+		var myPage interface{} = nil
+		if currentUserID > 0 {
+			rankQuery := fmt.Sprintf(`
+				WITH user_stats AS (
+					SELECT 
+						u.id,
+						COALESCE(SUM(m.hashrate), 0) as current_hashrate,
+						COALESCE(up.forum_post_count, 0) as forum_posts,
+						COALESCE(up.reputation, 0) as reputation,
+						(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) as blocks_found,
+						(SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id) as total_shares,
+						(
+							COALESCE(up.forum_post_count, 0) * 10 +
+							COALESCE(up.reputation, 0) +
+							(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 100 +
+							(SELECT COUNT(*) FROM channel_messages cm WHERE cm.user_id = u.id AND cm.is_deleted = false) * 2
+						) as engagement_score
+					FROM users u
+					LEFT JOIN miners m ON u.id = m.user_id AND m.is_active = true
+					LEFT JOIN user_profiles up ON u.id = up.user_id
+					WHERE u.is_active = true
+					GROUP BY u.id, up.forum_post_count, up.reputation
+				),
+				ranked AS (
+					SELECT id, ROW_NUMBER() OVER (ORDER BY %s, id) as rank
+					FROM user_stats
+				)
+				SELECT rank FROM ranked WHERE id = $1
+			`, orderBy)
+			var userRank int
+			if err := db.QueryRow(rankQuery, currentUserID).Scan(&userRank); err == nil {
+				myRank = userRank
+				myPage = ((userRank - 1) / pageSize) + 1
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"leaderboard": leaders,
+			"type":        leaderboardType,
+			"pagination": gin.H{
+				"page":       page,
+				"pageSize":   pageSize,
+				"totalUsers": totalUsers,
+				"totalPages": totalPages,
+			},
+			"myRank": myRank,
+			"myPage": myPage,
+		})
 	}
 }
 
