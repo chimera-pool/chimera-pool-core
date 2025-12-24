@@ -127,7 +127,7 @@ hardware_profiles:
 # =============================================================================
 job_negotiation:
   # Enable job negotiation feature
-  enabled: false
+  enabled: true
   # Separate port for Job Declarator Server
   listen_address: ":3335"
   # Maximum concurrent template validations
