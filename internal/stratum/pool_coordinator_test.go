@@ -234,7 +234,6 @@ func TestPoolCoordinator_SubmitShare(t *testing.T) {
 	pc := NewPoolCoordinator(config)
 	err := pc.Start()
 	require.NoError(t, err)
-	defer pc.Stop()
 
 	// Set a job
 	job := &Job{
@@ -250,7 +249,6 @@ func TestPoolCoordinator_SubmitShare(t *testing.T) {
 	addr := pc.listener.Addr().String()
 	conn, err := net.Dial("tcp", addr)
 	require.NoError(t, err)
-	defer conn.Close()
 
 	buffer := make([]byte, 4096)
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -280,11 +278,17 @@ func TestPoolCoordinator_SubmitShare(t *testing.T) {
 	// Response should have result (true or false) or error
 	assert.NotNil(t, response["id"])
 
-	// Wait for stats
-	time.Sleep(100 * time.Millisecond)
+	// Close connection first to prevent race with Stop()
+	conn.Close()
+
+	// Wait for share processing to complete before stopping
+	time.Sleep(200 * time.Millisecond)
 
 	stats := pc.GetStats()
 	assert.Greater(t, stats.TotalSharesReceived, int64(0))
+
+	// Now stop the coordinator after all work is done
+	pc.Stop()
 }
 
 func TestPoolCoordinator_ConcurrentConnections(t *testing.T) {
