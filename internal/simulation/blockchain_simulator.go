@@ -378,6 +378,10 @@ func (bs *blockchainSimulator) validateBlockHash(block *Block) bool {
 }
 
 func (bs *blockchainSimulator) adjustDifficulty() {
+	if bs.config.DifficultyAdjustmentWindow <= 0 {
+		return
+	}
+
 	if len(bs.chain) < bs.config.DifficultyAdjustmentWindow {
 		return
 	}
@@ -545,8 +549,14 @@ func (bs *blockchainSimulator) updateNetworkStats() {
 
 	// Estimate hash rate based on difficulty and block time
 	avgBlockSeconds := bs.networkStats.AverageBlockTime.Seconds()
-	if avgBlockSeconds > 0 {
+	if avgBlockSeconds >= 1.0 {
 		bs.networkStats.HashRate = bs.difficulty * 1000000 / uint64(avgBlockSeconds)
+	} else if avgBlockSeconds > 0 {
+		// For sub-second block times, use milliseconds to avoid integer division by zero
+		avgBlockMs := bs.networkStats.AverageBlockTime.Milliseconds()
+		if avgBlockMs > 0 {
+			bs.networkStats.HashRate = bs.difficulty * 1000000000 / uint64(avgBlockMs)
+		}
 	}
 }
 

@@ -1039,7 +1039,14 @@ func (cs *clusterSimulator) executeGradualMigration(plan *MigrationPlan, progres
 		}
 	}
 
-	interval := plan.EstimatedDuration / time.Duration(progress.TotalMiners/uint32(batchSize))
+	batches := progress.TotalMiners / uint32(batchSize)
+	if batches == 0 {
+		batches = 1
+	}
+	interval := plan.EstimatedDuration / time.Duration(batches)
+	if interval == 0 {
+		interval = time.Millisecond * 100
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

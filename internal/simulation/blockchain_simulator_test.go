@@ -212,3 +212,260 @@ func TestBlockchainSimulator_ConcurrentMining(t *testing.T) {
 		t.Fatal("Mining took too long")
 	}
 }
+
+// ============================================================================
+// Additional Tests for Coverage Improvement (No Skip)
+// ============================================================================
+
+func TestBlockchainSimulator_MineBlock_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := BlockchainConfig{
+		NetworkType:                "testnet",
+		BlockTime:                  time.Millisecond * 50,
+		InitialDifficulty:          1,
+		DifficultyAdjustmentWindow: 5,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	// Mine a block
+	block, err := simulator.MineNextBlock()
+	require.NoError(t, err)
+	assert.NotNil(t, block)
+	assert.Equal(t, uint64(1), block.Height)
+	assert.NotEmpty(t, block.Hash)
+
+	// Mine another with specific miner ID
+	block2, err := simulator.MineBlockWithMiner(42)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), block2.Height)
+	assert.Equal(t, 42, block2.MinerID)
+	assert.Equal(t, block.Hash, block2.PreviousHash)
+}
+
+func TestBlockchainSimulator_ValidateChain_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := BlockchainConfig{
+		NetworkType:                "testnet",
+		BlockTime:                  time.Millisecond * 20,
+		InitialDifficulty:          1,
+		DifficultyAdjustmentWindow: 10,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	// Validate initial chain (just genesis)
+	assert.True(t, simulator.ValidateChain())
+
+	// Mine several blocks
+	for i := 0; i < 3; i++ {
+		_, err := simulator.MineNextBlock()
+		require.NoError(t, err)
+	}
+
+	// Chain should still be valid
+	assert.True(t, simulator.ValidateChain())
+}
+
+func TestBlockchainSimulator_DifficultyAdjustment_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := BlockchainConfig{
+		NetworkType:                "testnet",
+		BlockTime:                  time.Millisecond * 10,
+		InitialDifficulty:          100,
+		DifficultyAdjustmentWindow: 3,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	initialDifficulty := simulator.GetCurrentDifficulty()
+	assert.Equal(t, uint64(100), initialDifficulty)
+
+	// Mine enough blocks to trigger adjustment
+	for i := 0; i < 6; i++ {
+		_, err := simulator.MineNextBlock()
+		require.NoError(t, err)
+	}
+
+	// Difficulty should have been adjusted
+	newDifficulty := simulator.GetCurrentDifficulty()
+	assert.NotEqual(t, uint64(0), newDifficulty)
+}
+
+func TestBlockchainSimulator_NetworkLatency_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	// Test uniform distribution
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Millisecond * 20,
+		InitialDifficulty: 1,
+		NetworkLatency: NetworkLatencyConfig{
+			MinLatency:   time.Millisecond * 5,
+			MaxLatency:   time.Millisecond * 15,
+			Distribution: "uniform",
+		},
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	_, err = simulator.MineNextBlock()
+	require.NoError(t, err)
+
+	// Test normal distribution
+	config.NetworkLatency.Distribution = "normal"
+	simulator2, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+	_, err = simulator2.MineNextBlock()
+	require.NoError(t, err)
+
+	// Test exponential distribution
+	config.NetworkLatency.Distribution = "exponential"
+	simulator3, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+	_, err = simulator3.MineNextBlock()
+	require.NoError(t, err)
+}
+
+func TestBlockchainSimulator_CustomDifficultyCurve_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	// Test exponential curve
+	config := BlockchainConfig{
+		NetworkType:                "testnet",
+		BlockTime:                  time.Millisecond * 10,
+		InitialDifficulty:          100,
+		DifficultyAdjustmentWindow: 2,
+		CustomDifficultyCurve: &DifficultyCurve{
+			Type: "exponential",
+			Parameters: map[string]float64{
+				"growth_rate": 1.5,
+			},
+		},
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	for i := 0; i < 4; i++ {
+		_, err := simulator.MineNextBlock()
+		require.NoError(t, err)
+	}
+
+	// Test logarithmic curve
+	config.CustomDifficultyCurve = &DifficultyCurve{
+		Type: "logarithmic",
+		Parameters: map[string]float64{
+			"base": 2.0,
+		},
+	}
+
+	simulator2, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	for i := 0; i < 4; i++ {
+		_, err := simulator2.MineNextBlock()
+		require.NoError(t, err)
+	}
+}
+
+func TestBlockchainSimulator_TransactionGeneration_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Millisecond * 50,
+		InitialDifficulty: 1,
+		TransactionLoad: TransactionLoadConfig{
+			TxPerSecond:      100,
+			BurstProbability: 0.5,
+			BurstMultiplier:  2.0,
+		},
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	// Let transactions accumulate
+	time.Sleep(time.Millisecond * 1200)
+
+	// Mine a block with transactions
+	block, err := simulator.MineNextBlock()
+	require.NoError(t, err)
+	assert.NotNil(t, block)
+
+	stats := simulator.GetNetworkStats()
+	assert.NotNil(t, stats)
+}
+
+func TestBlockchainSimulator_GenesisBlock_NoSkip(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second,
+		InitialDifficulty: 1000,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	genesis := simulator.GetGenesisBlock()
+	require.NotNil(t, genesis)
+	assert.Equal(t, uint64(0), genesis.Height)
+	assert.Empty(t, genesis.PreviousHash)
+	assert.NotEmpty(t, genesis.Hash)
+	assert.Equal(t, -1, genesis.MinerID)
+}
+
+func TestBlockchainSimulator_StartStop_NoSkip(t *testing.T) {
+	config := BlockchainConfig{
+		NetworkType:       "testnet",
+		BlockTime:         time.Second,
+		InitialDifficulty: 1000,
+	}
+
+	simulator, err := NewBlockchainSimulator(config)
+	require.NoError(t, err)
+
+	// Start
+	err = simulator.Start()
+	require.NoError(t, err)
+
+	// Start again should error
+	err = simulator.Start()
+	assert.Error(t, err)
+
+	// Stop
+	err = simulator.Stop()
+	require.NoError(t, err)
+
+	// Stop again should be no-op
+	err = simulator.Stop()
+	require.NoError(t, err)
+}

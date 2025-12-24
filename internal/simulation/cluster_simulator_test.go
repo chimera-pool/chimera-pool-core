@@ -383,3 +383,324 @@ func TestClusterSimulator_PerformanceMonitoring(t *testing.T) {
 	assert.GreaterOrEqual(t, clusterStats.ActiveMiners, uint32(0))
 	assert.LessOrEqual(t, clusterStats.ActiveMiners, uint32(20))
 }
+
+// ============================================================================
+// Additional Tests for Coverage Improvement (No Skip)
+// ============================================================================
+
+func TestClusterSimulator_BasicOperations_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "TestCluster1",
+				MinerCount:    5,
+				Location:      "US-East",
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+			{
+				Name:          "TestCluster2",
+				MinerCount:    3,
+				Location:      "EU-West",
+				HashRateRange: HashRateRange{Min: 2000, Max: 6000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Test GetClusters
+	clusters := simulator.GetClusters()
+	assert.Len(t, clusters, 2)
+
+	// Find cluster by name (IDs contain name but have timestamp suffix)
+	var foundCluster *Cluster
+	for _, c := range clusters {
+		if c.Name == "TestCluster1" {
+			foundCluster = c
+			break
+		}
+	}
+	require.NotNil(t, foundCluster)
+	assert.Equal(t, "TestCluster1", foundCluster.Name)
+
+	// Test GetCluster by ID
+	cluster := simulator.GetCluster(foundCluster.ID)
+	assert.NotNil(t, cluster)
+	assert.Equal(t, "TestCluster1", cluster.Name)
+
+	// Test non-existent cluster
+	nonExistent := simulator.GetCluster("NonExistent")
+	assert.Nil(t, nonExistent)
+
+	// Test GetGeographicalDistribution
+	geoDist := simulator.GetGeographicalDistribution()
+	assert.NotNil(t, geoDist)
+	assert.Equal(t, uint32(1), geoDist["US-East"])
+	assert.Equal(t, uint32(1), geoDist["EU-West"])
+}
+
+func TestClusterSimulator_StartStop_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "TestCluster",
+				MinerCount:    3,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Start
+	err = simulator.Start()
+	require.NoError(t, err)
+
+	// Start again should error
+	err = simulator.Start()
+	assert.Error(t, err)
+
+	// Stop
+	err = simulator.Stop()
+	require.NoError(t, err)
+
+	// Stop again should be no-op
+	err = simulator.Stop()
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_AddRemoveCluster_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "InitialCluster",
+				MinerCount:    2,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Add a new cluster
+	newCluster, err := simulator.AddCluster(ClusterConfig{
+		Name:          "NewCluster",
+		MinerCount:    3,
+		Location:      "Asia",
+		HashRateRange: HashRateRange{Min: 2000, Max: 6000},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, newCluster)
+	assert.Equal(t, "NewCluster", newCluster.Name)
+
+	// Verify cluster was added
+	clusters := simulator.GetClusters()
+	assert.Len(t, clusters, 2)
+
+	// Remove cluster by ID (not Name)
+	err = simulator.RemoveCluster(newCluster.ID)
+	require.NoError(t, err)
+
+	// Verify cluster was removed
+	clusters = simulator.GetClusters()
+	assert.Len(t, clusters, 1)
+
+	// Remove non-existent cluster should error
+	err = simulator.RemoveCluster("NonExistent")
+	assert.Error(t, err)
+}
+
+func TestClusterSimulator_FailureSimulation_NoSkip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "Cluster1",
+				MinerCount:    3,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+			{
+				Name:          "Cluster2",
+				MinerCount:    3,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	err = simulator.Start()
+	require.NoError(t, err)
+	defer simulator.Stop()
+
+	// Get cluster IDs
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 2)
+	cluster1ID := clusters[0].ID
+	cluster2ID := clusters[1].ID
+
+	// Trigger cluster failure
+	err = simulator.TriggerClusterFailure(cluster1ID, time.Millisecond*100)
+	require.NoError(t, err)
+
+	// Trigger network partition
+	err = simulator.TriggerNetworkPartition([]string{cluster1ID, cluster2ID}, time.Millisecond*100)
+	require.NoError(t, err)
+
+	// Trigger coordinator failure - may fail if no coordinator configured
+	_ = simulator.TriggerCoordinatorFailure("coordinator1", time.Millisecond*100)
+
+	// Wait for failures to recover
+	time.Sleep(time.Millisecond * 200)
+}
+
+func TestClusterSimulator_Migration_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "SourceCluster",
+				MinerCount:    5,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Execute migration
+	plan := MigrationPlan{
+		SourcePool:        "pool1",
+		TargetPool:        "pool2",
+		Strategy:          "immediate",
+		EstimatedDuration: time.Second,
+	}
+	err = simulator.ExecuteMigration(plan)
+	require.NoError(t, err)
+
+	// Get migration progress
+	progress := simulator.GetMigrationProgress("pool1", "pool2")
+	assert.NotNil(t, progress)
+}
+
+func TestClusterSimulator_Statistics_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "StatsCluster",
+				MinerCount:    5,
+				Location:      "US-West",
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Get overall stats
+	stats := simulator.GetOverallStats()
+	assert.NotNil(t, stats)
+	assert.Equal(t, uint32(1), stats.TotalClusters)
+
+	// Get cluster ID
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 1)
+
+	// Get cluster stats by ID
+	clusterStats := simulator.GetClusterStats(clusters[0].ID)
+	assert.NotNil(t, clusterStats)
+
+	// Get non-existent cluster stats
+	nonExistentStats := simulator.GetClusterStats("NonExistent")
+	assert.Nil(t, nonExistentStats)
+}
+
+func TestClusterSimulator_Coordination_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 2,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "CoordCluster1",
+				MinerCount:    3,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+			{
+				Name:          "CoordCluster2",
+				MinerCount:    3,
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Get cluster IDs
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 2)
+	clusterIDs := []string{clusters[0].ID, clusters[1].ID}
+
+	// Elect leader
+	leader, err := simulator.ElectLeader(clusterIDs)
+	require.NoError(t, err)
+	assert.NotEmpty(t, leader)
+
+	// Synchronize clusters
+	err = simulator.SynchronizeClusters(clusterIDs)
+	require.NoError(t, err)
+}
+
+func TestClusterSimulator_ConfigUpdate_NoSkip(t *testing.T) {
+	config := ClusterSimulatorConfig{
+		ClusterCount: 1,
+		ClustersConfig: []ClusterConfig{
+			{
+				Name:          "ConfigCluster",
+				MinerCount:    5,
+				Location:      "US-East",
+				HashRateRange: HashRateRange{Min: 1000, Max: 5000},
+			},
+		},
+	}
+
+	simulator, err := NewClusterSimulator(config)
+	require.NoError(t, err)
+
+	// Get cluster ID
+	clusters := simulator.GetClusters()
+	require.Len(t, clusters, 1)
+	clusterID := clusters[0].ID
+
+	// Update cluster config
+	err = simulator.UpdateClusterConfig(clusterID, ClusterConfig{
+		Name:     "UpdatedCluster",
+		Location: "US-West",
+	})
+	require.NoError(t, err)
+
+	// Update non-existent cluster should error
+	err = simulator.UpdateClusterConfig("NonExistent", ClusterConfig{})
+	assert.Error(t, err)
+
+	// Update miner distribution
+	err = simulator.UpdateMinerDistribution(clusterID, 10)
+	require.NoError(t, err)
+
+	// Update non-existent cluster miner distribution should error
+	err = simulator.UpdateMinerDistribution("NonExistent", 10)
+	assert.Error(t, err)
+}
