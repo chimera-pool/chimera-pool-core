@@ -4591,7 +4591,17 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		leaderboardType := c.DefaultQuery("type", "hashrate")
 		_ = c.DefaultQuery("period", "all") // Reserved for future use
-		limit := 20
+
+		// Configurable limit with default 50, max 100
+		limit := 50
+		if limitParam := c.Query("limit"); limitParam != "" {
+			if parsed, err := strconv.Atoi(limitParam); err == nil && parsed > 0 {
+				limit = parsed
+				if limit > 100 {
+					limit = 100
+				}
+			}
+		}
 
 		// Comprehensive leaderboard query with all user stats and badges
 		var orderBy string
