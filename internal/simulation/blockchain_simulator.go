@@ -421,8 +421,7 @@ func (bs *blockchainSimulator) getTransactionsForBlock() []Transaction {
 	// Get pending transactions from pool
 	maxTx := 1000 // Maximum transactions per block
 
-	bs.mutex.Lock()
-	defer bs.mutex.Unlock()
+	// NOTE: Caller must hold bs.mutex.Lock() - do not acquire here to avoid deadlock
 
 	if len(bs.transactionPool) == 0 {
 		return []Transaction{}
@@ -522,6 +521,7 @@ func (bs *blockchainSimulator) updateNetworkStats() {
 type transactionGenerator struct {
 	config TransactionLoadConfig
 	nonce  uint64
+	mu     sync.Mutex
 }
 
 func newTransactionGenerator(config TransactionLoadConfig) *transactionGenerator {
@@ -532,10 +532,13 @@ func newTransactionGenerator(config TransactionLoadConfig) *transactionGenerator
 }
 
 func (tg *transactionGenerator) generateTransaction() Transaction {
+	tg.mu.Lock()
 	tg.nonce++
+	nonce := tg.nonce
+	tg.mu.Unlock()
 
 	return Transaction{
-		ID:        fmt.Sprintf("tx_%d_%d", time.Now().Unix(), tg.nonce),
+		ID:        fmt.Sprintf("tx_%d_%d", time.Now().Unix(), nonce),
 		From:      fmt.Sprintf("addr_%d", rand.Intn(1000)),
 		To:        fmt.Sprintf("addr_%d", rand.Intn(1000)),
 		Amount:    uint64(rand.Intn(1000000) + 1),

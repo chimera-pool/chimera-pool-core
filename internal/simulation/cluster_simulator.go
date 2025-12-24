@@ -9,15 +9,15 @@ import (
 
 // clusterSimulator implements the ClusterSimulator interface
 type clusterSimulator struct {
-	config           ClusterSimulatorConfig
-	clusters         map[string]*Cluster
-	migrations       map[string]*MigrationPlan
+	config            ClusterSimulatorConfig
+	clusters          map[string]*Cluster
+	migrations        map[string]*MigrationPlan
 	migrationProgress map[string]*MigrationProgress
-	isRunning        bool
-	stopChan         chan struct{}
-	mutex            sync.RWMutex
-	overallStats     *OverallClusterStats
-	startTime        time.Time
+	isRunning         bool
+	stopChan          chan struct{}
+	mutex             sync.RWMutex
+	overallStats      *OverallClusterStats
+	startTime         time.Time
 }
 
 // NewClusterSimulator creates a new cluster simulator
@@ -56,7 +56,7 @@ func (cs *clusterSimulator) Start() error {
 	for _, cluster := range cs.clusters {
 		cluster.IsActive = true
 		cluster.LastSyncTime = time.Now()
-		
+
 		// Start all miners in the cluster
 		for _, miner := range cluster.Miners {
 			miner.IsActive = true
@@ -333,7 +333,7 @@ func (cs *clusterSimulator) CancelMigration(planID string) error {
 	}
 
 	plan.Status = "cancelled"
-	
+
 	progress := cs.migrationProgress[planID]
 	if progress != nil {
 		progress.Status = "cancelled"
@@ -436,7 +436,7 @@ func (cs *clusterSimulator) UpdateMinerDistribution(clusterID string, minerCount
 	}
 
 	currentCount := len(cluster.Miners)
-	
+
 	if minerCount > currentCount {
 		// Add miners
 		for i := currentCount; i < minerCount; i++ {
@@ -466,7 +466,7 @@ func (cs *clusterSimulator) generateClusters() error {
 
 func (cs *clusterSimulator) createCluster(config ClusterConfig) (*Cluster, error) {
 	id := fmt.Sprintf("cluster_%s_%d", config.Name, time.Now().UnixNano())
-	
+
 	cluster := &Cluster{
 		ID:                 id,
 		Name:               config.Name,
@@ -507,7 +507,7 @@ func (cs *clusterSimulator) createMinerForCluster(cluster *Cluster) *VirtualMine
 	}
 
 	// Calculate hash rate
-	baseHashRate := hashRateRange.Min + 
+	baseHashRate := hashRateRange.Min +
 		uint64(rand.Float64()*float64(hashRateRange.Max-hashRateRange.Min))
 
 	id := fmt.Sprintf("miner_%s_%d_%d", cluster.ID, time.Now().UnixNano(), rand.Intn(10000))
@@ -651,10 +651,10 @@ func (cs *clusterSimulator) handlePowerLimitExceeded(cluster *Cluster) {
 func (cs *clusterSimulator) simulateMinerInCluster(miner *VirtualMiner, cluster *Cluster) {
 	// Simulate coordinated behavior within cluster
 	// Miners in the same cluster tend to have similar behavior patterns
-	
+
 	// Simulate share submission
 	baseShareRate := float64(miner.HashRate) / 10000000.0 // shares per second
-	
+
 	if rand.Float64() < baseShareRate {
 		miner.CurrentState.SharesSubmitted++
 		miner.Statistics.TotalShares++
@@ -744,7 +744,7 @@ func (cs *clusterSimulator) processCoordinatorGroup(clusters []*Cluster) {
 	}
 
 	syncTime := time.Now()
-	
+
 	// Check if synchronization is needed
 	for _, cluster := range clusters {
 		if time.Since(cluster.LastSyncTime) >= cluster.CoordinationConfig.SyncInterval {
@@ -870,14 +870,18 @@ func (cs *clusterSimulator) scheduleRecovery(clusterID string, duration time.Dur
 }
 
 func (cs *clusterSimulator) executeMigrationPlan(plan *MigrationPlan) {
+	cs.mutex.Lock()
 	plan.Status = "in_progress"
-	
+
 	progress := cs.migrationProgress[plan.ID]
 	if progress == nil {
+		cs.mutex.Unlock()
 		return
 	}
+	strategy := plan.Strategy
+	cs.mutex.Unlock()
 
-	switch plan.Strategy {
+	switch strategy {
 	case "immediate":
 		cs.executeImmediateMigration(plan, progress)
 	case "gradual":
@@ -929,7 +933,7 @@ func (cs *clusterSimulator) executeGradualMigration(plan *MigrationPlan, progres
 			return
 		case <-ticker.C:
 			cs.mutex.Lock()
-			
+
 			if plan.Status == "cancelled" {
 				cs.mutex.Unlock()
 				return
@@ -945,7 +949,7 @@ func (cs *clusterSimulator) executeGradualMigration(plan *MigrationPlan, progres
 				cs.mutex.Unlock()
 				return
 			}
-			
+
 			cs.mutex.Unlock()
 		}
 	}
@@ -963,7 +967,7 @@ func (cs *clusterSimulator) executeScheduledMigration(plan *MigrationPlan, progr
 
 func (cs *clusterSimulator) migrateBatch(plan *MigrationPlan, batchSize int) int {
 	migrated := 0
-	
+
 	for _, clusterID := range plan.ClusterIDs {
 		cluster := cs.clusters[clusterID]
 		if cluster != nil && cluster.CurrentPool == plan.SourcePool {
@@ -1013,7 +1017,7 @@ func (cs *clusterSimulator) calculateAllStats() {
 
 func (cs *clusterSimulator) calculateClusterStats(cluster *Cluster) {
 	stats := cluster.Statistics
-	
+
 	stats.MinerCount = uint32(len(cluster.Miners))
 	stats.ActiveMiners = 0
 	stats.TotalHashRate = 0
@@ -1043,7 +1047,7 @@ func (cs *clusterSimulator) calculateClusterStats(cluster *Cluster) {
 
 func (cs *clusterSimulator) calculateOverallStats() {
 	stats := cs.overallStats
-	
+
 	stats.TotalClusters = uint32(len(cs.clusters))
 	stats.ActiveClusters = 0
 	stats.TotalMiners = 0
@@ -1058,7 +1062,7 @@ func (cs *clusterSimulator) calculateOverallStats() {
 		if cluster.IsActive {
 			stats.ActiveClusters++
 		}
-		
+
 		stats.TotalMiners += uint32(len(cluster.Miners))
 		stats.ActiveMiners += cluster.Statistics.ActiveMiners
 		stats.TotalHashRate += cluster.Statistics.TotalHashRate
