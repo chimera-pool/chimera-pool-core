@@ -951,3 +951,279 @@ func TestMonitoringService_EvaluateAlertRules_InactiveRule(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, alerts, 0)
 }
+
+// =============================================================================
+// Additional Coverage Tests
+// =============================================================================
+
+func TestMonitoringService_CreateDashboard_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("CreateDashboard", mock.Anything, mock.AnythingOfType("*monitoring.Dashboard")).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	userID := uuid.New()
+	dashboard, err := service.CreateDashboard(context.Background(), "Test Dashboard", "Description", `{"panels":[]}`, true, userID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, dashboard)
+	assert.Equal(t, "Test Dashboard", dashboard.Name)
+	assert.True(t, dashboard.IsPublic)
+}
+
+func TestMonitoringService_CreateDashboard_EmptyName(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	userID := uuid.New()
+	_, err := service.CreateDashboard(context.Background(), "", "Description", `{}`, true, userID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "name cannot be empty")
+}
+
+func TestMonitoringService_CreateDashboard_InvalidJSON(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	userID := uuid.New()
+	_, err := service.CreateDashboard(context.Background(), "Dashboard", "Description", `{invalid}`, true, userID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid JSON configuration")
+}
+
+func TestMonitoringService_RecordPerformanceMetrics_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("StorePerformanceMetrics", mock.Anything, mock.AnythingOfType("*monitoring.PerformanceMetrics")).Return(nil)
+	mockPrometheus.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockPrometheus.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	metrics := &PerformanceMetrics{
+		CPUUsage:    50.0,
+		MemoryUsage: 60.0,
+		DiskUsage:   70.0,
+	}
+	err := service.RecordPerformanceMetrics(context.Background(), metrics)
+
+	assert.NoError(t, err)
+}
+
+func TestMonitoringService_RecordPerformanceMetrics_NilMetrics(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	err := service.RecordPerformanceMetrics(context.Background(), nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "metrics cannot be nil")
+}
+
+func TestMonitoringService_RecordMinerMetrics_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("StoreMinerMetrics", mock.Anything, mock.AnythingOfType("*monitoring.MinerMetrics")).Return(nil)
+	mockPrometheus.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockPrometheus.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	minerID := uuid.New()
+	metrics := &MinerMetrics{
+		MinerID:        minerID,
+		Hashrate:       1000000.0,
+		SharesAccepted: 100,
+	}
+	err := service.RecordMinerMetrics(context.Background(), metrics)
+
+	assert.NoError(t, err)
+}
+
+func TestMonitoringService_RecordMinerMetrics_NilMetrics(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	err := service.RecordMinerMetrics(context.Background(), nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "metrics cannot be nil")
+}
+
+func TestMonitoringService_RecordMinerMetrics_EmptyMinerID(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	metrics := &MinerMetrics{
+		MinerID:  uuid.Nil,
+		Hashrate: 1000000.0,
+	}
+	err := service.RecordMinerMetrics(context.Background(), metrics)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "miner ID cannot be empty")
+}
+
+func TestMonitoringService_RecordPoolMetrics_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("StorePoolMetrics", mock.Anything, mock.AnythingOfType("*monitoring.PoolMetrics")).Return(nil)
+	// Pool metrics calls both gauge and counter for various metrics
+	mockPrometheus.On("RecordGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockPrometheus.On("RecordCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	metrics := &PoolMetrics{
+		TotalHashrate: 5000000.0,
+		ActiveMiners:  50,
+		TotalShares:   10000,
+		ValidShares:   9900,
+	}
+	err := service.RecordPoolMetrics(context.Background(), metrics)
+
+	assert.NoError(t, err)
+}
+
+func TestMonitoringService_RecordPoolMetrics_NilMetrics(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	err := service.RecordPoolMetrics(context.Background(), nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "metrics cannot be nil")
+}
+
+func TestMonitoringService_GetMetrics_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	expectedMetrics := []*Metric{
+		{Name: "test_metric", Value: 100.0, Type: "gauge"},
+		{Name: "test_metric", Value: 150.0, Type: "gauge"},
+	}
+	mockRepo.On("GetMetrics", mock.Anything, "test_metric", mock.Anything, mock.Anything).Return(expectedMetrics, nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	start := time.Now().Add(-1 * time.Hour)
+	end := time.Now()
+	metrics, err := service.GetMetrics(context.Background(), "test_metric", start, end)
+
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 2)
+}
+
+func TestMonitoringService_GetMetrics_EmptyName(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	start := time.Now().Add(-1 * time.Hour)
+	end := time.Now()
+	_, err := service.GetMetrics(context.Background(), "", start, end)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "metric name cannot be empty")
+}
+
+func TestMonitoringService_GetMetrics_InvalidTimeRange(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	service := NewService(mockRepo, mockPrometheus)
+	start := time.Now()
+	end := time.Now().Add(-1 * time.Hour) // End before start
+	_, err := service.GetMetrics(context.Background(), "test_metric", start, end)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "end time must be after start time")
+}
+
+func TestMonitoringService_EvaluateAlertRules_WithActiveRule(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	ruleID := uuid.New()
+	rules := []*AlertRule{
+		{
+			ID:        ruleID,
+			Name:      "High CPU",
+			Query:     "cpu_usage",
+			Condition: ">",
+			Threshold: 90.0,
+			Severity:  "critical",
+			IsActive:  true,
+		},
+	}
+	mockRepo.On("GetAlertRules", mock.Anything).Return(rules, nil)
+	mockPrometheus.On("Query", "cpu_usage").Return(95.0, nil) // Above threshold
+	mockRepo.On("CreateAlert", mock.Anything, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	alerts, err := service.EvaluateAlertRules(context.Background())
+
+	assert.NoError(t, err)
+	assert.Len(t, alerts, 1)
+}
+
+func TestMonitoringService_EvaluateAlertRules_BelowThreshold(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+
+	rules := []*AlertRule{
+		{
+			ID:        uuid.New(),
+			Name:      "High CPU",
+			Query:     "cpu_usage",
+			Condition: ">",
+			Threshold: 90.0,
+			Severity:  "critical",
+			IsActive:  true,
+		},
+	}
+	mockRepo.On("GetAlertRules", mock.Anything).Return(rules, nil)
+	mockPrometheus.On("Query", "cpu_usage").Return(50.0, nil) // Below threshold
+
+	service := NewService(mockRepo, mockPrometheus)
+	alerts, err := service.EvaluateAlertRules(context.Background())
+
+	assert.NoError(t, err)
+	assert.Len(t, alerts, 0)
+}
+
+func TestMonitoringService_ResolveAlert_Success(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("UpdateAlert", mock.Anything, mock.AnythingOfType("*monitoring.Alert")).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	alertID := uuid.New()
+	err := service.ResolveAlert(context.Background(), alertID)
+
+	assert.NoError(t, err)
+}
+
+func TestMonitoringService_RecordMetric_HistogramType(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockPrometheus := &MockPrometheusClient{}
+	mockRepo.On("StoreMetric", mock.Anything, mock.AnythingOfType("*monitoring.Metric")).Return(nil)
+	mockPrometheus.On("RecordHistogram", "request_latency", mock.Anything, 0.5).Return(nil)
+
+	service := NewService(mockRepo, mockPrometheus)
+	metric := &Metric{
+		Name:      "request_latency",
+		Value:     0.5,
+		Labels:    map[string]string{},
+		Timestamp: time.Now(),
+		Type:      "histogram",
+	}
+	err := service.RecordMetric(context.Background(), metric)
+
+	assert.NoError(t, err)
+}
