@@ -1096,7 +1096,7 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 				COALESCE((SELECT address FROM user_wallets WHERE user_id = u.id AND is_primary = true LIMIT 1), '') as primary_wallet,
 				COALESCE((SELECT SUM(percentage) FROM user_wallets WHERE user_id = u.id AND is_active = true), 0) as total_allocated,
 				COALESCE((SELECT COUNT(*) FROM blocks WHERE finder_id = u.id), 0) as blocks_found,
-				COALESCE((SELECT SUM(share_count) FROM miners WHERE user_id = u.id), 0) as total_shares,
+				COALESCE((SELECT COUNT(*) FROM shares WHERE user_id = u.id), 0) as total_shares,
 				COALESCE(up.forum_post_count, 0) as forum_posts,
 				COALESCE(up.reputation, 0) as reputation,
 				-- Engagement/Clout score calculation
@@ -4625,7 +4625,7 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 						SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id
 					) as blocks_found,
 					(
-						SELECT COALESCE(SUM(share_count), 0) FROM miners WHERE user_id = u.id
+						SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id
 					) as total_shares,
 					-- Engagement score: weighted combination of activity
 					(
