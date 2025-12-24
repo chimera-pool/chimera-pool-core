@@ -1,6 +1,7 @@
 package stratum
 
 import (
+	"bufio"
 	"encoding/json"
 	"net"
 	"sync/atomic"
@@ -147,15 +148,15 @@ func TestPoolCoordinator_SubscribeFlow(t *testing.T) {
 	_, err = conn.Write([]byte(subscribeMsg))
 	require.NoError(t, err)
 
-	// Read response
+	// Read response line by line (stratum uses newline-delimited JSON)
 	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	buffer := make([]byte, 4096)
-	n, err := conn.Read(buffer)
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// Parse response
+	// Parse response (first line is the subscribe response)
 	var response map[string]interface{}
-	err = json.Unmarshal(buffer[:n], &response)
+	err = json.Unmarshal([]byte(line), &response)
 	require.NoError(t, err)
 
 	// Verify subscribe response
@@ -181,17 +182,26 @@ func TestPoolCoordinator_AuthorizeFlow(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
+	// Use buffered reader for line-based protocol
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	reader := bufio.NewReader(conn)
+
 	// Subscribe first
 	subscribeMsg := `{"id":1,"method":"mining.subscribe","params":[]}` + "\n"
-	conn.Write([]byte(subscribeMsg))
+	_, err = conn.Write([]byte(subscribeMsg))
+	require.NoError(t, err)
 
-	// Read and discard subscribe response
-	buffer := make([]byte, 4096)
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	conn.Read(buffer)
+	// Read and discard subscribe response (line by line)
+	_, err = reader.ReadString('\n')
+	require.NoError(t, err)
 
-	// Read difficulty notification
-	conn.Read(buffer)
+	// Read and discard difficulty notification (if any)
+	// Use a short timeout for optional messages
+	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	reader.ReadString('\n') // May or may not exist, ignore error
+
+	// Reset deadline for authorize
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 	// Send authorize
 	authMsg := `{"id":2,"method":"mining.authorize","params":["worker1.rig1","x"]}` + "\n"
@@ -199,11 +209,11 @@ func TestPoolCoordinator_AuthorizeFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read authorize response
-	n, err := conn.Read(buffer)
+	line, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
 	var response map[string]interface{}
-	err = json.Unmarshal(buffer[:n], &response)
+	err = json.Unmarshal([]byte(line), &response)
 	require.NoError(t, err)
 
 	// Verify authorize response
