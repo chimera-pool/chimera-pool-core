@@ -120,3 +120,89 @@ hardware_profiles:
     expected_hashrate: 4.5e12  # 4.5 TH/s
     optimal_difficulty: 10500
     target_share_time: 10s
+
+# =============================================================================
+# Stratum V2 Job Negotiation Configuration (SRI 2025)
+# Allows miners to propose their own block templates
+# =============================================================================
+job_negotiation:
+  # Enable job negotiation feature
+  enabled: false
+  # Separate port for Job Declarator Server
+  listen_address: ":3335"
+  # Maximum concurrent template validations
+  max_concurrent_validations: 10
+  # Timeout for template validation
+  validation_timeout: 10s
+  # Enable metrics collection
+  enable_metrics: true
+
+  # Template Provider Settings
+  template_provider:
+    # How often to poll node for new templates
+    update_interval: 5s
+    # Minimum fee rate for transactions (satoshis/vbyte)
+    min_fee_rate: 1
+    # Maximum transactions per template
+    max_transactions: 5000
+    # Pool's coinbase signature prefix (ASCII text)
+    coinbase_prefix: "/ChimeriaPool/"
+    # Pool's coinbase signature suffix
+    coinbase_suffix: ""
+    # Size of extranonce space in bytes
+    extranonce_size: 4
+    # Allow empty blocks (no transactions)
+    allow_empty_blocks: false
+    # Prioritize transactions by fee rate
+    prioritize_by_fee: true
+
+  # Template Policy - Controls what miner templates pool accepts
+  policy:
+    # Allow miners to propose custom templates
+    allow_miner_templates: true
+    # Require pool's coinbase structure
+    require_pool_coinbase: true
+    # Allow miners to modify coinbase (advanced)
+    allow_custom_coinbase: false
+    # Minimum percentage of coinbase going to pool (0.0 - 1.0)
+    min_coinbase_pool_share: 0.02
+    # Rate limit: max declarations per miner per minute
+    max_declarations_per_min: 10
+    # How long declarations remain valid
+    declaration_ttl: 5m
+    
+    # Transaction Policy
+    # Require all pool-selected transactions in miner template
+    require_all_pool_txs: false
+    # Allow miners to add additional transactions
+    allow_additional_txs: true
+    # Minimum fee rate for additional transactions
+    additional_tx_min_fee_rate: 1
+    
+    # Fallback Behavior
+    # Use pool template if miner's is rejected
+    fallback_on_rejection: true
+    # Timeout before falling back to pool template
+    fallback_timeout: 5s
+    
+    # Security
+    # Require cryptographic signatures on templates
+    require_signed_templates: false
+    # Whitelist of miners allowed to declare (empty = all allowed)
+    allowed_miner_ids: []
+
+# Stratum V2 Protocol Settings
+stratum_v2:
+  # Enable Stratum V2 protocol support
+  enabled: true
+  # Use Noise protocol encryption
+  noise_encryption: true
+  # Noise protocol pattern (NX = No static key for initiator)
+  noise_pattern: "NX"
+  # Server's static private key (base64, auto-generated if empty)
+  server_private_key: ""
+  # Support hybrid V1/V2 detection on same port
+  hybrid_detection: true
+  # V2-specific timeout settings
+  handshake_timeout: 30s
+  channel_timeout: 60s
