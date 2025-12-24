@@ -48,6 +48,9 @@ func setupPerformanceTest() *PerformanceTestSuite {
 
 // TestAPIPerformance_ConcurrentRequests tests API performance under concurrent load
 func TestAPIPerformance_ConcurrentRequests(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test in short mode")
+	}
 	suite := setupPerformanceTest()
 
 	// Setup mock expectations for pool stats

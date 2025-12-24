@@ -167,7 +167,12 @@ func (r *ResilientDB) healthChecker() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if err := r.db.Ping(); err != nil {
+		// Get current db reference under lock
+		r.mu.RLock()
+		db := r.db
+		r.mu.RUnlock()
+
+		if err := db.Ping(); err != nil {
 			log.Printf("⚠️ Database health check failed: %v", err)
 			r.mu.Lock()
 			r.healthy = false
@@ -192,8 +197,10 @@ func (r *ResilientDB) reconnect() {
 	for i := 0; i < 5; i++ {
 		log.Printf("🔄 Attempting database reconnection (attempt %d/5)...", i+1)
 
-		// Close existing connection
+		// Close existing connection under lock
+		r.mu.Lock()
 		r.db.Close()
+		r.mu.Unlock()
 
 		// Create new connection
 		db, err := sql.Open("postgres", r.url)
