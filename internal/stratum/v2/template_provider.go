@@ -70,13 +70,14 @@ type RPCTx struct {
 
 // RPCBlockchainInfo represents blockchain info response
 type RPCBlockchainInfo struct {
-	Chain         string  `json:"chain"`
-	Blocks        uint64  `json:"blocks"`
-	Headers       uint64  `json:"headers"`
-	BestBlockHash string  `json:"bestblockhash"`
-	Difficulty    float64 `json:"difficulty"`
-	MedianTime    uint64  `json:"mediantime"`
-	SyncProgress  float64 `json:"verificationprogress"`
+	Chain                string  `json:"chain"`
+	Blocks               int64   `json:"blocks"`
+	Headers              int64   `json:"headers"`
+	BestBlockHash        string  `json:"bestblockhash"`
+	Difficulty           float64 `json:"difficulty"`
+	MedianTime           uint64  `json:"mediantime"`
+	SyncProgress         float64 `json:"verificationprogress"`
+	InitialBlockDownload bool    `json:"initialblockdownload"`
 }
 
 // =============================================================================
@@ -256,7 +257,7 @@ func (p *templateProvider) GetCurrentHeight() (uint64, error) {
 		return 0, err
 	}
 
-	return info.Blocks + 1, nil // Next block height
+	return uint64(info.Blocks) + 1, nil // Next block height
 }
 
 // GetNetworkDifficulty returns current network difficulty
