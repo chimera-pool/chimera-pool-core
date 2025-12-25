@@ -37,7 +37,7 @@ type DockerRecoveryConfig struct {
 
 // DefaultDockerRecoveryConfig returns sensible defaults.
 func DefaultDockerRecoveryConfig() *DockerRecoveryConfig {
-	dockerPath := "docker"
+	dockerPath := "/usr/bin/docker"
 	if runtime.GOOS == "windows" {
 		dockerPath = "docker.exe"
 	}
@@ -78,11 +78,19 @@ func (d *DockerRecoveryAction) RestartContainer(ctx context.Context, containerNa
 	// Execute docker restart command
 	cmd := exec.CommandContext(ctx, d.dockerPath, "restart", containerName)
 	output, err := cmd.CombinedOutput()
+	outputStr := strings.TrimSpace(string(output))
+
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("%w: timeout restarting %s", ErrRestartFailed, containerName)
 		}
-		return fmt.Errorf("%w: %s - %s", ErrRestartFailed, containerName, string(output))
+		// Log the actual error for debugging
+		return fmt.Errorf("%w: %s (exit error: %v, output: %q)", ErrRestartFailed, containerName, err, outputStr)
+	}
+
+	// Verify the output contains the container name (success indicator)
+	if !strings.Contains(outputStr, containerName) {
+		return fmt.Errorf("%w: unexpected output for %s: %q", ErrRestartFailed, containerName, outputStr)
 	}
 
 	return nil

@@ -21,19 +21,19 @@ FROM alpine:3.18
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates netcat-openbsd
+# Install runtime dependencies including Docker CLI for health monitor restarts
+RUN apk add --no-cache ca-certificates netcat-openbsd docker-cli
 
 # Copy binary from builder
 COPY --from=builder /chimera-stratum /app/chimera-stratum
 COPY --from=builder /app/configs /app/configs
 
-# Expose Stratum port
-EXPOSE 18332
+# Expose ports: Stratum (3333), Job Negotiation (3335), Legacy (18332), Health Metrics (9091)
+EXPOSE 3333 3335 18332 9091
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD nc -z localhost 18332 || exit 1
+    CMD nc -z localhost 3333 || exit 1
 
 # Run the Stratum server
 CMD ["/app/chimera-stratum"]

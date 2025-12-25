@@ -114,10 +114,12 @@ func NewHealthService(config *ServiceConfig) *HealthService {
 	// Create recovery action
 	var recovery RecoveryAction
 	if config.MonitorConfig.EnableAutoRestart {
-		recovery = NewDockerRecoveryAction(&DockerRecoveryConfig{
-			AlertWebhook:   config.AlertWebhook,
-			CommandTimeout: config.CommandTimeout,
-		})
+		dockerConfig := DefaultDockerRecoveryConfig()
+		dockerConfig.AlertWebhook = config.AlertWebhook
+		if config.CommandTimeout > 0 {
+			dockerConfig.CommandTimeout = config.CommandTimeout
+		}
+		recovery = NewDockerRecoveryAction(dockerConfig)
 	} else {
 		recovery = NewLogRecoveryAction(func(format string, args ...interface{}) {
 			logger.Printf(format, args...)
