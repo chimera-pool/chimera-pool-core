@@ -191,6 +191,55 @@ job_negotiation:
     # Whitelist of miners allowed to declare (empty = all allowed)
     allowed_miner_ids: []
 
+# =============================================================================
+# Node Health Monitoring Configuration
+# Automatic node monitoring with MWEB error detection and auto-recovery
+# =============================================================================
+health_monitor:
+  # Enable health monitoring service
+  enabled: true
+  # Health check interval
+  check_interval: 30s
+  # RPC timeout for health checks
+  rpc_timeout: 10s
+  
+  # Auto-Recovery Settings
+  auto_restart:
+    # Enable automatic container restarts
+    enabled: true
+    # Maximum restarts per hour (safety limit)
+    max_restarts_per_hour: 3
+    # Cooldown between restarts
+    cooldown: 60s
+    # Consecutive failures before restart
+    failures_before_restart: 3
+  
+  # Alerting Configuration
+  alerting:
+    # Enable alert notifications
+    enabled: true
+    # Discord/Slack webhook URL for alerts
+    webhook_url: ""
+  
+  # Prometheus Metrics
+  prometheus:
+    # Enable Prometheus metrics endpoint
+    enabled: true
+    # Metrics endpoint address
+    address: ":9091"
+  
+  # Litecoin Node Monitoring
+  litecoin:
+    # Docker container name to restart
+    container: "docker-litecoind-1"
+    # Detect and recover from MWEB errors
+    detect_mweb_errors: true
+  
+  # BlockDAG Node Monitoring (future)
+  blockdag:
+    # Docker container name (empty = disabled)
+    container: ""
+
 # Stratum V2 Protocol Settings
 stratum_v2:
   # Enable Stratum V2 protocol support

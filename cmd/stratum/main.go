@@ -23,6 +23,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/health"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/hashrate"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/keepalive"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/merkle"
@@ -49,6 +50,23 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 	defer redisClient.Close()
+
+	// Initialize and start health monitoring service
+	ctx := context.Background()
+	healthService := initHealthMonitor(config)
+	if healthService != nil {
+		if err := healthService.Start(ctx); err != nil {
+			log.Printf("⚠️ Failed to start health monitor: %v", err)
+		} else {
+			log.Println("✅ Health monitoring service started")
+			defer func() {
+				stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				healthService.Stop(stopCtx)
+				log.Println("✅ Health monitoring service stopped")
+			}()
+		}
+	}
 
 	// Create stratum server
 	server := NewStratumServer(config, db, redisClient)
@@ -122,6 +140,47 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// initHealthMonitor initializes the node health monitoring service
+func initHealthMonitor(config *Config) *health.HealthService {
+	// Check if health monitoring is enabled via environment
+	if getEnv("HEALTH_MONITOR_ENABLED", "true") == "false" {
+		log.Println("⚠️ Health monitoring disabled via HEALTH_MONITOR_ENABLED=false")
+		return nil
+	}
+
+	// Create health service configuration from environment and config
+	healthConfig := &health.ServiceConfig{
+		MonitorConfig: &health.HealthMonitorConfig{
+			CheckInterval:                    30 * time.Second,
+			MaxRestartsPerHour:               3,
+			RestartCooldown:                  60 * time.Second,
+			ConsecutiveFailuresBeforeRestart: 3,
+			RPCTimeout:                       10 * time.Second,
+			EnableAutoRestart:                getEnv("HEALTH_AUTO_RESTART", "true") == "true",
+			EnableAlerts:                     true,
+			AlertWebhookURL:                  getEnv("HEALTH_ALERT_WEBHOOK", ""),
+		},
+		LitecoinRPCURL:      config.LitecoinRPCURL,
+		LitecoinRPCUser:     config.LitecoinRPCUser,
+		LitecoinRPCPassword: config.LitecoinRPCPass,
+		LitecoinContainer:   getEnv("LITECOIN_CONTAINER", "docker-litecoind-1"),
+		BlockDAGRPCURL:      config.BlockDAGRPCURL,
+		BlockDAGContainer:   getEnv("BLOCKDAG_CONTAINER", ""),
+		CommandTimeout:      60 * time.Second,
+		PrometheusEnabled:   getEnv("HEALTH_PROMETHEUS_ENABLED", "true") == "true",
+		PrometheusAddr:      getEnv("HEALTH_PROMETHEUS_ADDR", ":9091"),
+	}
+
+	service := health.NewHealthService(healthConfig)
+
+	log.Printf("🏥 Health monitor configured: LTC=%s, container=%s, prometheus=%s",
+		healthConfig.LitecoinRPCURL,
+		healthConfig.LitecoinContainer,
+		healthConfig.PrometheusAddr)
+
+	return service
 }
 
 // ResilientDB wraps sql.DB with automatic reconnection logic
