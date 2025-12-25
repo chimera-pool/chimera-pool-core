@@ -187,7 +187,7 @@ func (c *PPSPlusCalculator) CalculatePayouts(shares []Share, blockReward int64, 
 		return nil, fmt.Errorf("failed to create PPLNS calculator: %w", err)
 	}
 
-	pplnsPayouts, err := pplnsCalc.CalculatePayouts(shares, txFees, blockTime)
+	pplnsPayouts, err := pplnsCalc.CalculatePayouts(shares, txFees, 0, blockTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate PPLNS portion: %w", err)
 	}

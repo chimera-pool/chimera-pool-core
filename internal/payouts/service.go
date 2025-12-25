@@ -51,8 +51,8 @@ func (s *PayoutService) ProcessBlockPayout(ctx context.Context, blockID int64) e
 		return fmt.Errorf("failed to get shares: %w", err)
 	}
 
-	// Calculate payouts using PPLNS
-	payouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Timestamp)
+	// Calculate payouts using PPLNS (tx fees passed as 0 for now - can be added to Block struct)
+	payouts, err := s.calculator.CalculatePayouts(shares, block.Reward, 0, block.Timestamp)
 	if err != nil {
 		return fmt.Errorf("failed to calculate payouts: %w", err)
 	}
@@ -82,7 +82,7 @@ func (s *PayoutService) CalculateEstimatedPayout(ctx context.Context, userID int
 	}
 
 	// Calculate hypothetical payouts
-	payouts, err := s.calculator.CalculatePayouts(shares, estimatedBlockReward, time.Now())
+	payouts, err := s.calculator.CalculatePayouts(shares, estimatedBlockReward, 0, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate estimated payouts: %w", err)
 	}
@@ -151,7 +151,7 @@ func (s *PayoutService) ValidatePayoutFairness(ctx context.Context, blockID int6
 	}
 
 	// Recalculate payouts
-	expectedPayouts, err := s.calculator.CalculatePayouts(shares, block.Reward, block.Timestamp)
+	expectedPayouts, err := s.calculator.CalculatePayouts(shares, block.Reward, 0, block.Timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recalculate payouts: %w", err)
 	}

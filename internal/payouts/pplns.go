@@ -37,10 +37,17 @@ type Payout struct {
 }
 
 // PPLNSCalculator implements Pay Per Last N Shares payout calculation
+// Implements PayoutCalculator and ShareWindowCalculator interfaces
 type PPLNSCalculator struct {
 	windowSize     int64   // Total difficulty window for PPLNS calculation
 	poolFeePercent float64 // Pool fee percentage (0-100)
 }
+
+// Compile-time interface compliance checks
+var (
+	_ PayoutCalculator      = (*PPLNSCalculator)(nil)
+	_ ShareWindowCalculator = (*PPLNSCalculator)(nil)
+)
 
 // NewPPLNSCalculator creates a new PPLNS calculator with validation
 func NewPPLNSCalculator(windowSize int64, poolFeePercent float64) (*PPLNSCalculator, error) {
@@ -58,9 +65,17 @@ func NewPPLNSCalculator(windowSize int64, poolFeePercent float64) (*PPLNSCalcula
 	}, nil
 }
 
+// Mode returns the payout mode for this calculator
+func (calc *PPLNSCalculator) Mode() PayoutMode {
+	return PayoutModePPLNS
+}
+
 // CalculatePayouts calculates PPLNS payouts for a found block
-func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64, blockTime time.Time) ([]Payout, error) {
-	if blockReward <= 0 {
+// txFees are added to blockReward for total distribution
+func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64, txFees int64, blockTime time.Time) ([]Payout, error) {
+	// Add tx fees to block reward for PPLNS distribution
+	totalReward := blockReward + txFees
+	if totalReward <= 0 {
 		return []Payout{}, nil
 	}
 
@@ -103,8 +118,8 @@ func (calc *PPLNSCalculator) CalculatePayouts(shares []Share, blockReward int64,
 	}
 
 	// Calculate net reward after pool fee
-	poolFee := int64(float64(blockReward) * calc.poolFeePercent / 100.0)
-	netReward := blockReward - poolFee
+	poolFee := int64(float64(totalReward) * calc.poolFeePercent / 100.0)
+	netReward := totalReward - poolFee
 
 	// Aggregate difficulty by user
 	userDifficulties := make(map[int64]float64)
@@ -164,9 +179,27 @@ func (calc *PPLNSCalculator) GetWindowSize() int64 {
 	return calc.windowSize
 }
 
+// SetWindowSize sets the window size for PPLNS calculation
+func (calc *PPLNSCalculator) SetWindowSize(size int64) error {
+	if size <= 0 {
+		return fmt.Errorf("window size must be positive, got %d", size)
+	}
+	calc.windowSize = size
+	return nil
+}
+
 // GetPoolFeePercent returns the configured pool fee percentage
 func (calc *PPLNSCalculator) GetPoolFeePercent() float64 {
 	return calc.poolFeePercent
+}
+
+// SetPoolFeePercent sets the pool fee percentage
+func (calc *PPLNSCalculator) SetPoolFeePercent(fee float64) error {
+	if fee < 0 || fee > 100 {
+		return fmt.Errorf("pool fee percent must be between 0 and 100, got %.2f", fee)
+	}
+	calc.poolFeePercent = fee
+	return nil
 }
 
 // ValidateConfiguration validates the calculator configuration
