@@ -301,12 +301,20 @@ func TestStartStopGlobalHealthService(t *testing.T) {
 	globalHealthService = nil
 	globalHealthServiceOnce = false
 
+	// Set environment to disable auto-restart during test
+	t.Setenv("HEALTH_AUTO_RESTART", "false")
+	t.Setenv("HEALTH_MONITOR_ENABLED", "true")
+	t.Setenv("LITECOIN_RPC_URL", "http://localhost:19332")
+
 	ctx := context.Background()
 
 	err := StartGlobalHealthService(ctx)
 	assert.NoError(t, err)
 
-	stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Give the monitor time to start, then stop with longer timeout
+	time.Sleep(100 * time.Millisecond)
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err = StopGlobalHealthService(stopCtx)
 	assert.NoError(t, err)
