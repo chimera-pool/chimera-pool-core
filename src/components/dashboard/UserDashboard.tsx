@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colors, gradients } from '../../styles/shared';
 import { formatHashrate } from '../../utils/formatters';
 import { useUserDashboard } from '../../services/realtime/useRealTimeData';
+import { PayoutSettings } from './PayoutSettings';
 
 // ============================================================================
 // USER DASHBOARD COMPONENT
@@ -275,6 +276,9 @@ export function UserDashboard({ token }: UserDashboardProps) {
           </table>
         </div>
       )}
+
+      {/* Payout Settings */}
+      <PayoutSettings token={token} />
 
       {/* Recent Payouts */}
       {stats.recent_payouts.length > 0 && (
