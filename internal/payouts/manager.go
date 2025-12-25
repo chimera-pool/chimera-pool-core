@@ -107,11 +107,12 @@ func (pm *PayoutManager) initializeCalculators() error {
 		pm.calculators[PayoutModeSOLO] = calc
 	}
 
-	// SLICE (placeholder - will be fully implemented in Phase 6)
+	// SLICE - V2 Job Declaration enhanced PPLNS with sliced windows
 	if pm.config.EnableSLICE {
-		// For now, SLICE uses enhanced PPLNS with slice-specific config
-		calc, err := NewPPLNSCalculator(
-			pm.config.SLICEWindowSize*pm.config.SLICESliceDuration,
+		calc, err := NewSLICECalculator(
+			pm.config.SLICEWindowSize,
+			pm.config.SLICESliceDuration,
+			pm.config.SLICEDecayFactor,
 			pm.config.FeeSLICE,
 		)
 		if err != nil {
