@@ -98,6 +98,10 @@ func main() {
 		apiGroup.GET("/miners/locations", handlePublicMinerLocations(db))
 		apiGroup.GET("/miners/locations/stats", handleMinerLocationStats(db))
 
+		// Public payout information
+		apiGroup.GET("/payout-modes", handleGetPayoutModes())
+		apiGroup.GET("/pool/fees", handleGetPoolFees())
+
 		// Protected routes
 		protected := apiGroup.Group("/")
 		protected.Use(authMiddleware(config.JWTSecret))
@@ -119,6 +123,11 @@ func main() {
 			protected.GET("/user/stats/hashrate", handleUserHashrateHistory(db))
 			protected.GET("/user/stats/shares", handleUserSharesHistory(db))
 			protected.GET("/user/stats/earnings", handleUserEarningsHistory(db))
+
+			// Payout settings routes
+			protected.GET("/user/payout-settings", handleGetPayoutSettings(db))
+			protected.PUT("/user/payout-settings", handleUpdatePayoutSettings(db))
+			protected.GET("/user/payout-estimate", handleGetPayoutEstimate(db))
 
 			// Community routes (authenticated)
 			protected.GET("/community/channels", handleGetChannels(db))
@@ -7157,4 +7166,182 @@ func handleAdminGetUserMiners(db *sql.DB) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, summary)
 	}
+}
+
+// =============================================================================
+// PAYOUT SETTINGS HANDLERS
+// =============================================================================
+
+// handleGetPayoutModes returns all available payout modes (public)
+func handleGetPayoutModes() gin.HandlerFunc {
+	service := api.NewDefaultPayoutService(nil)
+	return func(c *gin.Context) {
+		modes, err := service.GetAvailablePayoutModes()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get payout modes"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"modes": modes, "total": len(modes)})
+	}
+}
+
+// handleGetPoolFees returns pool fee configuration (public)
+func handleGetPoolFees() gin.HandlerFunc {
+	service := api.NewDefaultPayoutService(nil)
+	return func(c *gin.Context) {
+		fees, err := service.GetPoolFeeConfig()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fee config"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"fees": fees})
+	}
+}
+
+// handleGetPayoutSettings returns user's payout settings (protected)
+func handleGetPayoutSettings(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var settings struct {
+			PayoutMode       string `json:"payout_mode"`
+			MinPayoutAmount  int64  `json:"min_payout_amount"`
+			PayoutAddress    string `json:"payout_address"`
+			AutoPayoutEnable bool   `json:"auto_payout_enable"`
+		}
+
+		err := db.QueryRow(`
+			SELECT COALESCE(payout_mode, 'pplns'), COALESCE(min_payout_amount, 1000000),
+			       COALESCE(payout_address, ''), COALESCE(auto_payout_enable, true)
+			FROM user_payout_settings WHERE user_id = $1
+		`, userID).Scan(&settings.PayoutMode, &settings.MinPayoutAmount,
+			&settings.PayoutAddress, &settings.AutoPayoutEnable)
+
+		if err == sql.ErrNoRows {
+			// Return defaults
+			settings.PayoutMode = "pplns"
+			settings.MinPayoutAmount = 1000000
+			settings.AutoPayoutEnable = true
+		} else if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"user_id":            userID,
+			"payout_mode":        settings.PayoutMode,
+			"min_payout_amount":  settings.MinPayoutAmount,
+			"payout_address":     settings.PayoutAddress,
+			"auto_payout_enable": settings.AutoPayoutEnable,
+			"fee_percent":        getPoolFeeForMode(settings.PayoutMode),
+		})
+	}
+}
+
+// handleUpdatePayoutSettings updates user's payout settings (protected)
+func handleUpdatePayoutSettings(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var req struct {
+			PayoutMode       *string `json:"payout_mode"`
+			MinPayoutAmount  *int64  `json:"min_payout_amount"`
+			PayoutAddress    *string `json:"payout_address"`
+			AutoPayoutEnable *bool   `json:"auto_payout_enable"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// Validate payout mode if provided
+		validModes := map[string]bool{
+			"pplns": true, "pps": true, "pps_plus": true,
+			"fpps": true, "score": true, "solo": true, "slice": true,
+		}
+		if req.PayoutMode != nil && !validModes[*req.PayoutMode] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payout mode"})
+			return
+		}
+
+		// Upsert settings
+		_, err := db.Exec(`
+			INSERT INTO user_payout_settings (user_id, payout_mode, min_payout_amount, payout_address, auto_payout_enable)
+			VALUES ($1, COALESCE($2, 'pplns'), COALESCE($3, 1000000), COALESCE($4, ''), COALESCE($5, true))
+			ON CONFLICT (user_id) DO UPDATE SET
+				payout_mode = COALESCE($2, user_payout_settings.payout_mode),
+				min_payout_amount = COALESCE($3, user_payout_settings.min_payout_amount),
+				payout_address = COALESCE($4, user_payout_settings.payout_address),
+				auto_payout_enable = COALESCE($5, user_payout_settings.auto_payout_enable),
+				updated_at = NOW()
+		`, userID, req.PayoutMode, req.MinPayoutAmount, req.PayoutAddress, req.AutoPayoutEnable)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update settings"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+	}
+}
+
+// handleGetPayoutEstimate returns payout estimate for user (protected)
+func handleGetPayoutEstimate(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		mode := c.DefaultQuery("mode", "pplns")
+
+		// Get user's share contribution
+		var totalDiff float64
+		db.QueryRow(`
+			SELECT COALESCE(SUM(difficulty), 0)
+			FROM shares
+			WHERE user_id = $1 AND is_valid = true
+			AND created_at > NOW() - INTERVAL '24 hours'
+		`, userID).Scan(&totalDiff)
+
+		// Get pool's total difficulty in window
+		var poolDiff float64
+		db.QueryRow(`
+			SELECT COALESCE(SUM(difficulty), 0)
+			FROM shares
+			WHERE is_valid = true
+			AND created_at > NOW() - INTERVAL '24 hours'
+		`).Scan(&poolDiff)
+
+		sharePercent := 0.0
+		if poolDiff > 0 {
+			sharePercent = (totalDiff / poolDiff) * 100
+		}
+
+		feePercent := getPoolFeeForMode(mode)
+
+		c.JSON(http.StatusOK, gin.H{
+			"user_id":            userID,
+			"payout_mode":        mode,
+			"current_difficulty": totalDiff,
+			"pool_difficulty":    poolDiff,
+			"share_percentage":   sharePercent,
+			"fee_percent":        feePercent,
+			"estimated_at":       time.Now(),
+		})
+	}
+}
+
+// getPoolFeeForMode returns the pool fee for a given payout mode
+func getPoolFeeForMode(mode string) float64 {
+	fees := map[string]float64{
+		"pplns":    1.0,
+		"pps":      2.0,
+		"pps_plus": 1.5,
+		"fpps":     2.0,
+		"score":    1.0,
+		"solo":     0.5,
+		"slice":    0.8,
+	}
+	if fee, ok := fees[mode]; ok {
+		return fee
+	}
+	return 1.0
 }
