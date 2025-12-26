@@ -20,32 +20,43 @@ export interface MiningGraphsProps {
   isLoggedIn: boolean;
 }
 
-// Grafana-inspired chart colors
+// Grafana-inspired chart colors - Premium 2025 palette
 const chartColors = {
-  gold: '#D4A84B',
-  goldLight: '#E8C171',
-  purple: '#7B5EA7',
-  purpleLight: '#9B7EC7',
-  green: '#4ADE80',
-  greenDark: '#22C55E',
-  coral: '#C45C5C',
-  coralLight: '#E07777',
-  blue: '#60A5FA',
-  silver: '#B8B4C8',
-  gridLine: 'rgba(74, 44, 90, 0.3)',
-  axisText: '#7A7490',
-  background: '#0D0811',
-  cardBg: 'rgba(45, 31, 61, 0.4)',
+  // Primary accent colors
+  gold: '#F5B800',
+  goldGlow: '#FFD54F',
+  goldDim: '#C9960C',
+  // Secondary colors
+  green: '#73BF69',
+  greenBright: '#96D98D',
+  greenDim: '#56A64B',
+  // Tertiary
+  purple: '#B877D9',
+  purpleBright: '#CA95E5',
+  purpleDim: '#8E54AD',
+  // Alerts
+  coral: '#FF6B6B',
+  coralDim: '#E74C3C',
+  // Blues
+  blue: '#5794F2',
+  blueBright: '#8AB8FF',
+  // Neutrals
+  silver: '#CCCCDC',
+  // Grid & axes - very subtle
+  gridLine: 'rgba(255, 255, 255, 0.06)',
+  axisText: 'rgba(204, 204, 220, 0.65)',
+  // Backgrounds
+  panelBg: '#181B1F',
+  cardBg: '#1F2228',
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
   section: {
-    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
-    borderRadius: '16px',
-    padding: '24px',
-    border: '1px solid #4A2C5A',
-    marginBottom: '24px',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
+    background: '#111217',
+    borderRadius: '8px',
+    padding: '16px',
+    border: 'none',
+    marginBottom: '20px',
   },
   header: {
     display: 'flex',
@@ -114,20 +125,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '20px',
   },
   chartCard: {
-    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.9) 0%, rgba(26, 15, 30, 0.95) 100%)',
-    borderRadius: '12px',
-    padding: '20px',
-    border: '1px solid rgba(74, 44, 90, 0.5)',
-    boxShadow: '0 2px 16px rgba(0, 0, 0, 0.3)',
+    background: '#181B1F',
+    borderRadius: '4px',
+    padding: '16px',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
   },
   chartTitle: {
-    color: '#F0EDF4',
-    fontSize: '0.95rem',
-    fontWeight: 600,
-    margin: '0 0 16px',
+    color: 'rgba(204, 204, 220, 0.9)',
+    fontSize: '0.85rem',
+    fontWeight: 500,
+    margin: '0 0 12px',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
+    letterSpacing: '0.02em',
   },
   chartTitleIcon: {
     width: '18px',
@@ -152,17 +163,17 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: 'all', label: 'All' },
 ];
 
-// Grafana-style tooltip
+// Grafana-style tooltip - clean and minimal
 const tooltipStyle = {
   contentStyle: { 
-    backgroundColor: 'rgba(13, 8, 17, 0.95)', 
-    border: '1px solid #4A2C5A', 
-    borderRadius: '8px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-    padding: '12px 16px',
+    backgroundColor: 'rgba(24, 27, 31, 0.96)', 
+    border: '1px solid rgba(255, 255, 255, 0.1)', 
+    borderRadius: '4px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+    padding: '8px 12px',
   },
-  labelStyle: { color: '#D4A84B', fontWeight: 600, marginBottom: '4px' },
-  itemStyle: { color: '#F0EDF4', fontSize: '0.9rem' },
+  labelStyle: { color: 'rgba(204, 204, 220, 0.65)', fontWeight: 400, fontSize: '0.75rem', marginBottom: '2px' },
+  itemStyle: { color: '#CCCCDC', fontSize: '0.85rem', fontWeight: 500 },
 };
 
 export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
@@ -433,132 +444,153 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
           {/* Hashrate Chart - Grafana Style */}
           <div style={styles.chartCard}>
             <h3 style={styles.chartTitle}>
-              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(212, 168, 75, 0.2)', color: chartColors.gold }}>⚡</span>
-              Hashrate History
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: chartColors.gold }} />
+              Pool Hashrate
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={hashrateData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={hashrateData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="hashGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.gold} stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor={chartColors.gold} stopOpacity={0.15}/>
-                    <stop offset="100%" stopColor={chartColors.gold} stopOpacity={0}/>
+                    <stop offset="0%" stopColor={chartColors.gold} stopOpacity={0.25}/>
+                    <stop offset="100%" stopColor={chartColors.gold} stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <CartesianGrid stroke={chartColors.gridLine} strokeDasharray="0" vertical={false} />
                 <XAxis 
                   dataKey="time" 
-                  stroke={chartColors.axisText} 
-                  fontSize={11} 
-                  tickLine={false}
-                  axisLine={{ stroke: chartColors.gridLine }}
-                />
-                <YAxis 
-                  stroke={chartColors.axisText} 
-                  fontSize={11} 
-                  tickFormatter={(v) => `${v.toFixed(1)}TH/s`} 
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
-                  width={70}
+                  dy={8}
+                />
+                <YAxis 
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
+                  tickFormatter={(v) => `${v.toFixed(1)}`}
+                  tickLine={false}
+                  axisLine={false}
+                  width={45}
+                  dx={-4}
                 />
                 <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)} TH/s`, 'Hashrate']} />
                 <Area 
-                  type="monotoneX" 
+                  type="monotone" 
                   dataKey="hashrateTH" 
                   stroke={chartColors.gold} 
                   fill="url(#hashGradient)" 
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: chartColors.gold, stroke: '#1A0F1E', strokeWidth: 2 }}
+                  activeDot={{ r: 3, fill: chartColors.gold, stroke: chartColors.cardBg, strokeWidth: 2 }}
+                  isAnimationActive={true}
+                  animationDuration={300}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Shares Chart - Grafana Style */}
+          {/* Shares Chart - Grafana Style - Stacked Area */}
           <div style={styles.chartCard}>
             <h3 style={styles.chartTitle}>
-              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(74, 222, 128, 0.2)', color: chartColors.green }}>▤</span>
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: chartColors.green }} />
               Shares Submitted
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={sharesData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={sharesData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="validGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.green} stopOpacity={0.9}/>
-                    <stop offset="100%" stopColor={chartColors.greenDark} stopOpacity={0.7}/>
+                    <stop offset="0%" stopColor={chartColors.green} stopOpacity={0.3}/>
+                    <stop offset="100%" stopColor={chartColors.green} stopOpacity={0.02}/>
                   </linearGradient>
                   <linearGradient id="invalidGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.coral} stopOpacity={0.9}/>
-                    <stop offset="100%" stopColor={chartColors.coral} stopOpacity={0.7}/>
+                    <stop offset="0%" stopColor={chartColors.coral} stopOpacity={0.3}/>
+                    <stop offset="100%" stopColor={chartColors.coral} stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <CartesianGrid stroke={chartColors.gridLine} strokeDasharray="0" vertical={false} />
                 <XAxis 
                   dataKey="time" 
-                  stroke={chartColors.axisText} 
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={{ stroke: chartColors.gridLine }}
-                />
-                <YAxis 
-                  stroke={chartColors.axisText} 
-                  fontSize={11}
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
-                  width={50}
+                  dy={8}
+                />
+                <YAxis 
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={45}
+                  dx={-4}
                 />
                 <Tooltip {...tooltipStyle} />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '10px' }}
-                  formatter={(value) => <span style={{ color: '#B8B4C8', fontSize: '0.8rem' }}>{value}</span>}
+                <Area 
+                  type="monotone" 
+                  dataKey="validShares" 
+                  name="Valid" 
+                  stroke={chartColors.green} 
+                  fill="url(#validGradient)" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: chartColors.green, stroke: chartColors.cardBg, strokeWidth: 2 }}
                 />
-                <Bar dataKey="validShares" name="Valid" fill="url(#validGradient)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="invalidShares" name="Invalid" fill="url(#invalidGradient)" radius={[3, 3, 0, 0]} />
-              </BarChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="invalidShares" 
+                  name="Invalid" 
+                  stroke={chartColors.coral} 
+                  fill="url(#invalidGradient)" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: chartColors.coral, stroke: chartColors.cardBg, strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
 
           {/* Acceptance Rate Chart - Grafana Style */}
           <div style={styles.chartCard}>
             <h3 style={styles.chartTitle}>
-              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(74, 222, 128, 0.2)', color: chartColors.green }}>✓</span>
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: chartColors.blue }} />
               Acceptance Rate
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={sharesData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={sharesData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="acceptGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.green} stopOpacity={0.3}/>
-                    <stop offset="100%" stopColor={chartColors.green} stopOpacity={0}/>
+                    <stop offset="0%" stopColor={chartColors.blue} stopOpacity={0.25}/>
+                    <stop offset="100%" stopColor={chartColors.blue} stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <CartesianGrid stroke={chartColors.gridLine} strokeDasharray="0" vertical={false} />
                 <XAxis 
                   dataKey="time" 
-                  stroke={chartColors.axisText} 
-                  fontSize={11}
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   tickLine={false}
-                  axisLine={{ stroke: chartColors.gridLine }}
+                  axisLine={false}
+                  dy={8}
                 />
                 <YAxis 
-                  stroke={chartColors.axisText} 
-                  fontSize={11} 
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   domain={[90, 100]} 
                   tickFormatter={(v) => `${v}%`}
                   tickLine={false}
                   axisLine={false}
                   width={45}
+                  dx={-4}
                 />
                 <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)}%`, 'Rate']} />
                 <Area 
-                  type="monotoneX" 
+                  type="monotone" 
                   dataKey="acceptanceRate" 
-                  stroke={chartColors.green} 
+                  stroke={chartColors.blue} 
                   fill="url(#acceptGradient)"
                   strokeWidth={2} 
                   dot={false}
-                  activeDot={{ r: 4, fill: chartColors.green, stroke: '#1A0F1E', strokeWidth: 2 }}
+                  activeDot={{ r: 3, fill: chartColors.blue, stroke: chartColors.cardBg, strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -567,47 +599,47 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
           {/* Earnings Chart - Grafana Style */}
           <div style={styles.chartCard}>
             <h3 style={styles.chartTitle}>
-              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(123, 94, 167, 0.2)', color: chartColors.purple }}>◈</span>
-              Earnings History
+              <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: chartColors.purple }} />
+              Cumulative Earnings
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={earningsData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={earningsData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="earnGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.purple} stopOpacity={0.4}/>
-                    <stop offset="50%" stopColor={chartColors.purple} stopOpacity={0.15}/>
-                    <stop offset="100%" stopColor={chartColors.purple} stopOpacity={0}/>
+                    <stop offset="0%" stopColor={chartColors.purple} stopOpacity={0.25}/>
+                    <stop offset="100%" stopColor={chartColors.purple} stopOpacity={0.02}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <CartesianGrid stroke={chartColors.gridLine} strokeDasharray="0" vertical={false} />
                 <XAxis 
                   dataKey="time" 
-                  stroke={chartColors.axisText} 
-                  fontSize={11}
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   tickLine={false}
-                  axisLine={{ stroke: chartColors.gridLine }}
+                  axisLine={false}
+                  dy={8}
                 />
                 <YAxis 
-                  stroke={chartColors.axisText} 
-                  fontSize={11} 
+                  stroke="transparent"
+                  tick={{ fill: chartColors.axisText, fontSize: 10 }}
                   tickFormatter={(v) => `${v.toFixed(2)}`}
                   tickLine={false}
                   axisLine={false}
-                  width={50}
+                  width={45}
+                  dx={-4}
                 />
                 <Tooltip 
                   {...tooltipStyle}
-                  labelStyle={{ color: chartColors.purple, fontWeight: 600 }}
                   formatter={(value: number) => [`${value.toFixed(4)} BDAG`, 'Cumulative']} 
                 />
                 <Area 
-                  type="monotoneX" 
+                  type="monotone" 
                   dataKey="cumulative" 
                   stroke={chartColors.purple} 
                   fill="url(#earnGradient)" 
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: chartColors.purple, stroke: '#1A0F1E', strokeWidth: 2 }}
+                  activeDot={{ r: 3, fill: chartColors.purple, stroke: chartColors.cardBg, strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
