@@ -24,6 +24,9 @@ import {
 // Utility formatters
 import { formatHashrate } from './utils/formatters';
 
+// Monitoring Dashboard
+import MonitoringDashboard from './components/dashboard/MonitoringDashboard';
+
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 interface PoolStats {
@@ -931,6 +934,9 @@ function App() {
 
             {/* Mining Graphs - Visible to ALL users (pool-wide for guests, toggleable for members) */}
             <MiningGraphsLazy token={token || undefined} isLoggedIn={!!token && !!user} />
+
+            {/* Pool Monitoring Dashboard - Shows node health and Grafana links */}
+            <MonitoringDashboard token={token || undefined} />
 
             {/* Call-to-action for non-logged users */}
             {!token && (
