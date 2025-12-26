@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { formatHashrate } from '../../utils/formatters';
 import AdminStatsTab from './tabs/AdminStatsTab';
+import { AdminGrafanaSection } from './tabs/AdminGrafanaSection';
 
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
@@ -1032,6 +1033,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Pool Statistics Tab - Isolated Component (prevents parent re-renders) */}
+        {activeTab === 'stats' && <AdminGrafanaSection token={token} />}
         <AdminStatsTab token={token} isActive={activeTab === 'stats'} />
 
         {/* Algorithm Settings Tab */}

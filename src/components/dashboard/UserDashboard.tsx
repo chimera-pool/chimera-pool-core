@@ -5,6 +5,7 @@ import { useUserDashboard } from '../../services/realtime/useRealTimeData';
 import { PayoutSettings } from './PayoutSettings';
 import NotificationSettings from './NotificationSettings';
 import MonitoringDashboard from './MonitoringDashboard';
+import { MinerGrafanaSection } from './MinerGrafanaSection';
 
 // ============================================================================
 // USER DASHBOARD COMPONENT
@@ -205,6 +206,9 @@ export function UserDashboard({ token }: UserDashboardProps) {
     <section style={styles.section}>
       <h2 style={styles.sectionTitle}>📈 Your Mining Dashboard</h2>
       
+      {/* Grafana Charts Section */}
+      <MinerGrafanaSection token={token} />
+
       {/* Summary Stats */}
       <div style={styles.statsRow}>
         <div style={styles.statBox}>
