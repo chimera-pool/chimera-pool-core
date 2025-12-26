@@ -311,8 +311,8 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ color: '#00d4ff', margin: '0 0 10px', fontSize: '2rem' }}>⚙️ Equipment Control Center</h1>
-        <p style={{ color: '#888', margin: 0 }}>Manage your mining hardware, monitor performance, and configure payouts</p>
+        <h1 style={{ color: '#D4A84B', margin: '0 0 10px', fontSize: '1.8rem', fontWeight: 700 }}>⚙️ Equipment Control Center</h1>
+        <p style={{ color: '#B8B4C8', margin: 0 }}>Manage your mining hardware, monitor performance, and configure payouts</p>
       </div>
 
       {/* Stats Overview */}
@@ -1028,34 +1028,34 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 }
 
 const eqStyles: { [key: string]: React.CSSProperties } = {
-  statCard: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '10px', border: '2px solid #2a2a4a', textAlign: 'center' },
-  statIcon: { fontSize: '1.3rem', marginBottom: '6px' },
-  statValue: { fontSize: '1.3rem', fontWeight: 'bold', color: '#00d4ff', marginBottom: '4px' },
-  statLabel: { color: '#888', fontSize: '0.75rem' },
-  tab: { padding: '10px 16px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#888', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s' },
-  tabActive: { color: '#00d4ff', borderBottomColor: '#00d4ff' },
-  equipmentCard: { backgroundColor: '#1a1a2e', borderRadius: '10px', padding: '15px', border: '1px solid #2a2a4a', borderLeft: '4px solid #888', cursor: 'pointer', transition: 'all 0.2s' },
-  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' },
-  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' },
-  quickStat: { backgroundColor: '#0a0a15', padding: '8px', borderRadius: '6px', textAlign: 'center' },
-  quickLabel: { display: 'block', color: '#888', fontSize: '0.7rem', marginBottom: '2px' },
-  quickValue: { display: 'block', color: '#e0e0e0', fontWeight: 'bold', fontSize: '0.85rem' },
-  expandedDetails: { marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #2a2a4a' },
-  detailSection: { backgroundColor: '#0a0a15', padding: '12px', borderRadius: '8px' },
-  detailTitle: { color: '#00d4ff', margin: '0 0 10px', fontSize: '0.9rem' },
-  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#888', fontSize: '0.8rem', flexWrap: 'wrap', gap: '5px' },
-  editSplitsBtn: { marginTop: '8px', padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #9b59b6', borderRadius: '6px', color: '#9b59b6', cursor: 'pointer', fontSize: '0.8rem' },
-  actionBtn: { padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '6px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.85rem' },
-  walletCard: { backgroundColor: '#1a1a2e', padding: '15px', borderRadius: '10px', border: '1px solid #2a2a4a' },
-  primaryBadge: { backgroundColor: '#4ade80', color: '#0a0a0f', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' },
-  smallBtn: { padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '4px', color: '#00d4ff', cursor: 'pointer', fontSize: '0.8rem' },
-  addBtn: { padding: '8px 16px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
-  modal: { backgroundColor: '#1a1a2e', padding: '20px', borderRadius: '12px', border: '2px solid #00d4ff', maxWidth: '400px', width: '100%', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxSizing: 'border-box' },
-  label: { display: 'block', color: '#888', marginBottom: '4px', fontSize: '0.85rem' },
-  input: { width: '100%', padding: '10px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.95rem', marginBottom: '12px', boxSizing: 'border-box' },
-  cancelBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #888', borderRadius: '6px', color: '#888', cursor: 'pointer', fontSize: '0.9rem' },
-  saveBtn: { padding: '10px 20px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' },
+  statCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(74, 44, 90, 0.5)', textAlign: 'center', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)', transition: 'all 0.2s ease' },
+  statIcon: { fontSize: '1.4rem', marginBottom: '8px' },
+  statValue: { fontSize: '1.4rem', fontWeight: 700, color: '#D4A84B', marginBottom: '4px' },
+  statLabel: { color: '#B8B4C8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.03em' },
+  tab: { padding: '12px 20px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s', fontWeight: 500 },
+  tabActive: { color: '#D4A84B', borderBottomColor: '#D4A84B' },
+  equipmentCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', borderRadius: '14px', padding: '18px', border: '1px solid rgba(74, 44, 90, 0.4)', borderLeft: '4px solid #7A7490', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)' },
+  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' },
+  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '10px' },
+  quickStat: { background: 'rgba(13, 8, 17, 0.6)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(74, 44, 90, 0.3)' },
+  quickLabel: { display: 'block', color: '#B8B4C8', fontSize: '0.7rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.02em' },
+  quickValue: { display: 'block', color: '#F0EDF4', fontWeight: 600, fontSize: '0.9rem' },
+  expandedDetails: { marginTop: '18px', paddingTop: '18px', borderTop: '1px solid rgba(74, 44, 90, 0.4)' },
+  detailSection: { background: 'rgba(13, 8, 17, 0.6)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(74, 44, 90, 0.3)' },
+  detailTitle: { color: '#D4A84B', margin: '0 0 12px', fontSize: '0.95rem', fontWeight: 600 },
+  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#B8B4C8', fontSize: '0.85rem', flexWrap: 'wrap', gap: '5px' },
+  editSplitsBtn: { marginTop: '10px', padding: '8px 14px', backgroundColor: 'transparent', border: '1px solid #7B5EA7', borderRadius: '8px', color: '#7B5EA7', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' },
+  actionBtn: { padding: '10px 18px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '8px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.2s' },
+  walletCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(74, 44, 90, 0.4)' },
+  primaryBadge: { background: 'linear-gradient(135deg, #4ADE80 0%, #22C55E 100%)', color: '#1A0F1E', fontSize: '0.65rem', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 },
+  smallBtn: { padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '6px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' },
+  addBtn: { padding: '10px 20px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '8px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(13, 8, 17, 0.92)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
+  modal: { background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', padding: '28px', borderRadius: '16px', border: '1px solid rgba(212, 168, 75, 0.3)', maxWidth: '440px', width: '100%', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' },
+  label: { display: 'block', color: '#B8B4C8', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 500 },
+  input: { width: '100%', padding: '12px 14px', backgroundColor: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.95rem', marginBottom: '14px', boxSizing: 'border-box', transition: 'border-color 0.2s' },
+  cancelBtn: { padding: '12px 22px', backgroundColor: 'transparent', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s' },
+  saveBtn: { padding: '12px 22px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)' },
 };
 
 export default EquipmentPage;
