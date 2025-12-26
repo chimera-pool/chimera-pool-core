@@ -27,20 +27,21 @@ type RateLimiterConfig struct {
 // DefaultRateLimiterConfig returns secure defaults
 func DefaultRateLimiterConfig() RateLimiterConfig {
 	return RateLimiterConfig{
-		MaxAttempts:     5,
-		WindowSize:      15 * time.Minute,
-		BlockDuration:   30 * time.Minute,
-		CleanupInterval: 5 * time.Minute,
+		MaxAttempts:     30,              // Increased from 5 - allows burst during launches
+		WindowSize:      5 * time.Minute, // Reduced from 15 - faster reset
+		BlockDuration:   5 * time.Minute, // Reduced from 30 - shorter penalty
+		CleanupInterval: 1 * time.Minute,
 	}
 }
 
-// AuthRateLimiterConfig returns stricter config for auth endpoints
+// AuthRateLimiterConfig returns config for auth endpoints
+// Balanced for security while allowing community onboarding bursts
 func AuthRateLimiterConfig() RateLimiterConfig {
 	return RateLimiterConfig{
-		MaxAttempts:     5,
-		WindowSize:      15 * time.Minute,
-		BlockDuration:   30 * time.Minute,
-		CleanupInterval: 5 * time.Minute,
+		MaxAttempts:     20,              // Increased from 5 - allows multiple registrations
+		WindowSize:      5 * time.Minute, // Reduced from 15 - faster reset
+		BlockDuration:   5 * time.Minute, // Reduced from 30 - shorter penalty
+		CleanupInterval: 1 * time.Minute,
 	}
 }
 

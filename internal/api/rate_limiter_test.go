@@ -452,7 +452,7 @@ func TestRateLimiter_EmptyIP(t *testing.T) {
 
 	// Empty IP should still work
 	assert.True(t, rl.Allow(""))
-	assert.Equal(t, 4, rl.GetRemainingAttempts(""))
+	assert.Equal(t, 29, rl.GetRemainingAttempts("")) // 30 max - 1 used = 29
 }
 
 func TestRateLimiter_IPv6(t *testing.T) {
@@ -462,7 +462,7 @@ func TestRateLimiter_IPv6(t *testing.T) {
 
 	ipv6 := "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
 	assert.True(t, rl.Allow(ipv6))
-	assert.Equal(t, 4, rl.GetRemainingAttempts(ipv6))
+	assert.Equal(t, 29, rl.GetRemainingAttempts(ipv6)) // 30 max - 1 used = 29
 }
 
 func TestRateLimiter_Stop(t *testing.T) {
@@ -490,8 +490,8 @@ func TestRateLimiter_RecordFailure_NewIP(t *testing.T) {
 	// Record failure for new IP
 	rl.RecordFailure(ip)
 
-	// Should have 4 remaining (started at 1, not 0)
-	assert.Equal(t, 4, rl.GetRemainingAttempts(ip))
+	// Should have 29 remaining (30 max - 1 failure = 29)
+	assert.Equal(t, 29, rl.GetRemainingAttempts(ip))
 }
 
 // =============================================================================
