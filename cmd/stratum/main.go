@@ -161,7 +161,7 @@ func initHealthMonitor(config *Config) *health.HealthService {
 	healthConfig := &health.ServiceConfig{
 		MonitorConfig: &health.HealthMonitorConfig{
 			CheckInterval:                    30 * time.Second,
-			MaxRestartsPerHour:               3,
+			MaxRestartsPerHour:               10, // Increased from 3 - allows recovery from transient issues
 			RestartCooldown:                  60 * time.Second,
 			ConsecutiveFailuresBeforeRestart: 3,
 			RPCTimeout:                       10 * time.Second,
