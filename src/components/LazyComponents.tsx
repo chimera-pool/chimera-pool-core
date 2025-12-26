@@ -9,6 +9,7 @@ import { ErrorBoundary } from './common/ErrorBoundary';
 
 // Lazy load heavy components
 const LazyMiningGraphs = lazy(() => import('./charts/MiningGraphs'));
+const LazyGrafanaDashboard = lazy(() => import('./charts/GrafanaDashboard'));
 const LazyGlobalMinerMap = lazy(() => import('./maps/GlobalMinerMap'));
 const LazyUserDashboard = lazy(() => import('./dashboard/UserDashboard'));
 const LazyWalletManager = lazy(() => import('./wallet/WalletManager'));
@@ -39,6 +40,19 @@ export function MiningGraphsLazy(props: { token?: string; isLoggedIn: boolean })
   return (
     <LazyWrapper componentName="Mining Graphs" loadingMessage="Loading charts...">
       <LazyMiningGraphs {...props} />
+    </LazyWrapper>
+  );
+}
+
+export function GrafanaDashboardLazy(props: { 
+  dashboardId: 'main' | 'miner' | 'admin';
+  token?: string; 
+  isLoggedIn?: boolean;
+  showSelectors?: boolean;
+}) {
+  return (
+    <LazyWrapper componentName="Grafana Dashboard" loadingMessage="Loading charts...">
+      <LazyGrafanaDashboard {...props} />
     </LazyWrapper>
   );
 }

@@ -13,6 +13,7 @@ import { RealTimeDataProvider } from './services/realtime';
 // Lazy-loaded components for code splitting
 import {
   MiningGraphsLazy,
+  GrafanaDashboardLazy,
   GlobalMinerMapLazy,
   UserDashboardLazy,
   WalletManagerLazy,
@@ -932,8 +933,13 @@ function App() {
               <div style={styles.error}>Failed to load pool statistics</div>
             )}
 
-            {/* Mining Graphs - Visible to ALL users (pool-wide for guests, toggleable for members) */}
-            <MiningGraphsLazy token={token || undefined} isLoggedIn={!!token && !!user} />
+            {/* Mining Graphs - Visible to ALL users with Grafana integration and dropdown selectors */}
+            <GrafanaDashboardLazy 
+              dashboardId="main" 
+              token={token || undefined} 
+              isLoggedIn={!!token && !!user}
+              showSelectors={true}
+            />
 
             {/* Pool Monitoring Dashboard - Shows node health and Grafana links */}
             <MonitoringDashboard token={token || undefined} />
