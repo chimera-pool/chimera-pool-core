@@ -132,6 +132,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('admin-1', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -142,6 +143,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('admin-2', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -152,6 +154,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('admin-3', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -162,6 +165,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('admin-4', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
         </div>

@@ -179,6 +179,7 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
             onSelectionChange={(chartId) => handleSlotSelectionChange(slot.slotId, chartId)}
             showSelector={showSelectors}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={280}
           />
         ))}

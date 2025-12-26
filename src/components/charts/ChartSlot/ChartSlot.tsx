@@ -6,7 +6,6 @@ import { ChartSelector } from '../ChartSelector';
 import { NativeChartFallback } from '../NativeChartFallback';
 import { chartRegistry } from '../registry';
 import { useChartPreferences } from '../hooks/useChartPreferences';
-import { useGrafanaHealth } from '../hooks/useGrafanaHealth';
 
 /**
  * ChartSlot - A configurable chart slot with selector and Grafana/Native fallback
@@ -22,6 +21,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   onSelectionChange,
   showSelector = true,
   grafanaBaseUrl,
+  grafanaAvailable = true,
   fallbackData,
   height = 280,
   className,
@@ -73,8 +73,8 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     return chartRegistry.getChartById(selectedChartId);
   }, [selectedChartId]);
 
-  // Check Grafana health for fallback
-  const grafanaHealth = useGrafanaHealth(grafanaBaseUrl);
+  // Use grafana availability from parent (avoids multiple health check intervals)
+  const isGrafanaAvailable = grafanaAvailable;
 
   // Handle chart selection change
   const handleSelectChart = (chartId: string) => {
@@ -86,9 +86,9 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
 
   // Get native fallback if Grafana unavailable
   const nativeFallback = useMemo(() => {
-    if (grafanaHealth.available || !selectedChartId) return null;
+    if (isGrafanaAvailable || !selectedChartId) return null;
     return chartRegistry.getNativeFallback(selectedChartId);
-  }, [grafanaHealth.available, selectedChartId]);
+  }, [isGrafanaAvailable, selectedChartId]);
 
   const containerStyle: React.CSSProperties = {
     display: 'flex',
@@ -122,7 +122,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     width: '8px',
     height: '8px',
     borderRadius: '50%',
-    backgroundColor: grafanaHealth.available ? '#73BF69' : '#FF6B6B',
+    backgroundColor: isGrafanaAvailable ? '#73BF69' : '#FF6B6B',
   };
 
   const chartContainerStyle: React.CSSProperties = {
@@ -145,7 +145,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
       {/* Header with title and selector */}
       <div style={headerStyle}>
         <h3 style={titleStyle}>
-          <span style={statusIndicatorStyle} title={grafanaHealth.available ? 'Grafana connected' : 'Using fallback charts'} />
+          <span style={statusIndicatorStyle} title={isGrafanaAvailable ? 'Grafana connected' : 'Using fallback charts'} />
           {selectedChart.title}
         </h3>
         
@@ -161,7 +161,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
 
       {/* Chart content */}
       <div style={chartContainerStyle}>
-        {grafanaHealth.available && selectedChart.type === 'grafana' ? (
+        {isGrafanaAvailable && selectedChart.type === 'grafana' ? (
           <GrafanaEmbed
             baseUrl={grafanaBaseUrl}
             panel={selectedChart as IGrafanaPanel}
@@ -186,7 +186,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
             <span>📊</span>
             <span>Chart unavailable</span>
             <button 
-              onClick={grafanaHealth.refresh}
+              onClick={() => window.location.reload()}
               style={{
                 padding: '6px 12px',
                 backgroundColor: 'rgba(245, 184, 0, 0.1)',

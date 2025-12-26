@@ -111,6 +111,8 @@ export interface IChartSlotProps {
   showSelector?: boolean;
   /** Grafana base URL */
   grafanaBaseUrl: string;
+  /** Grafana availability status (passed from parent to avoid multiple health checks) */
+  grafanaAvailable?: boolean;
   /** Fallback data for native charts */
   fallbackData?: any[];
   /** Height override */

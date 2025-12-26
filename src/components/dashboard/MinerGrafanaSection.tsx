@@ -116,6 +116,7 @@ export const MinerGrafanaSection = memo(function MinerGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('miner-1', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -126,6 +127,7 @@ export const MinerGrafanaSection = memo(function MinerGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('miner-2', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -136,6 +138,7 @@ export const MinerGrafanaSection = memo(function MinerGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('miner-3', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
           <ChartSlot
@@ -146,6 +149,7 @@ export const MinerGrafanaSection = memo(function MinerGrafanaSection({ token }: 
             onSelectionChange={(id) => handleSelectionChange('miner-4', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
+            grafanaAvailable={grafanaHealth.available}
             height={260}
           />
         </div>
