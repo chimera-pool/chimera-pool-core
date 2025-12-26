@@ -468,7 +468,7 @@ function App() {
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="Chimera Pool" style={{ height: '140px', width: 'auto' }} />
+            <img src="/logo.png" alt="Chimera Pool" style={{ height: '56px', width: 'auto' }} />
           </div>
           {/* Main Navigation Tabs - Elite styling */}
           <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
@@ -1727,7 +1727,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   container: { minHeight: '100vh', background: 'linear-gradient(180deg, #1A0F1E 0%, #0D0811 100%)', color: '#F0EDF4', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
   
   // Header - Premium gradient with glass effect
-  header: { background: 'linear-gradient(135deg, #2D1F3D 0%, #3A1F2E 100%)', padding: '16px 24px', borderBottom: '1px solid rgba(74, 44, 90, 0.5)', backdropFilter: 'blur(10px)', position: 'sticky' as const, top: 0, zIndex: 100 },
+  header: { background: 'linear-gradient(135deg, #2D1F3D 0%, #3A1F2E 100%)', padding: '8px 24px', borderBottom: '1px solid rgba(74, 44, 90, 0.5)', backdropFilter: 'blur(10px)', position: 'sticky' as const, top: 0, zIndex: 100 },
   headerContent: { maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: '20px' },
   
   // Title - Lion Gold accent
