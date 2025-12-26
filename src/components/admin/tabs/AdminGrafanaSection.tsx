@@ -5,10 +5,11 @@
  * Uses ChartSlot components with admin-specific chart options
  */
 
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import { ChartSlot } from '../../charts/ChartSlot';
 import { GRAFANA_CONFIG } from '../../charts/registry';
 import { useGrafanaHealth } from '../../charts/hooks/useGrafanaHealth';
+import { useChartPreferences } from '../../charts/hooks/useChartPreferences';
 
 const styles: { [key: string]: React.CSSProperties } = {
   section: {
@@ -61,6 +62,25 @@ interface AdminGrafanaSectionProps {
 export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: AdminGrafanaSectionProps) {
   const grafanaHealth = useGrafanaHealth(GRAFANA_CONFIG.baseUrl);
   const [isExpanded, setIsExpanded] = useState(true);
+  const { getSlotSelection } = useChartPreferences();
+
+  // Track selections to prevent duplicates
+  const [slotSelections, setSlotSelections] = useState<Record<string, string>>(() => ({
+    'admin-1': getSlotSelection('admin', 'admin-1') || 'system-cpu',
+    'admin-2': getSlotSelection('admin', 'admin-2') || 'system-memory',
+    'admin-3': getSlotSelection('admin', 'admin-3') || 'cumulative-earnings',
+    'admin-4': getSlotSelection('admin', 'admin-4') || 'alert-history',
+  }));
+
+  const handleSelectionChange = useCallback((slotId: string, chartId: string) => {
+    setSlotSelections(prev => ({ ...prev, [slotId]: chartId }));
+  }, []);
+
+  const getExcludedForSlot = useCallback((slotId: string) => {
+    return Object.entries(slotSelections)
+      .filter(([id]) => id !== slotId)
+      .map(([, chartId]) => chartId);
+  }, [slotSelections]);
 
   if (!grafanaHealth.available) {
     return (
@@ -108,6 +128,8 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             slotId="admin-1"
             dashboardId="admin"
             allowedCategories={['system']}
+            excludedChartIds={getExcludedForSlot('admin-1')}
+            onSelectionChange={(id) => handleSelectionChange('admin-1', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             height={260}
@@ -116,6 +138,8 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             slotId="admin-2"
             dashboardId="admin"
             allowedCategories={['system']}
+            excludedChartIds={getExcludedForSlot('admin-2')}
+            onSelectionChange={(id) => handleSelectionChange('admin-2', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             height={260}
@@ -124,6 +148,8 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             slotId="admin-3"
             dashboardId="admin"
             allowedCategories={['earnings', 'pool-metrics']}
+            excludedChartIds={getExcludedForSlot('admin-3')}
+            onSelectionChange={(id) => handleSelectionChange('admin-3', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             height={260}
@@ -132,6 +158,8 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
             slotId="admin-4"
             dashboardId="admin"
             allowedCategories={['alerts']}
+            excludedChartIds={getExcludedForSlot('admin-4')}
+            onSelectionChange={(id) => handleSelectionChange('admin-4', id)}
             showSelector={true}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             height={260}

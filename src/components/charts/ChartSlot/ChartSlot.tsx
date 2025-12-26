@@ -17,13 +17,15 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   dashboardId,
   initialChartId,
   allowedCategories,
+  excludedChartIds = [],
+  onSelectionChange,
   showSelector = true,
   grafanaBaseUrl,
   fallbackData,
   height = 280,
   className,
 }) => {
-  // Get available charts for this dashboard
+  // Get available charts for this dashboard (excluding already selected in other slots)
   const availableCharts = useMemo(() => {
     let charts = chartRegistry.getChartsForDashboard(dashboardId);
     
@@ -33,8 +35,15 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     }
     
     // Only show Grafana charts in selector (native are fallbacks)
-    return charts.filter(c => c.type === 'grafana');
-  }, [dashboardId, allowedCategories]);
+    charts = charts.filter(c => c.type === 'grafana');
+    
+    // Exclude charts already selected in other slots (prevent duplicates)
+    if (excludedChartIds.length > 0) {
+      charts = charts.filter(c => !excludedChartIds.includes(c.id));
+    }
+    
+    return charts;
+  }, [dashboardId, allowedCategories, excludedChartIds]);
 
   // User preferences for chart selection
   const { getSlotSelection, setSlotSelection } = useChartPreferences();
@@ -67,6 +76,8 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   const handleSelectChart = (chartId: string) => {
     setSelectedChartId(chartId);
     setSlotSelection(dashboardId, slotId, chartId);
+    // Notify parent of selection change for duplicate prevention
+    onSelectionChange?.(chartId);
   };
 
   // Get native fallback if Grafana unavailable

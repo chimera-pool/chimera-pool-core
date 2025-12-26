@@ -99,6 +99,10 @@ export interface IChartSlotProps {
   initialChartId?: string;
   /** Allowed categories for selector */
   allowedCategories?: ChartCategory[];
+  /** Chart IDs to exclude from selection (prevents duplicates) */
+  excludedChartIds?: string[];
+  /** Callback when chart selection changes */
+  onSelectionChange?: (chartId: string) => void;
   /** Whether selector is visible */
   showSelector?: boolean;
   /** Grafana base URL */

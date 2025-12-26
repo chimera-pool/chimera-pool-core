@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChartSlot } from '../ChartSlot';
 import { MiningGraphs } from '../MiningGraphs';
 import { chartRegistry, GRAFANA_CONFIG, DEFAULT_LAYOUTS } from '../registry';
 import { useGrafanaHealth } from '../hooks/useGrafanaHealth';
+import { useChartPreferences } from '../hooks/useChartPreferences';
 import { ChartCategory } from '../interfaces/IChartPanel';
 
 /**
@@ -33,9 +34,32 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
 }) => {
   const grafanaHealth = useGrafanaHealth(GRAFANA_CONFIG.baseUrl);
   const [useFallback, setUseFallback] = useState(false);
+  const { getSlotSelection } = useChartPreferences();
 
   // Get layout configuration for this dashboard
   const layout = DEFAULT_LAYOUTS[dashboardId];
+
+  // Track selected charts across all slots to prevent duplicates
+  const [slotSelections, setSlotSelections] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    layout?.slots.forEach(slot => {
+      const saved = getSlotSelection(dashboardId, slot.slotId);
+      initial[slot.slotId] = saved || slot.selectedChartId || '';
+    });
+    return initial;
+  });
+
+  // Handle chart selection change from a slot
+  const handleSlotSelectionChange = useCallback((slotId: string, chartId: string) => {
+    setSlotSelections(prev => ({ ...prev, [slotId]: chartId }));
+  }, []);
+
+  // Get excluded chart IDs for a specific slot (all other slots' selections)
+  const getExcludedChartsForSlot = useCallback((slotId: string): string[] => {
+    return Object.entries(slotSelections)
+      .filter(([id, chartId]) => id !== slotId && chartId)
+      .map(([, chartId]) => chartId);
+  }, [slotSelections]);
 
   // If Grafana is unavailable for extended period, switch to fallback
   useEffect(() => {
@@ -150,8 +174,10 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
             key={slot.slotId}
             slotId={slot.slotId}
             dashboardId={dashboardId}
-            initialChartId={slot.selectedChartId}
+            initialChartId={slotSelections[slot.slotId] || slot.selectedChartId}
             allowedCategories={slot.allowedCategories as ChartCategory[]}
+            excludedChartIds={getExcludedChartsForSlot(slot.slotId)}
+            onSelectionChange={(chartId) => handleSlotSelectionChange(slot.slotId, chartId)}
             showSelector={showSelectors}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             height={280}
