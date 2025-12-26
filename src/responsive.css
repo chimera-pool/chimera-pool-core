@@ -120,6 +120,39 @@ img, video, canvas, svg {
 }
 
 /* ============================================
+   Grafana Dashboard Grid - Responsive
+   ============================================ */
+.grafana-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;  /* Single column on mobile */
+  gap: 16px;
+}
+
+.grafana-dashboard-grid > * {
+  min-height: 320px;  /* Taller charts on mobile for better readability */
+}
+
+@media (min-width: 768px) {
+  .grafana-dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);  /* 2x2 grid on tablet+ */
+  }
+  
+  .grafana-dashboard-grid > * {
+    min-height: 280px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .grafana-dashboard-grid {
+    gap: 20px;
+  }
+  
+  .grafana-dashboard-grid > * {
+    min-height: 300px;
+  }
+}
+
+/* ============================================
    Responsive Main Content
    ============================================ */
 .main-content {

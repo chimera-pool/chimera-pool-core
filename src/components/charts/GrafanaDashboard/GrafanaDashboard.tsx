@@ -100,11 +100,8 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
     color: grafanaHealth.available ? '#73BF69' : '#FF6B6B',
   };
 
-  const gridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: `repeat(${layout?.columns || 2}, 1fr)`,
-    gap: '16px',
-  };
+  // Responsive grid - uses CSS class for media query support
+  const gridClassName = 'grafana-dashboard-grid';
 
   const fallbackButtonStyle: React.CSSProperties = {
     padding: '6px 12px',
@@ -165,7 +162,7 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
         </div>
       </div>
 
-      <div style={gridStyle}>
+      <div className={gridClassName}>
         {layout?.slots.map((slot, index) => (
           <ChartSlot
             key={slot.slotId}
