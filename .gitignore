@@ -48,8 +48,11 @@ vendor/
 # Go compiled binaries (without extension) - use specific paths to avoid ignoring source
 /chimera-api
 /chimera-stratum
+/chimera-pool-api
 /api
 /stratum
+/api.exe
+/stratum.exe
 cmd/api/api
 cmd/api/api.exe
 cmd/stratum/stratum
@@ -58,17 +61,27 @@ cmd/stratum/stratum.exe
 # Test binaries
 *.test
 *.test.exe
+simulation.test.exe
 
 # Coverage files
 coverage
 coverage.out
 coverage_*
+db_coverage
 sim_coverage
 *.coverprofile
+
+# Test output files
+test-output.txt
+test-results/
 
 # Temp files
 temp_*.html
 temp_*.txt
+
+# Playwright
+playwright-report/
+playwright/.cache/
 
 # Node.js
 node_modules/
