@@ -180,7 +180,6 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
-      - '--web.external-url=http://prometheus:9090/prometheus'
     restart: unless-stopped
 
   # Grafana - Visualization dashboards
