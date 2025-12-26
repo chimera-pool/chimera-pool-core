@@ -56,22 +56,22 @@ func NewConnectionPool(config *Config) (*ConnectionPool, error) {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	// Configure connection pool
+	// Configure connection pool - optimized for high concurrent load
 	if config.MaxConns > 0 {
 		db.SetMaxOpenConns(config.MaxConns)
 	} else {
-		db.SetMaxOpenConns(25) // Default
+		db.SetMaxOpenConns(100) // Increased from 25 for high concurrency
 	}
 
 	if config.MinConns > 0 {
 		db.SetMaxIdleConns(config.MinConns)
 	} else {
-		db.SetMaxIdleConns(5) // Default
+		db.SetMaxIdleConns(25) // Increased from 5 - keep connections warm
 	}
 
-	// Set connection lifetime
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetConnMaxIdleTime(1 * time.Minute)
+	// Set connection lifetime - balanced for connection reuse
+	db.SetConnMaxLifetime(30 * time.Minute) // Increased from 5 min
+	db.SetConnMaxIdleTime(5 * time.Minute)  // Increased from 1 min
 
 	// Test the connection
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
