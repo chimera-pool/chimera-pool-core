@@ -295,6 +295,20 @@ export function GlobalMinerMap() {
                     ))
                   }
                 </Geographies>
+                {/* Pool Server Markers */}
+                <Marker coordinates={[-149.9003, 61.2181]}>
+                  <g>
+                    <polygon
+                      points="0,-10 8,6 -8,6"
+                      fill="#7B5EA7"
+                      stroke="#F0EDF4"
+                      strokeWidth={1.5}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <title>Pool Server - Anchorage, AK</title>
+                  </g>
+                </Marker>
+                {/* Miner Location Markers */}
                 {locations.map((location, idx) => (
                   <Marker
                     key={idx}

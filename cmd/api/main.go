@@ -94,6 +94,7 @@ func main() {
 		apiGroup.GET("/pool/stats/hashrate", handlePublicPoolHashrateHistory(db))
 		apiGroup.GET("/pool/stats/shares", handlePublicPoolSharesHistory(db))
 		apiGroup.GET("/pool/stats/miners", handlePublicPoolMinersHistory(db))
+		apiGroup.GET("/pool/miners", handlePoolMiners(db))
 		apiGroup.GET("/pool/blocks", handleBlocks(db))
 		apiGroup.GET("/miners/locations", handlePublicMinerLocations(db))
 		apiGroup.GET("/miners/locations/stats", handleMinerLocationStats(db))
@@ -504,6 +505,58 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 			"currency":         "LTC",
 			"algorithm":        "Scrypt",
 		})
+	}
+}
+
+// handlePoolMiners returns list of active miners for the pool
+func handlePoolMiners(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT id, name, hashrate, is_active, last_seen, 
+			       COALESCE(valid_shares, 0) as valid_shares,
+			       COALESCE(invalid_shares, 0) as invalid_shares,
+			       difficulty
+			FROM miners 
+			WHERE is_active = true
+			ORDER BY hashrate DESC
+			LIMIT 100
+		`)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"miners": []gin.H{}})
+			return
+		}
+		defer rows.Close()
+
+		var miners []gin.H
+		for rows.Next() {
+			var id int64
+			var name string
+			var hashrate, difficulty float64
+			var isActive bool
+			var lastSeen time.Time
+			var validShares, invalidShares int64
+
+			if err := rows.Scan(&id, &name, &hashrate, &isActive, &lastSeen, &validShares, &invalidShares, &difficulty); err != nil {
+				continue
+			}
+
+			miners = append(miners, gin.H{
+				"id":             id,
+				"name":           name,
+				"hashrate":       hashrate,
+				"is_active":      isActive,
+				"last_seen":      lastSeen,
+				"valid_shares":   validShares,
+				"invalid_shares": invalidShares,
+				"difficulty":     difficulty,
+			})
+		}
+
+		if miners == nil {
+			miners = []gin.H{}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"miners": miners})
 	}
 }
 
