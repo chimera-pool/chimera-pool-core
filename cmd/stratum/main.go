@@ -23,6 +23,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/chimera-pool/chimera-pool-core/internal/geolocation"
 	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/health"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/hashrate"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/keepalive"
@@ -414,6 +415,7 @@ type StratumServer struct {
 	hashrateWindows  map[string]*hashrate.Window
 	hashrateMux      sync.RWMutex
 	hashrateCalc     *hashrate.Calculator
+	geoService       *geolocation.GeoIPService
 }
 
 // MiningJob represents current mining work from the node
@@ -514,7 +516,10 @@ func NewStratumServer(config *Config, db *ResilientDB, redisClient *redis.Client
 		merkleBuilder:   merkle.NewBuilder(),
 		hashrateWindows: make(map[string]*hashrate.Window),
 		hashrateCalc:    hashrate.NewCalculator(),
+		geoService:      geolocation.NewGeoIPService(db.db),
 	}
+
+	log.Println("📍 IP geolocation service initialized for miner location tracking")
 
 	// Initialize keepalive with disconnect callback
 	s.keepaliveManager = keepalive.NewManager(keepaliveConfig, func(minerID string) {
@@ -1435,6 +1440,15 @@ func (s *StratumServer) handleAuthorize(miner *Miner, req StratumRequest) error 
 	} else {
 		log.Printf("Failed to check miner for user %d: %v", userID, err)
 	}
+
+	// Geolocate miner IP in background (don't block authorization)
+	go func() {
+		if s.geoService != nil {
+			if err := s.geoService.UpdateMinerLocationByUserAndName(userID, actualUsername, miner.Address); err != nil {
+				log.Printf("⚠️ Failed to geolocate miner %s: %v", miner.ID, err)
+			}
+		}
+	}()
 
 	return s.sendResponse(miner, req.ID, true, nil)
 }
