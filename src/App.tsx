@@ -1316,10 +1316,18 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpa
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
+  const isLiveData = ['Active Miners', 'Pool Hashrate'].includes(label);
+  const isHashrate = label === 'Pool Hashrate';
+  
   return (
-    <div style={styles.statCard}>
-      <h3 style={styles.statLabel}>{label}</h3>
-      <p style={styles.statValue}>{value}</p>
+    <div style={styles.statCard} className="stat-card-enhanced">
+      <h3 style={styles.statLabel}>
+        {isLiveData && <span className="live-indicator" />}
+        {label}
+      </h3>
+      <p style={styles.statValue} className={`stat-value-glow ${isHashrate ? 'hashrate-value' : ''}`}>
+        {value}
+      </p>
     </div>
   );
 }
