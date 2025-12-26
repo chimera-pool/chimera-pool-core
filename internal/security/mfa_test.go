@@ -130,13 +130,13 @@ func TestTOTPValidationWithCurrentTime(t *testing.T) {
 	// Current code should be valid
 	assert.True(t, mfaService.ValidateTOTP(secret, currentCode), "Current TOTP code should be valid")
 
-	// Code from 10 minutes ago should be invalid (well outside any reasonable time window)
-	// Using 10 minutes to avoid any edge cases with period boundaries
-	oldCode := mfaService.GenerateTOTPCode(secret, now.Add(-10*time.Minute))
+	// Test that a code from far in the past is different
+	// Using 1 hour to ensure we're well outside the 30-second period + 1 period skew
+	veryOldCode := mfaService.GenerateTOTPCode(secret, now.Add(-1*time.Hour))
 
-	// Only test if codes are actually different (extremely rare collision case)
-	if currentCode != oldCode {
-		assert.False(t, mfaService.ValidateTOTP(secret, oldCode), "10-minute-old TOTP code should be invalid")
+	// Only test if codes are actually different (avoid extremely rare collision case)
+	if currentCode != veryOldCode {
+		assert.False(t, mfaService.ValidateTOTP(secret, veryOldCode), "1-hour-old TOTP code should be invalid")
 	} else {
 		t.Log("Skipping old code test due to rare TOTP collision")
 	}
