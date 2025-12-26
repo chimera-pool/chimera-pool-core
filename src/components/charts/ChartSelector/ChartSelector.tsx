@@ -54,20 +54,22 @@ export const ChartSelector: React.FC<IChartSelectorProps> = ({
   };
 
   const selectStyle: React.CSSProperties = {
-    backgroundColor: 'rgba(24, 27, 31, 0.9)',
-    color: '#CCCCDC',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '4px',
-    padding: '6px 28px 6px 10px',
+    backgroundColor: 'rgba(26, 15, 30, 0.9)',
+    color: '#F0EDF4',
+    border: '1px solid rgba(212, 168, 75, 0.3)',
+    borderRadius: '8px',
+    padding: '8px 32px 8px 12px',
     fontSize: '0.8rem',
     cursor: disabled ? 'not-allowed' : 'pointer',
     outline: 'none',
     appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23CCCCDC' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23D4A84B' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 8px center',
+    backgroundPosition: 'right 10px center',
     minWidth: '160px',
     opacity: disabled ? 0.5 : 1,
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
   };
 
   const getCategoryLabel = (categoryId: ChartCategory): string => {

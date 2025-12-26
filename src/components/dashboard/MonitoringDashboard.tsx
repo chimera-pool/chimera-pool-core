@@ -119,8 +119,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
     borderRadius: '10px',
-    padding: '12px 16px',
+    padding: '14px 18px',
     border: '1px solid rgba(74, 44, 90, 0.4)',
+    transition: 'all 0.2s ease',
   },
   statusName: {
     color: '#B8B4C8',
@@ -138,6 +139,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: 'rgba(74, 222, 128, 0.15)',
     color: '#4ADE80',
     border: '1px solid rgba(74, 222, 128, 0.3)',
+    boxShadow: '0 0 8px rgba(74, 222, 128, 0.2)',
   },
   offline: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -156,18 +158,24 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: '16px',
   },
   dashboardLink: {
-    padding: '10px 14px',
+    padding: '12px 16px',
     background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
     border: '1px solid rgba(74, 44, 90, 0.4)',
-    borderRadius: '8px',
+    borderRadius: '10px',
     color: '#B8B4C8',
     textDecoration: 'none',
     fontSize: '0.85rem',
     fontWeight: 500,
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s',
+    gap: '8px',
+    transition: 'all 0.25s ease',
+  },
+  dashboardLinkHover: {
+    borderColor: 'rgba(212, 168, 75, 0.5)',
+    color: '#D4A84B',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
   },
 };
 
@@ -253,21 +261,21 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
       <div style={{ marginBottom: '20px' }}>
         <div style={styles.statusTitle}>🔗 Node Health</div>
         <div style={styles.statusGrid}>
-          <div style={styles.statusCard}>
+          <div style={styles.statusCard} className="status-card-enhanced">
             <span style={styles.statusName}>Litecoin Node</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>Healthy</span>
+            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Healthy</span>
           </div>
-          <div style={styles.statusCard}>
+          <div style={styles.statusCard} className="status-card-enhanced">
             <span style={styles.statusName}>Stratum Server</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>Running</span>
+            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Running</span>
           </div>
-          <div style={styles.statusCard}>
+          <div style={styles.statusCard} className="status-card-enhanced">
             <span style={styles.statusName}>Alert Manager</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>Active</span>
+            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Active</span>
           </div>
-          <div style={styles.statusCard}>
+          <div style={styles.statusCard} className="status-card-enhanced">
             <span style={styles.statusName}>Prometheus</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>Collecting</span>
+            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Collecting</span>
           </div>
         </div>
       </div>
@@ -279,6 +287,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           📊 Pool Overview
         </a>
@@ -287,6 +296,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           👷 Workers
         </a>
@@ -295,6 +305,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           💰 Payouts
         </a>
@@ -303,6 +314,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           🔔 Alerts
         </a>
@@ -311,6 +323,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           ⚠️ AlertManager
         </a>
@@ -319,6 +332,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
+          className="dashboard-link-enhanced"
         >
           📈 Prometheus
         </a>

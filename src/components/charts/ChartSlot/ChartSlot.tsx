@@ -90,39 +90,64 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     return chartRegistry.getNativeFallback(selectedChartId);
   }, [isGrafanaAvailable, selectedChartId]);
 
+  // Get category icon for the selected chart
+  const getCategoryIcon = (category: string): string => {
+    const icons: Record<string, string> = {
+      'hashrate-performance': '⚡',
+      'workers-activity': '👷',
+      'shares-blocks': '📊',
+      'earnings-payouts': '💰',
+      'pool-metrics': '📈',
+      'worker-metrics': '🖥️',
+      'earnings': '💎',
+      'system': '⚙️',
+      'alerts': '🔔',
+    };
+    return icons[category] || '📊';
+  };
+
   const containerStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: height,
-    backgroundColor: '#181B1F',
-    borderRadius: '4px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
+    borderRadius: '12px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
     overflow: 'hidden',
+    transition: 'all 0.3s ease',
   };
 
   const headerStyle: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '12px 16px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    padding: '14px 16px',
+    borderBottom: '1px solid rgba(74, 44, 90, 0.4)',
+    background: 'rgba(45, 31, 61, 0.3)',
   };
 
   const titleStyle: React.CSSProperties = {
-    color: 'rgba(204, 204, 220, 0.9)',
-    fontSize: '0.85rem',
-    fontWeight: 500,
+    color: '#F0EDF4',
+    fontSize: '0.9rem',
+    fontWeight: 600,
     margin: 0,
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '10px',
+  };
+
+  const categoryIconStyle: React.CSSProperties = {
+    fontSize: '1rem',
+    opacity: 0.9,
   };
 
   const statusIndicatorStyle: React.CSSProperties = {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
-    backgroundColor: isGrafanaAvailable ? '#73BF69' : '#FF6B6B',
+    backgroundColor: isGrafanaAvailable ? '#4ADE80' : '#FF6B6B',
+    boxShadow: isGrafanaAvailable ? '0 0 8px rgba(74, 222, 128, 0.5)' : '0 0 8px rgba(255, 107, 107, 0.5)',
+    animation: isGrafanaAvailable ? 'pulse-glow 2s ease-in-out infinite' : 'none',
   };
 
   const chartContainerStyle: React.CSSProperties = {
@@ -146,6 +171,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
       <div style={headerStyle}>
         <h3 style={titleStyle}>
           <span style={statusIndicatorStyle} title={isGrafanaAvailable ? 'Grafana connected' : 'Using fallback charts'} />
+          <span style={categoryIconStyle}>{getCategoryIcon(selectedChart.category)}</span>
           {selectedChart.title}
         </h3>
         

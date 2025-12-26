@@ -70,10 +70,12 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   }, [grafanaHealth.available]);
 
   const containerStyle: React.CSSProperties = {
-    background: '#111217',
-    borderRadius: '8px',
-    padding: '16px',
-    marginBottom: '20px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)',
+    borderRadius: '16px',
+    padding: '20px',
+    marginBottom: '24px',
+    border: '1px solid rgba(74, 44, 90, 0.4)',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
   };
 
   const headerStyle: React.CSSProperties = {
@@ -86,10 +88,11 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   };
 
   const titleStyle: React.CSSProperties = {
-    fontSize: '1.15rem',
+    fontSize: '1.2rem',
     color: '#F0EDF4',
     margin: 0,
-    fontWeight: 600,
+    fontWeight: 700,
+    letterSpacing: '0.01em',
   };
 
   const statusStyle: React.CSSProperties = {
@@ -97,23 +100,26 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
     alignItems: 'center',
     gap: '8px',
     fontSize: '0.8rem',
-    color: grafanaHealth.available ? '#73BF69' : '#FF6B6B',
+    color: grafanaHealth.available ? '#4ADE80' : '#FF6B6B',
+    fontWeight: 500,
   };
 
   // Responsive grid - uses CSS class for media query support
   const gridClassName = 'grafana-dashboard-grid';
 
   const fallbackButtonStyle: React.CSSProperties = {
-    padding: '6px 12px',
-    backgroundColor: useFallback ? 'rgba(115, 191, 105, 0.1)' : 'rgba(245, 184, 0, 0.1)',
-    border: `1px solid ${useFallback ? 'rgba(115, 191, 105, 0.3)' : 'rgba(245, 184, 0, 0.3)'}`,
-    borderRadius: '4px',
-    color: useFallback ? '#73BF69' : '#F5B800',
+    padding: '8px 14px',
+    backgroundColor: useFallback ? 'rgba(74, 222, 128, 0.1)' : 'rgba(212, 168, 75, 0.1)',
+    border: `1px solid ${useFallback ? 'rgba(74, 222, 128, 0.3)' : 'rgba(212, 168, 75, 0.3)'}`,
+    borderRadius: '8px',
+    color: useFallback ? '#4ADE80' : '#D4A84B',
     cursor: 'pointer',
     fontSize: '0.75rem',
+    fontWeight: 500,
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '8px',
+    transition: 'all 0.2s ease',
   };
 
   // If using fallback mode, render the legacy MiningGraphs component
