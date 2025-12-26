@@ -12,8 +12,8 @@ import { INativeChart, NATIVE_CHART_COLORS } from '../interfaces/INativeChart';
  * Grafana configuration for Chimera Pool
  */
 export const GRAFANA_CONFIG = {
-  // Direct HTTP URL - works in Chrome, Edge blocks due to mixed content
-  baseUrl: 'http://206.162.80.230:3001',
+  // Proxied through nginx at /grafana - serves over HTTPS to avoid mixed content
+  baseUrl: '/grafana',
   orgId: 1,
   dashboards: {
     poolOverview: 'chimera-pool-overview',
