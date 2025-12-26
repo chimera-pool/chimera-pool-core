@@ -73,7 +73,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const pageSize = 10;
 
   // User sorting state
-  const [sortField, setSortField] = useState<'username' | 'email' | 'wallet_count' | 'total_hashrate' | 'total_earnings' | 'pool_fee_percent' | 'is_active'>('username');
+  const [sortField, setSortField] = useState<'id' | 'username' | 'email' | 'wallet_count' | 'total_hashrate' | 'total_earnings' | 'pool_fee_percent' | 'is_active'>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Bug reports state
@@ -860,6 +860,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
               <table style={adminStyles.table}>
                 <thead>
                   <tr>
+                    <SortableHeader field="id" label="#" />
                     <SortableHeader field="username" label="Username" />
                     <SortableHeader field="email" label="Email" />
                     <SortableHeader field="wallet_count" label="Wallets" />
@@ -873,6 +874,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                 <tbody>
                   {users.map(user => (
                     <tr key={user.id} style={adminStyles.tr}>
+                      <td style={{...adminStyles.td, color: '#D4A84B', fontWeight: 600, fontFamily: 'monospace'}}>{user.id}</td>
                       <td style={adminStyles.td}><span style={user.is_admin ? adminStyles.adminBadge : {}}>{user.username} {user.is_admin && '👑'}</span></td>
                       <td style={adminStyles.td}>{user.email}</td>
                       <td style={adminStyles.td}>

@@ -1194,6 +1194,7 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 
 		// Validate sort parameters
 		validSortFields := map[string]string{
+			"id":               "u.id",
 			"username":         "u.username",
 			"email":            "u.email",
 			"wallet_count":     "wallet_count",
