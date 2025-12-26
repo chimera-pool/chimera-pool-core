@@ -1175,6 +1175,8 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 		page := 1
 		pageSize := 20
 		search := c.Query("search")
+		sortField := c.Query("sort_field")
+		sortDirection := c.Query("sort_direction")
 
 		if p := c.Query("page"); p != "" {
 			fmt.Sscanf(p, "%d", &page)
@@ -1189,6 +1191,26 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 			page = 1
 		}
 		offset := (page - 1) * pageSize
+
+		// Validate sort parameters
+		validSortFields := map[string]string{
+			"username":         "u.username",
+			"email":            "u.email",
+			"wallet_count":     "wallet_count",
+			"total_hashrate":   "total_hashrate",
+			"total_earnings":   "total_earnings",
+			"pool_fee_percent": "u.pool_fee_percent",
+			"is_active":        "u.is_active",
+			"created_at":       "u.created_at",
+		}
+		orderByField := "u.created_at"
+		if field, ok := validSortFields[sortField]; ok {
+			orderByField = field
+		}
+		orderDirection := "DESC"
+		if sortDirection == "asc" {
+			orderDirection = "ASC"
+		}
 
 		// Enhanced query with role, badges, and engagement metrics
 		baseQuery := `
@@ -1234,7 +1256,7 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 			argIdx += 2
 		}
 
-		baseQuery += " GROUP BY u.id, up.forum_post_count, up.reputation, pb.icon, pb.color, pb.name ORDER BY u.created_at DESC"
+		baseQuery += fmt.Sprintf(" GROUP BY u.id, up.forum_post_count, up.reputation, pb.icon, pb.color, pb.name ORDER BY %s %s", orderByField, orderDirection)
 		baseQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 		args = append(args, pageSize, offset)
 

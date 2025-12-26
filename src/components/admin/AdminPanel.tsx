@@ -143,7 +143,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
 
   // Stats tab auto-refresh removed - now managed by isolated AdminStatsTab component
 
-  useEffect(() => { fetchUsers(); }, [page, search]);
+  useEffect(() => { fetchUsers(); }, [page, search, sortField, sortDirection]);
   useEffect(() => { if (activeTab === 'algorithm') fetchAlgorithmSettings(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'roles') fetchRoles(); }, [activeTab]);
   useEffect(() => { if (activeTab === 'bugs') fetchAdminBugs(); }, [activeTab, bugFilter]);
@@ -597,23 +597,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
     }
   };
 
-  // Sort users based on current sort field and direction
-  const sortedUsers = [...users].sort((a, b) => {
-    let aVal: any = a[sortField];
-    let bVal: any = b[sortField];
-    
-    // Handle string comparisons
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-    
-    // Handle null/undefined
-    if (aVal == null) aVal = sortField === 'is_active' ? false : '';
-    if (bVal == null) bVal = sortField === 'is_active' ? false : '';
-    
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
+  // Server-side sorting - users are already sorted by the API
 
   // Sortable header component
   const SortableHeader = ({ field, label }: { field: typeof sortField, label: string }) => (
@@ -724,7 +708,12 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+      const params = new URLSearchParams({ 
+        page: String(page), 
+        page_size: String(pageSize),
+        sort_field: sortField,
+        sort_direction: sortDirection
+      });
       if (search) params.append('search', search);
       const response = await fetch(`/api/v1/admin/users?${params}`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (response.ok) {
@@ -882,7 +871,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedUsers.map(user => (
+                  {users.map(user => (
                     <tr key={user.id} style={adminStyles.tr}>
                       <td style={adminStyles.td}><span style={user.is_admin ? adminStyles.adminBadge : {}}>{user.username} {user.is_admin && '👑'}</span></td>
                       <td style={adminStyles.td}>{user.email}</td>
