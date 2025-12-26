@@ -12,7 +12,8 @@ import { INativeChart, NATIVE_CHART_COLORS } from '../interfaces/INativeChart';
  * Grafana configuration for Chimera Pool
  */
 export const GRAFANA_CONFIG = {
-  baseUrl: 'http://206.162.80.230:3001',
+  // Use relative path to proxy through nginx (avoids mixed content issues on HTTPS)
+  baseUrl: '/grafana',
   orgId: 1,
   dashboards: {
     poolOverview: 'chimera-pool-overview',
