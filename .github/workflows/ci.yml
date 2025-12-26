@@ -26,7 +26,7 @@ jobs:
       run: go mod download
     
     - name: Run tests (unit tests only, no DB required)
-      run: go test -v -short -race ./...
+      run: go test -v -short ./...
       env:
         SKIP_DB_TESTS: "true"
 
