@@ -467,53 +467,55 @@ function App() {
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
           <div>
-            <h1 style={styles.title} className="header-title">⛏️ Chimera Pool</h1>
-            <p style={styles.subtitle} className="header-subtitle">BlockDAG Mining Pool</p>
+            <h1 style={styles.title} className="header-title">
+              <span style={{ fontSize: '2rem' }}>🦁</span> Chimera Pool
+            </h1>
+            <p style={styles.subtitle} className="header-subtitle">Elite Mining Platform</p>
           </div>
-          {/* Main Navigation Tabs - Always visible */}
-          <nav className="header-nav" style={{ display: 'flex', gap: '5px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px', border: '2px solid #00d4ff' }}>
+          {/* Main Navigation Tabs - Elite styling */}
+          <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
             <button 
-              style={{ padding: '12px 24px', backgroundColor: mainView === 'dashboard' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'dashboard' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'dashboard' ? 'bold' : 500 }}
+              style={{ padding: '10px 20px', background: mainView === 'dashboard' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'dashboard' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'dashboard' ? 600 : 500, transition: 'all 0.2s ease' }}
               onClick={() => setMainView('dashboard')}
             >
-              📊 Dashboard
+              Dashboard
             </button>
             {token && user && (
               <button 
-                style={{ padding: '12px 24px', backgroundColor: mainView === 'equipment' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'equipment' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'equipment' ? 'bold' : 500 }}
+                style={{ padding: '10px 20px', background: mainView === 'equipment' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'equipment' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'equipment' ? 600 : 500, transition: 'all 0.2s ease' }}
                 onClick={() => setMainView('equipment')}
               >
-                ⚙️ My Equipment
+                Equipment
               </button>
             )}
             <button 
-              style={{ padding: '12px 24px', backgroundColor: mainView === 'community' ? '#00d4ff' : 'transparent', border: 'none', color: mainView === 'community' ? '#0a0a0f' : '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', fontWeight: mainView === 'community' ? 'bold' : 500 }}
+              style={{ padding: '10px 20px', background: mainView === 'community' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'community' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'community' ? 600 : 500, transition: 'all 0.2s ease' }}
               onClick={() => setMainView('community')}
             >
-              💬 Community
+              Community
             </button>
           </nav>
           <div style={styles.authButtons} className="auth-buttons">
             {token && user ? (
               <div style={styles.userInfo} className="user-info">
-                <span style={{...styles.username, cursor: 'pointer'}} className="username-display" onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">👤 {user.username}</span>
+                <span style={{...styles.username, cursor: 'pointer'}} className="username-display" onClick={() => { setProfileForm({ username: user.username, payout_address: user.payout_address || '' }); setShowProfileModal(true); }} title="Edit Profile">{user.username}</span>
                 <button 
-                  style={{...styles.authBtn, backgroundColor: '#1a2a1a', borderColor: '#10b981', fontSize: '0.85rem', padding: '8px 12px'}} 
+                  style={{...styles.authBtn, backgroundColor: 'rgba(74, 222, 128, 0.1)', borderColor: 'rgba(74, 222, 128, 0.3)', color: '#4ADE80', fontSize: '0.8rem', padding: '8px 14px'}} 
                   onClick={() => setShowBugReportModal(true)}
                   title="Report a Bug"
                 >
-                  🐛 Bug
+                  Report Bug
                 </button>
                 <button 
-                  style={{...styles.authBtn, backgroundColor: '#1a1a2e', borderColor: '#3b82f6', fontSize: '0.85rem', padding: '8px 12px'}} 
+                  style={{...styles.authBtn, backgroundColor: 'rgba(123, 94, 167, 0.15)', borderColor: '#7B5EA7', color: '#B8B4C8', fontSize: '0.8rem', padding: '8px 14px'}} 
                   onClick={handleFetchMyBugs}
                   title="My Bug Reports"
                 >
-                  📋 My Bugs
+                  My Bugs
                 </button>
                 {user.is_admin && (
-                  <button style={{...styles.authBtn, backgroundColor: '#4a1a6b', borderColor: '#9b59b6'}} onClick={() => setShowAdminPanel(true)}>
-                    🛡️ Admin
+                  <button style={{...styles.authBtn, background: 'linear-gradient(135deg, #7B5EA7 0%, #5A4580 100%)', border: 'none', color: '#F0EDF4', fontWeight: 600}} onClick={() => setShowAdminPanel(true)}>
+                    Admin
                   </button>
                 )}
                 <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
@@ -540,20 +542,20 @@ function App() {
 
       {/* Profile Edit Modal */}
       {showProfileModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '450px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: '#00d4ff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>👤 Account Settings</h2>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(13, 8, 17, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}>
+          <div style={{ background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', borderRadius: '20px', padding: '28px', maxWidth: '450px', width: '100%', border: '1px solid #4A2C5A', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#D4A84B', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.4rem', fontWeight: 600 }}>Account Settings</h2>
             
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px' }}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px' }}>
               <button 
-                style={{ flex: 1, padding: '10px', backgroundColor: profileTab === 'profile' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: profileTab === 'profile' ? '#0a0a0f' : '#888', fontWeight: profileTab === 'profile' ? 'bold' : 'normal', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: profileTab === 'profile' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', borderRadius: '8px', color: profileTab === 'profile' ? '#1A0F1E' : '#B8B4C8', fontWeight: profileTab === 'profile' ? 600 : 500, cursor: 'pointer', transition: 'all 0.2s ease' }}
                 onClick={() => setProfileTab('profile')}
               >
                 Profile
               </button>
               <button 
-                style={{ flex: 1, padding: '10px', backgroundColor: profileTab === 'security' ? '#00d4ff' : 'transparent', border: 'none', borderRadius: '6px', color: profileTab === 'security' ? '#0a0a0f' : '#888', fontWeight: profileTab === 'security' ? 'bold' : 'normal', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: profileTab === 'security' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', borderRadius: '8px', color: profileTab === 'security' ? '#1A0F1E' : '#B8B4C8', fontWeight: profileTab === 'security' ? 600 : 500, cursor: 'pointer', transition: 'all 0.2s ease' }}
                 onClick={() => setProfileTab('security')}
               >
                 Security
@@ -563,44 +565,44 @@ function App() {
             {/* Profile Tab */}
             {profileTab === 'profile' && (
               <>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Username</label>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 500 }}>Username</label>
                   <input 
-                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', backgroundColor: '#1F1428', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none' }}
                     type="text" 
                     value={profileForm.username} 
                     onChange={e => setProfileForm({...profileForm, username: e.target.value})} 
                   />
                 </div>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Payout Address</label>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 500 }}>Payout Address</label>
                   <input 
-                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', backgroundColor: '#1F1428', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none' }}
                     type="text" 
                     placeholder="Your mining payout address"
                     value={profileForm.payout_address} 
                     onChange={e => setProfileForm({...profileForm, payout_address: e.target.value})} 
                   />
                 </div>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Email</label>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 500 }}>Email</label>
                   <input 
-                    style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#666', fontSize: '1rem', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px 14px', backgroundColor: '#1F1428', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#7A7490', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none' }}
                     type="email" 
                     value={user?.email || ''} 
                     disabled
                   />
-                  <span style={{ color: '#666', fontSize: '0.8rem' }}>Email cannot be changed</span>
+                  <span style={{ color: '#7A7490', fontSize: '0.8rem' }}>Email cannot be changed</span>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                   <button 
-                    style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                    style={{ flex: 1, padding: '12px', backgroundColor: 'rgba(123, 94, 167, 0.15)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s ease' }}
                     onClick={() => { setShowProfileModal(false); setProfileTab('profile'); }}
                   >
                     Cancel
                   </button>
                   <button 
-                    style={{ flex: 1, padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                    style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 16px rgba(212, 168, 75, 0.3)', transition: 'all 0.2s ease' }}
                     onClick={handleUpdateProfile}
                   >
                     Save Changes
@@ -1718,50 +1720,83 @@ const instructionStyles: { [key: string]: React.CSSProperties } = {
 // NOTE: AdminPanel extracted to src/components/admin/AdminPanel.tsx
 // Using AdminPanelLazy from LazyComponents for code splitting
 
+// ============================================================================
+// CHIMERA POOL - ELITE DESIGN SYSTEM STYLES
+// Color palette inspired by the mythological Chimera: Lion, Goat, and Serpent
+// ============================================================================
 const styles: { [key: string]: React.CSSProperties } = {
-  container: { minHeight: '100vh', backgroundColor: '#0a0a0f', color: '#e0e0e0', fontFamily: "'Inter', sans-serif" },
-  header: { background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', padding: '20px', borderBottom: '1px solid #2a2a4a' },
-  headerContent: { maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: '20px' },
-  title: { fontSize: '2.5rem', margin: 0, color: '#00d4ff', textShadow: '0 0 20px rgba(0, 212, 255, 0.5)' },
-  subtitle: { fontSize: '1.2rem', color: '#888', margin: '10px 0 0' },
-  authButtons: { display: 'flex', gap: '10px', alignItems: 'center' },
-  authBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #00d4ff', color: '#00d4ff', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
-  registerBtn: { backgroundColor: '#00d4ff', color: '#0a0a0f' },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
-  username: { color: '#00d4ff', fontSize: '1rem' },
-  logoutBtn: { padding: '8px 16px', backgroundColor: '#4d1a1a', border: 'none', color: '#ff6666', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
-  message: { padding: '15px 20px', textAlign: 'center', color: '#fff', fontSize: '0.95rem' },
-  main: { maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' },
-  loading: { textAlign: 'center', padding: '40px', color: '#00d4ff' },
-  error: { textAlign: 'center', padding: '40px', color: '#ff4444' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '40px' },
-  statCard: { background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', borderRadius: '12px', padding: '24px', border: '1px solid #2a2a4a', textAlign: 'center' },
-  statLabel: { fontSize: '0.9rem', color: '#888', margin: '0 0 8px', textTransform: 'uppercase' },
-  statValue: { fontSize: '1.5rem', color: '#00d4ff', margin: 0, fontWeight: 'bold' },
-  section: { background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)', borderRadius: '12px', padding: '24px', border: '1px solid #2a2a4a', marginBottom: '20px' },
-  sectionTitle: { fontSize: '1.3rem', color: '#00d4ff', margin: '0 0 16px' },
-  connectionInfo: { backgroundColor: '#0a0a15', padding: '16px', borderRadius: '8px' },
-  code: { display: 'block', backgroundColor: '#000', color: '#00ff88', padding: '12px 16px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '1.1rem', margin: '8px 0' },
-  hint: { color: '#888', fontSize: '0.9rem', margin: '8px 0 0' },
+  // Layout
+  container: { minHeight: '100vh', background: 'linear-gradient(180deg, #1A0F1E 0%, #0D0811 100%)', color: '#F0EDF4', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+  
+  // Header - Premium gradient with glass effect
+  header: { background: 'linear-gradient(135deg, #2D1F3D 0%, #3A1F2E 100%)', padding: '16px 24px', borderBottom: '1px solid rgba(74, 44, 90, 0.5)', backdropFilter: 'blur(10px)', position: 'sticky' as const, top: 0, zIndex: 100 },
+  headerContent: { maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: '20px' },
+  
+  // Title - Lion Gold accent
+  title: { fontSize: '1.75rem', margin: 0, color: '#D4A84B', fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '12px' },
+  subtitle: { fontSize: '0.9rem', color: '#B8B4C8', margin: '4px 0 0', letterSpacing: '0.02em' },
+  
+  // Auth buttons - Modern styling
+  authButtons: { display: 'flex', gap: '12px', alignItems: 'center' },
+  authBtn: { padding: '10px 20px', backgroundColor: 'transparent', border: '1px solid #7B5EA7', color: '#B8B4C8', borderRadius: '10px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s ease' },
+  registerBtn: { background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', color: '#1A0F1E', fontWeight: 600 },
+  
+  // User info
+  userInfo: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' as const },
+  username: { color: '#D4A84B', fontSize: '0.95rem', fontWeight: 500 },
+  logoutBtn: { padding: '8px 16px', backgroundColor: 'rgba(196, 92, 92, 0.15)', border: '1px solid rgba(196, 92, 92, 0.3)', color: '#C45C5C', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.2s ease' },
+  
+  // Messages
+  message: { padding: '14px 20px', textAlign: 'center', color: '#F0EDF4', fontSize: '0.9rem', borderRadius: '0' },
+  
+  // Main content
+  main: { maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' },
+  loading: { textAlign: 'center', padding: '60px', color: '#D4A84B' },
+  error: { textAlign: 'center', padding: '60px', color: '#C45C5C' },
+  
+  // Stats grid - Premium cards
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '32px' },
+  statCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)', borderRadius: '14px', padding: '20px', border: '1px solid #4A2C5A', textAlign: 'center', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)', transition: 'all 0.2s ease' },
+  statLabel: { fontSize: '0.75rem', color: '#B8B4C8', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 },
+  statValue: { fontSize: '1.5rem', color: '#D4A84B', margin: 0, fontWeight: 700, letterSpacing: '-0.02em' },
+  
+  // Sections - Glass card effect
+  section: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', borderRadius: '16px', padding: '24px', border: '1px solid #4A2C5A', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(10px)' },
+  sectionTitle: { fontSize: '1.15rem', color: '#F0EDF4', margin: '0 0 20px', fontWeight: 600, letterSpacing: '0.01em' },
+  
+  // Connection info
+  connectionInfo: { backgroundColor: 'rgba(31, 20, 40, 0.8)', padding: '16px', borderRadius: '12px', border: '1px solid #4A2C5A' },
+  code: { display: 'block', backgroundColor: '#0D0811', color: '#4ADE80', padding: '14px 18px', borderRadius: '10px', fontFamily: "'JetBrains Mono', 'Fira Code', monospace", fontSize: '0.95rem', margin: '10px 0', border: '1px solid #4A2C5A' },
+  hint: { color: '#B8B4C8', fontSize: '0.85rem', margin: '10px 0 0' },
+  
+  // Info grid
   info: { lineHeight: '1.8' },
-  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' },
-  infoCard: { backgroundColor: '#0a0a15', padding: '20px', borderRadius: '10px', textAlign: 'center', border: '1px solid #2a2a4a', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' },
-  infoIcon: { fontSize: '1.8rem' },
-  infoLabel: { color: '#888', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  infoValue: { color: '#00d4ff', fontSize: '0.95rem', fontWeight: 'bold' },
-  footer: { textAlign: 'center', padding: '30px 20px', borderTop: '1px solid #2a2a4a', color: '#666' },
-  footerLinks: { marginTop: '10px' },
-  link: { color: '#00d4ff', textDecoration: 'none' },
-  modalOverlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { backgroundColor: '#1a1a2e', padding: '40px', borderRadius: '12px', border: '1px solid #2a2a4a', width: '100%', maxWidth: '400px', position: 'relative' as const },
-  closeBtn: { position: 'absolute' as const, top: '15px', right: '15px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' },
-  modalTitle: { color: '#00d4ff', marginBottom: '20px', textAlign: 'center' },
-  modalDesc: { color: '#888', fontSize: '0.9rem', marginBottom: '20px', textAlign: 'center' },
-  input: { width: '100%', padding: '12px 16px', marginBottom: '15px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' as const },
-  submitBtn: { width: '100%', padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' },
-  errorMsg: { backgroundColor: '#4d1a1a', color: '#ff6666', padding: '10px', borderRadius: '6px', marginBottom: '15px', fontSize: '0.9rem', textAlign: 'center' },
+  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' },
+  infoCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', padding: '18px', borderRadius: '12px', textAlign: 'center', border: '1px solid #4A2C5A', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s ease' },
+  infoIcon: { fontSize: '1.5rem' },
+  infoLabel: { color: '#B8B4C8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 },
+  infoValue: { color: '#D4A84B', fontSize: '0.9rem', fontWeight: 600 },
+  
+  // Footer
+  footer: { textAlign: 'center', padding: '32px 24px', borderTop: '1px solid #4A2C5A', color: '#7A7490', background: 'linear-gradient(180deg, transparent 0%, rgba(13, 8, 17, 0.5) 100%)' },
+  footerLinks: { marginTop: '12px' },
+  link: { color: '#7B5EA7', textDecoration: 'none', fontWeight: 500, transition: 'color 0.2s ease' },
+  
+  // Modal - Elevated glass effect
+  modalOverlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(13, 8, 17, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  modal: { background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', padding: '32px', borderRadius: '20px', border: '1px solid #4A2C5A', width: '100%', maxWidth: '420px', position: 'relative' as const, boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' },
+  closeBtn: { position: 'absolute' as const, top: '16px', right: '16px', background: 'rgba(123, 94, 167, 0.15)', border: '1px solid #4A2C5A', color: '#B8B4C8', fontSize: '18px', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' },
+  modalTitle: { color: '#D4A84B', marginBottom: '8px', textAlign: 'center', fontSize: '1.5rem', fontWeight: 600 },
+  modalDesc: { color: '#B8B4C8', fontSize: '0.9rem', marginBottom: '24px', textAlign: 'center' },
+  
+  // Form elements
+  input: { width: '100%', padding: '14px 16px', marginBottom: '16px', backgroundColor: '#1F1428', border: '1px solid #4A2C5A', borderRadius: '12px', color: '#F0EDF4', fontSize: '0.95rem', boxSizing: 'border-box' as const, outline: 'none', transition: 'all 0.2s ease' },
+  submitBtn: { width: '100%', padding: '14px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '12px', color: '#1A0F1E', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', marginTop: '8px', boxShadow: '0 4px 16px rgba(212, 168, 75, 0.3)', transition: 'all 0.2s ease' },
+  errorMsg: { backgroundColor: 'rgba(196, 92, 92, 0.15)', color: '#C45C5C', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', fontSize: '0.9rem', textAlign: 'center', border: '1px solid rgba(196, 92, 92, 0.3)' },
+  
+  // Auth links
   authLinks: { display: 'flex', justifyContent: 'space-between', marginTop: '20px', flexWrap: 'wrap' as const, gap: '10px' },
-  authLink: { color: '#00d4ff', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' },
+  authLink: { color: '#7B5EA7', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'none', fontWeight: 500, transition: 'color 0.2s ease' },
 };
 
 // NOTE: adminStyles removed - was dead code (AdminPanel.tsx has its own copy)
