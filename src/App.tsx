@@ -712,6 +712,52 @@ function App() {
               </div>
             </div>
 
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>📸 Screenshot (optional)</label>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <label style={{ flex: 1, padding: '12px', backgroundColor: '#0a0a15', border: '1px dashed #4a2c5a', borderRadius: '6px', color: '#B8B4C8', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 10 * 1024 * 1024) {
+                          showMessage('error', 'Screenshot must be under 10MB');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const base64 = (reader.result as string).split(',')[1];
+                          setBugReportForm({...bugReportForm, screenshot: base64});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {bugReportForm.screenshot ? '✅ Screenshot attached' : '📎 Click to attach screenshot'}
+                </label>
+                {bugReportForm.screenshot && (
+                  <button 
+                    style={{ padding: '12px', backgroundColor: '#4d1a1a', border: 'none', borderRadius: '6px', color: '#f87171', cursor: 'pointer' }}
+                    onClick={() => setBugReportForm({...bugReportForm, screenshot: ''})}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {bugReportForm.screenshot && (
+                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#0a0a15', borderRadius: '6px' }}>
+                  <img 
+                    src={`data:image/png;base64,${bugReportForm.screenshot}`} 
+                    alt="Screenshot preview" 
+                    style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '4px' }}
+                  />
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button 
                 style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}

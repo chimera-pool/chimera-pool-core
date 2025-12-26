@@ -72,6 +72,10 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
   const [editForm, setEditForm] = useState({ pool_fee_percent: '', payout_address: '', is_active: true, is_admin: false });
   const pageSize = 10;
 
+  // User sorting state
+  const [sortField, setSortField] = useState<'username' | 'email' | 'wallet_count' | 'total_hashrate' | 'total_earnings' | 'pool_fee_percent' | 'is_active'>('username');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Bug reports state
   const [adminBugs, setAdminBugs] = useState<any[]>([]);
   const [bugsLoading, setBugsLoading] = useState(false);
@@ -583,6 +587,44 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
     }
   };
 
+  // User sorting handler
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort users based on current sort field and direction
+  const sortedUsers = [...users].sort((a, b) => {
+    let aVal: any = a[sortField];
+    let bVal: any = b[sortField];
+    
+    // Handle string comparisons
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    
+    // Handle null/undefined
+    if (aVal == null) aVal = sortField === 'is_active' ? false : '';
+    if (bVal == null) bVal = sortField === 'is_active' ? false : '';
+    
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Sortable header component
+  const SortableHeader = ({ field, label }: { field: typeof sortField, label: string }) => (
+    <th 
+      style={{ ...adminStyles.th, cursor: 'pointer', userSelect: 'none', transition: 'background 0.2s' }}
+      onClick={() => handleSort(field)}
+    >
+      {label} {sortField === field && (sortDirection === 'asc' ? '↑' : '↓')}
+    </th>
+  );
+
   // Network configuration functions
   const fetchNetworks = async () => {
     setNetworksLoading(true);
@@ -829,18 +871,18 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
               <table style={adminStyles.table}>
                 <thead>
                   <tr>
-                    <th style={adminStyles.th}>Username</th>
-                    <th style={adminStyles.th}>Email</th>
-                    <th style={adminStyles.th}>Wallets</th>
-                    <th style={adminStyles.th}>Hashrate</th>
-                    <th style={adminStyles.th}>Earnings</th>
-                    <th style={adminStyles.th}>Fee %</th>
-                    <th style={adminStyles.th}>Status</th>
+                    <SortableHeader field="username" label="Username" />
+                    <SortableHeader field="email" label="Email" />
+                    <SortableHeader field="wallet_count" label="Wallets" />
+                    <SortableHeader field="total_hashrate" label="Hashrate" />
+                    <SortableHeader field="total_earnings" label="Earnings" />
+                    <SortableHeader field="pool_fee_percent" label="Fee %" />
+                    <SortableHeader field="is_active" label="Status" />
                     <th style={adminStyles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(user => (
+                  {sortedUsers.map(user => (
                     <tr key={user.id} style={adminStyles.tr}>
                       <td style={adminStyles.td}><span style={user.is_admin ? adminStyles.adminBadge : {}}>{user.username} {user.is_admin && '👑'}</span></td>
                       <td style={adminStyles.td}>{user.email}</td>

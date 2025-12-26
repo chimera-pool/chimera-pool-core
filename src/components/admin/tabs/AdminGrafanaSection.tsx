@@ -68,7 +68,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
   const [slotSelections, setSlotSelections] = useState<Record<string, string>>(() => ({
     'admin-1': getSlotSelection('admin', 'admin-1') || 'system-cpu',
     'admin-2': getSlotSelection('admin', 'admin-2') || 'system-memory',
-    'admin-3': getSlotSelection('admin', 'admin-3') || 'cumulative-earnings',
+    'admin-3': getSlotSelection('admin', 'admin-3') || 'grafana-payout-failures-by-reason',
     'admin-4': getSlotSelection('admin', 'admin-4') || 'alert-history',
   }));
 
@@ -149,7 +149,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
           <ChartSlot
             slotId="admin-3"
             dashboardId="admin"
-            allowedCategories={['earnings', 'pool-metrics']}
+            allowedCategories={['earnings', 'pool-metrics', 'earnings-payouts']}
             excludedChartIds={getExcludedForSlot('admin-3')}
             onSelectionChange={(id) => handleSelectionChange('admin-3', id)}
             showSelector={true}
@@ -160,7 +160,7 @@ export const AdminGrafanaSection = memo(function AdminGrafanaSection({ token }: 
           <ChartSlot
             slotId="admin-4"
             dashboardId="admin"
-            allowedCategories={['alerts']}
+            allowedCategories={['alerts', 'earnings-payouts', 'pool-metrics']}
             excludedChartIds={getExcludedForSlot('admin-4')}
             onSelectionChange={(id) => handleSelectionChange('admin-4', id)}
             showSelector={true}
