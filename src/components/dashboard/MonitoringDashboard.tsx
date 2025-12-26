@@ -232,45 +232,8 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
         </button>
       </div>
 
-      {/* Key Metrics */}
-      <div style={styles.metricsGrid}>
-        <div style={styles.metricCard}>
-          <div style={styles.metricLabel}>Pool Hashrate</div>
-          <div style={{ ...styles.metricValue, color: colors.primary }}>
-            {stats ? formatHashrate(stats.pool_hashrate) : '0 H/s'}
-          </div>
-          <div style={styles.metricSubtext}>Real-time aggregate</div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricLabel}>Active Workers</div>
-          <div style={{ ...styles.metricValue, color: colors.success }}>
-            {stats?.online_workers || 0}
-          </div>
-          <div style={styles.metricSubtext}>
-            {stats?.offline_workers ? `${stats.offline_workers} offline` : 'All online'}
-          </div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricLabel}>Blocks (24h)</div>
-          <div style={{ ...styles.metricValue, color: colors.secondary }}>
-            {stats?.blocks_found_24h || 0}
-          </div>
-          <div style={styles.metricSubtext}>Found in last 24 hours</div>
-        </div>
-
-        <div style={styles.metricCard}>
-          <div style={styles.metricLabel}>Pending Payouts</div>
-          <div style={styles.metricValue}>
-            {stats?.pending_payouts || 0}
-          </div>
-          <div style={styles.metricSubtext}>Queued for processing</div>
-        </div>
-      </div>
-
-      {/* Node Status */}
-      <div style={styles.statusSection}>
+      {/* Node Status - Unique monitoring data not shown elsewhere */}
+      <div style={{ marginBottom: '20px' }}>
         <div style={styles.statusTitle}>🔗 Node Health</div>
         <div style={styles.statusGrid}>
           <div style={styles.statusCard}>

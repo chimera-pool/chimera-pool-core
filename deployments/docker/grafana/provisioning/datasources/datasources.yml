@@ -4,6 +4,7 @@ apiVersion: 1
 datasources:
   - name: Prometheus
     type: prometheus
+    uid: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
@@ -14,6 +15,7 @@ datasources:
 
   - name: AlertManager
     type: alertmanager
+    uid: alertmanager
     access: proxy
     url: http://alertmanager:9093
     editable: false
