@@ -187,7 +187,7 @@ services:
       - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-ChimeraPool2024!}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-Champions$1956}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: http://206.162.80.230:3001
     volumes:
