@@ -96,6 +96,7 @@ func main() {
 		apiGroup.GET("/pool/stats/miners", handlePublicPoolMinersHistory(db))
 		apiGroup.GET("/pool/miners", handlePoolMiners(db))
 		apiGroup.GET("/pool/blocks", handleBlocks(db))
+		apiGroup.GET("/stats", handlePublicStats(db))
 		apiGroup.GET("/miners/locations", handlePublicMinerLocations(db))
 		apiGroup.GET("/miners/locations/stats", handleMinerLocationStats(db))
 
@@ -121,6 +122,7 @@ func main() {
 			protected.PUT("/user/wallets/:id", handleUpdateUserWallet(db))
 			protected.DELETE("/user/wallets/:id", handleDeleteUserWallet(db))
 			protected.GET("/user/wallets/preview", handleWalletPayoutPreview(db))
+			protected.GET("/user/stats", handleUserStats(db))
 			protected.GET("/user/stats/hashrate", handleUserHashrateHistory(db))
 			protected.GET("/user/stats/shares", handleUserSharesHistory(db))
 			protected.GET("/user/stats/earnings", handleUserEarningsHistory(db))
@@ -504,6 +506,49 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 			"network":          "Litecoin",
 			"currency":         "LTC",
 			"algorithm":        "Scrypt",
+		})
+	}
+}
+
+// handlePublicStats returns general stats for the monitoring dashboard
+func handlePublicStats(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var totalMiners, totalBlocks int64
+		var totalHashrate float64
+
+		db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
+		db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
+		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE is_active = true").Scan(&totalHashrate)
+
+		c.JSON(http.StatusOK, gin.H{
+			"activeMiners":  totalMiners,
+			"totalHashrate": totalHashrate,
+			"blocksFound":   totalBlocks,
+			"network":       "Litecoin",
+			"status":        "online",
+		})
+	}
+}
+
+// handleUserStats returns user-specific mining stats
+func handleUserStats(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var totalHashrate, pendingBalance, totalEarned float64
+		var activeMiners, totalShares int64
+
+		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0), COUNT(*) FROM miners WHERE user_id = $1 AND is_active = true", userID).Scan(&totalHashrate, &activeMiners)
+		db.QueryRow("SELECT COALESCE(SUM(amount), 0) FROM payouts WHERE user_id = $1 AND status = 'pending'", userID).Scan(&pendingBalance)
+		db.QueryRow("SELECT COALESCE(SUM(amount), 0) FROM payouts WHERE user_id = $1 AND status = 'completed'", userID).Scan(&totalEarned)
+		db.QueryRow("SELECT COUNT(*) FROM shares WHERE user_id = $1", userID).Scan(&totalShares)
+
+		c.JSON(http.StatusOK, gin.H{
+			"hashrate":       totalHashrate,
+			"activeMiners":   activeMiners,
+			"pendingBalance": pendingBalance,
+			"totalEarned":    totalEarned,
+			"totalShares":    totalShares,
 		})
 	}
 }
