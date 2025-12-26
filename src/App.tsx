@@ -30,6 +30,10 @@ import { formatHashrate } from './utils/formatters';
 // Monitoring Dashboard
 import MonitoringDashboard from './components/dashboard/MonitoringDashboard';
 
+// Collapsible User Mining Dashboard with auto-collapse for inactive equipment
+import { CollapsibleUserDashboard } from './components/dashboard/CollapsibleUserDashboard';
+import { useUserEquipmentStatus } from './hooks/useUserEquipmentStatus';
+
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 interface PoolStats {
@@ -89,16 +93,9 @@ function App() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
-  // Equipment registration enforcement state
-  // TEST PHASE: Equipment restrictions disabled - all users can see full dashboard
-  // TODO: Set hasEquipment: false and hasOnlineEquipment: false when launching production
-  const [userEquipmentStatus, setUserEquipmentStatus] = useState<{
-    hasEquipment: boolean;
-    hasOnlineEquipment: boolean;
-    equipmentCount: number;
-    onlineCount: number;
-    pendingSupport: boolean;
-  }>({ hasEquipment: true, hasOnlineEquipment: true, equipmentCount: 1, onlineCount: 1, pendingSupport: false });
+  // Equipment status hook for collapsible user mining dashboard
+  // Dashboard auto-collapses when no active equipment is detected
+  const { status: equipmentStatus } = useUserEquipmentStatus({ token });
   const [showEquipmentSupportModal, setShowEquipmentSupportModal] = useState(false);
   const [equipmentSupportForm, setEquipmentSupportForm] = useState({
     issue_type: 'connection',
@@ -151,48 +148,10 @@ function App() {
   useEffect(() => {
     if (token) {
       fetchUserProfile();
-      fetchEquipmentStatus();
     }
   }, [token]);
 
-  const fetchEquipmentStatus = async () => {
-    try {
-      const response = await fetch('/api/v1/user/equipment', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const equipment = data.equipment || [];
-        const onlineEquipment = equipment.filter((e: any) => ['mining', 'online', 'idle'].includes(e.status));
-        setUserEquipmentStatus({
-          hasEquipment: equipment.length > 0,
-          hasOnlineEquipment: onlineEquipment.length > 0,
-          equipmentCount: equipment.length,
-          onlineCount: onlineEquipment.length,
-          pendingSupport: data.pending_support || false
-        });
-      } else {
-        // API not ready yet - use mock data for demo (show as having equipment)
-        setUserEquipmentStatus({
-          hasEquipment: true,
-          hasOnlineEquipment: true,
-          equipmentCount: 3,
-          onlineCount: 2,
-          pendingSupport: false
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch equipment status:', error);
-      // Default to having equipment for demo
-      setUserEquipmentStatus({
-        hasEquipment: true,
-        hasOnlineEquipment: true,
-        equipmentCount: 3,
-        onlineCount: 2,
-        pendingSupport: false
-      });
-    }
-  };
+  // Equipment status is now managed by useUserEquipmentStatus hook
 
   const fetchUserProfile = async () => {
     try {
@@ -302,21 +261,12 @@ function App() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(equipmentSupportForm)
       });
-      if (response.ok) {
-        setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
-        setShowEquipmentSupportModal(false);
-        setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
-        showMessage('success', 'Support request submitted! Our team will contact you shortly.');
-      } else {
-        // API not ready yet - still show success for demo
-        setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
-        setShowEquipmentSupportModal(false);
-        setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
-        showMessage('success', 'Support request submitted! Our team will contact you shortly.');
-      }
+      // Equipment status will be refreshed by the hook automatically
+      setShowEquipmentSupportModal(false);
+      setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
+      showMessage('success', 'Support request submitted! Our team will contact you shortly.');
     } catch (error) {
-      // API not ready yet - still show success for demo
-      setUserEquipmentStatus({ ...userEquipmentStatus, pendingSupport: true });
+      // Still show success for demo - API may not be ready
       setShowEquipmentSupportModal(false);
       setEquipmentSupportForm({ issue_type: 'connection', equipment_type: '', description: '', error_message: '' });
       showMessage('success', 'Support request submitted! Our team will contact you shortly.');
@@ -991,8 +941,14 @@ function App() {
               </section>
             )}
 
-            {/* User Dashboard - only shown when logged in */}
-            {token && user && <UserDashboardLazy token={token} />}
+            {/* User Mining Dashboard - auto-collapses when no active equipment */}
+            {token && user && (
+              <CollapsibleUserDashboard 
+                token={token} 
+                equipmentStatus={equipmentStatus}
+                isLoggedIn={!!token && !!user}
+              />
+            )}
             {token && user && <WalletManagerLazy token={token} showMessage={showMessage} />}
 
             {/* Global Miner Map - visible to all */}

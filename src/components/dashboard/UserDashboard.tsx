@@ -203,9 +203,7 @@ export function UserDashboard({ token }: UserDashboardProps) {
   }
 
   return (
-    <section style={styles.section}>
-      <h2 style={styles.sectionTitle}>📈 Your Mining Dashboard</h2>
-      
+    <div style={{ padding: '24px' }}>
       {/* Grafana Charts Section */}
       <MinerGrafanaSection token={token} />
 
@@ -326,7 +324,7 @@ export function UserDashboard({ token }: UserDashboardProps) {
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }
 
