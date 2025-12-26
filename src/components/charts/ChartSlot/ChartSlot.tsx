@@ -149,7 +149,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
           {selectedChart.title}
         </h3>
         
-        {showSelector && availableCharts.length > 1 && (
+        {showSelector && availableCharts.length >= 1 && (
           <ChartSelector
             selectedChartId={selectedChartId}
             availableCharts={availableCharts}

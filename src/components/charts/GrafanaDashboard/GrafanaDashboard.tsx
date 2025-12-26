@@ -33,8 +33,8 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   fallbackData,
 }) => {
   const grafanaHealth = useGrafanaHealth(GRAFANA_CONFIG.baseUrl);
-  // Default to native fallback charts - more reliable cross-browser
-  const [useFallback, setUseFallback] = useState(true);
+  // Default to Grafana charts - native charts are fallback only
+  const [useFallback, setUseFallback] = useState(false);
   const { getSlotSelection } = useChartPreferences();
 
   // Get layout configuration for this dashboard
@@ -62,12 +62,12 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
       .map(([, chartId]) => chartId);
   }, [slotSelections]);
 
-  // Always use native fallback for better cross-browser compatibility
-  // Grafana iframe embedding has issues with subpath proxying
+  // Only fall back to native charts if Grafana is unavailable
   useEffect(() => {
-    // Keep useFallback true - native charts work better
-    setUseFallback(true);
-  }, []);
+    if (!grafanaHealth.available) {
+      setUseFallback(true);
+    }
+  }, [grafanaHealth.available]);
 
   const containerStyle: React.CSSProperties = {
     background: '#111217',
@@ -155,14 +155,13 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
             }} />
             {grafanaHealth.available ? 'Grafana Connected' : 'Connecting...'}
           </div>
-          {!grafanaHealth.available && (
-            <button 
-              style={fallbackButtonStyle}
-              onClick={() => setUseFallback(true)}
-            >
-              Use Fallback Charts
-            </button>
-          )}
+          <button 
+            style={fallbackButtonStyle}
+            onClick={() => setUseFallback(true)}
+          >
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#73BF69' }} />
+            Switch to Native Charts
+          </button>
         </div>
       </div>
 
