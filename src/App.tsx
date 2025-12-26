@@ -641,14 +641,14 @@ function App() {
 
       {/* Bug Report Modal */}
       {showBugReportModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => setShowBugReportModal(false)}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '550px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: '#00d4ff', marginBottom: '20px' }}>🐛 Report a Bug</h2>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(13, 8, 17, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => setShowBugReportModal(false)}>
+          <div style={{ background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', borderRadius: '20px', padding: '28px', maxWidth: '550px', width: '100%', border: '1px solid #4A2C5A', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#D4A84B', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.4rem', fontWeight: 600 }}>🐛 Report a Bug</h2>
             
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Title *</label>
+              <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Title *</label>
               <input 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '1rem', boxSizing: 'border-box', transition: 'border-color 0.2s, box-shadow 0.2s' }}
                 placeholder="Brief description of the issue"
                 value={bugReportForm.title}
                 onChange={e => setBugReportForm({...bugReportForm, title: e.target.value})}
@@ -656,25 +656,25 @@ function App() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Category</label>
+              <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Category</label>
               <select 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem' }}
+                style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '1rem', cursor: 'pointer' }}
                 value={bugReportForm.category}
                 onChange={e => setBugReportForm({...bugReportForm, category: e.target.value})}
               >
-                <option value="ui">UI/Visual Issue</option>
-                <option value="performance">Performance</option>
-                <option value="crash">Crash/Error</option>
-                <option value="security">Security Concern</option>
-                <option value="feature_request">Feature Request</option>
-                <option value="other">Other</option>
+                <option value="ui">🎨 UI/Visual Issue</option>
+                <option value="performance">⚡ Performance</option>
+                <option value="crash">💥 Crash/Error</option>
+                <option value="security">🔒 Security Concern</option>
+                <option value="feature_request">✨ Feature Request</option>
+                <option value="other">📝 Other</option>
               </select>
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Description *</label>
+              <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Description *</label>
               <textarea 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '1rem', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box' }}
                 placeholder="Describe the issue in detail..."
                 value={bugReportForm.description}
                 onChange={e => setBugReportForm({...bugReportForm, description: e.target.value})}
@@ -682,9 +682,9 @@ function App() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Steps to Reproduce</label>
+              <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Steps to Reproduce</label>
               <textarea 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '1rem', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '1rem', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
                 placeholder="1. Go to...&#10;2. Click on...&#10;3. See error"
                 value={bugReportForm.steps_to_reproduce}
                 onChange={e => setBugReportForm({...bugReportForm, steps_to_reproduce: e.target.value})}
@@ -693,18 +693,18 @@ function App() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
               <div>
-                <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Expected Behavior</label>
+                <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Expected Behavior</label>
                 <textarea 
-                  style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
                   placeholder="What should happen?"
                   value={bugReportForm.expected_behavior}
                   onChange={e => setBugReportForm({...bugReportForm, expected_behavior: e.target.value})}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>Actual Behavior</label>
+                <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>Actual Behavior</label>
                 <textarea 
-                  style={{ width: '100%', padding: '12px', backgroundColor: '#0a0a15', border: '1px solid #2a2a4a', borderRadius: '6px', color: '#e0e0e0', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical', boxSizing: 'border-box' }}
                   placeholder="What actually happens?"
                   value={bugReportForm.actual_behavior}
                   onChange={e => setBugReportForm({...bugReportForm, actual_behavior: e.target.value})}
@@ -713,9 +713,9 @@ function App() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', color: '#888', marginBottom: '5px', fontSize: '0.9rem' }}>📸 Screenshot (optional)</label>
+              <label style={{ display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>📸 Screenshot (optional)</label>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <label style={{ flex: 1, padding: '12px', backgroundColor: '#0a0a15', border: '1px dashed #4a2c5a', borderRadius: '6px', color: '#B8B4C8', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s' }}>
+                <label style={{ flex: 1, padding: '14px', backgroundColor: 'rgba(26, 15, 30, 0.8)', border: '2px dashed #7B5EA7', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s' }}>
                   <input 
                     type="file" 
                     accept="image/*"
@@ -740,7 +740,7 @@ function App() {
                 </label>
                 {bugReportForm.screenshot && (
                   <button 
-                    style={{ padding: '12px', backgroundColor: '#4d1a1a', border: 'none', borderRadius: '6px', color: '#f87171', cursor: 'pointer' }}
+                    style={{ padding: '14px', backgroundColor: 'rgba(139, 69, 69, 0.3)', border: '1px solid #8B4545', borderRadius: '10px', color: '#f87171', cursor: 'pointer' }}
                     onClick={() => setBugReportForm({...bugReportForm, screenshot: ''})}
                   >
                     ✕
@@ -748,25 +748,25 @@ function App() {
                 )}
               </div>
               {bugReportForm.screenshot && (
-                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#0a0a15', borderRadius: '6px' }}>
+                <div style={{ marginTop: '10px', padding: '12px', backgroundColor: 'rgba(26, 15, 30, 0.8)', borderRadius: '10px', border: '1px solid #4A2C5A' }}>
                   <img 
                     src={`data:image/png;base64,${bugReportForm.screenshot}`} 
                     alt="Screenshot preview" 
-                    style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '4px' }}
+                    style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px' }}
                   />
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
               <button 
-                style={{ flex: 1, padding: '12px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '14px', backgroundColor: 'rgba(74, 44, 90, 0.5)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s' }}
                 onClick={() => setShowBugReportModal(false)}
               >
                 Cancel
               </button>
               <button 
-                style={{ flex: 1, padding: '12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', opacity: bugReportLoading ? 0.6 : 1 }}
+                style={{ flex: 1, padding: '14px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8942F 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', opacity: bugReportLoading ? 0.6 : 1, boxShadow: '0 4px 12px rgba(212, 168, 75, 0.3)', transition: 'all 0.2s' }}
                 onClick={handleSubmitBugReport}
                 disabled={bugReportLoading}
               >
@@ -779,14 +779,14 @@ function App() {
 
       {/* My Bug Reports Modal */}
       {showMyBugsModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}>
-          <div style={{ backgroundColor: '#1a1a2e', borderRadius: '12px', padding: '20px', maxWidth: '750px', width: '100%', border: '1px solid #2a2a4a', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(13, 8, 17, 0.9)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }} onClick={() => { setShowMyBugsModal(false); setSelectedBug(null); }}>
+          <div style={{ background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', borderRadius: '20px', padding: '28px', maxWidth: '750px', width: '100%', border: '1px solid #4A2C5A', maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' }} onClick={e => e.stopPropagation()}>
             {selectedBug ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ color: '#00d4ff', margin: 0 }}>🐛 {selectedBug.bug.report_number}</h2>
+                  <h2 style={{ color: '#D4A84B', margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>🐛 {selectedBug.bug.report_number}</h2>
                   <button 
-                    style={{ padding: '8px 16px', backgroundColor: '#2a2a4a', border: 'none', borderRadius: '6px', color: '#e0e0e0', cursor: 'pointer' }}
+                    style={{ padding: '10px 18px', backgroundColor: 'rgba(74, 44, 90, 0.5)', border: '1px solid #4A2C5A', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', fontWeight: 500 }}
                     onClick={() => setSelectedBug(null)}
                   >
                     ← Back to List

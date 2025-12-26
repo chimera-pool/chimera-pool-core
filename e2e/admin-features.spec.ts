@@ -3,8 +3,37 @@
  * 
  * Tests for:
  * 1. Bug report screenshot attachment
- * 2. Admin panel sortable user columns
+ * 2. Admin panel sortable user columns (server-side sorting)
  * 3. Admin statistics chart dropdowns
+ * 
+ * AUTHENTICATION REQUIREMENTS:
+ * ============================
+ * Some tests require authentication to run fully:
+ * 
+ * 1. Bug Report Tests:
+ *    - Requires: User login (any registered user)
+ *    - Endpoint: POST /api/v1/auth/login
+ *    - Token: JWT Bearer token in Authorization header
+ * 
+ * 2. Admin Panel Tests:
+ *    - Requires: Admin user login (is_admin = true in database)
+ *    - Endpoint: POST /api/v1/auth/login
+ *    - Token: JWT Bearer token with admin privileges
+ * 
+ * 3. To run authenticated tests:
+ *    - Set environment variables:
+ *      - TEST_USER_EMAIL: Test user email
+ *      - TEST_USER_PASSWORD: Test user password
+ *      - TEST_ADMIN_EMAIL: Admin user email
+ *      - TEST_ADMIN_PASSWORD: Admin user password
+ *    - Or use Playwright's storageState for persistent auth
+ * 
+ * Example .env for tests:
+ *   TEST_URL=http://localhost:3000
+ *   TEST_USER_EMAIL=testuser@example.com
+ *   TEST_USER_PASSWORD=testpassword123
+ *   TEST_ADMIN_EMAIL=admin@chimeriapool.com
+ *   TEST_ADMIN_PASSWORD=adminpassword123
  */
 
 import { test, expect } from '@playwright/test';
