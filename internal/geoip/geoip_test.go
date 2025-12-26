@@ -1,6 +1,7 @@
 package geoip
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,11 +78,6 @@ func TestLookupInvalidIP(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid IP address")
 }
 
-func parseIP(s string) interface {
-	IsLoopback() bool
-	IsPrivate() bool
-	IsLinkLocalUnicast() bool
-} {
-	// Helper to avoid import cycle
-	return nil
+func parseIP(s string) net.IP {
+	return net.ParseIP(s)
 }
