@@ -4,6 +4,7 @@ import { formatHashrate } from '../../utils/formatters';
 import { useUserDashboard } from '../../services/realtime/useRealTimeData';
 import { PayoutSettings } from './PayoutSettings';
 import NotificationSettings from './NotificationSettings';
+import MonitoringDashboard from './MonitoringDashboard';
 
 // ============================================================================
 // USER DASHBOARD COMPONENT
@@ -277,6 +278,9 @@ export function UserDashboard({ token }: UserDashboardProps) {
           </table>
         </div>
       )}
+
+      {/* Monitoring Dashboard */}
+      <MonitoringDashboard token={token} />
 
       {/* Payout Settings */}
       <PayoutSettings token={token} />

@@ -169,7 +169,7 @@ func TestDefaultHealthMonitorConfig(t *testing.T) {
 
 	require.NotNil(t, config)
 	assert.Equal(t, 30*time.Second, config.CheckInterval)
-	assert.Equal(t, 3, config.MaxRestartsPerHour)
+	assert.Equal(t, 10, config.MaxRestartsPerHour)
 	assert.Equal(t, 60*time.Second, config.RestartCooldown)
 	assert.Equal(t, 3, config.ConsecutiveFailuresBeforeRestart)
 	assert.Equal(t, 10*time.Second, config.RPCTimeout)
