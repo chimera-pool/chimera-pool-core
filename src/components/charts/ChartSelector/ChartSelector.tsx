@@ -27,15 +27,23 @@ export const ChartSelector: React.FC<IChartSelectorProps> = ({
   // Group charts by category for optgroup display
   const chartsByCategory = useMemo(() => {
     const grouped: Record<ChartCategory, ChartConfig[]> = {
+      // Legacy categories
       'pool-metrics': [],
       'worker-metrics': [],
       'earnings': [],
       'system': [],
       'alerts': [],
+      // New quadrant categories
+      'hashrate-performance': [],
+      'workers-activity': [],
+      'shares-blocks': [],
+      'earnings-payouts': [],
     };
 
     filteredCharts.forEach(chart => {
-      grouped[chart.category].push(chart);
+      if (grouped[chart.category]) {
+        grouped[chart.category].push(chart);
+      }
     });
 
     return grouped;
