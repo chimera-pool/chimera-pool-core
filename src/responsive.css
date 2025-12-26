@@ -1063,3 +1063,196 @@ img, video, canvas, svg {
     border: 2px solid currentColor !important;
   }
 }
+
+/* ============================================
+   Phase 7: Final Polish - Global Transitions
+   ============================================ */
+
+/* Smooth transitions for all interactive elements */
+button,
+a,
+input,
+select,
+textarea,
+.card,
+.stat-card,
+.clickable {
+  transition: all 0.2s ease-out;
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #D4A84B;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(212, 168, 75, 0.2);
+}
+
+/* Skip to main content link for screen readers */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #D4A84B;
+  color: #1A0F1E;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 10px;
+}
+
+/* Loading shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(45, 31, 61, 0.3) 25%,
+    rgba(74, 44, 90, 0.5) 50%,
+    rgba(45, 31, 61, 0.3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Fade in animation for page content */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Scale up on hover for cards */
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(212, 168, 75, 0.15);
+}
+
+/* Button press effect */
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Gold glow effect for primary actions */
+.gold-glow {
+  box-shadow: 0 0 20px rgba(212, 168, 75, 0.3);
+}
+
+.gold-glow:hover {
+  box-shadow: 0 0 30px rgba(212, 168, 75, 0.5);
+}
+
+/* Smooth modal transitions */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Table row hover effect */
+tr.hoverable:hover {
+  background: rgba(212, 168, 75, 0.05) !important;
+}
+
+/* Scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A0F1E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4A2C5A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7B5EA7;
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(212, 168, 75, 0.3);
+  color: #F0EDF4;
+}
+
+/* Tooltip styling */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background: #2D1F3D;
+  color: #F0EDF4;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  border: 1px solid #4A2C5A;
+  z-index: 1000;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-8px);
+}
