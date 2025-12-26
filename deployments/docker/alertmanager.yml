@@ -1,0 +1,101 @@
+# Chimera Pool AlertManager Configuration
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: 'smtpout.secureserver.net:465'
+  smtp_from: 'alerts@chimerapool.com'
+  smtp_auth_username: 'reid@blockdaginvestors.com'
+  smtp_auth_password: 'Champions$1956'
+  smtp_require_tls: false
+
+  # Slack/Discord webhook (optional)
+  # slack_api_url: 'https://hooks.slack.com/services/...'
+
+# Route tree
+route:
+  # Default receiver
+  receiver: 'pool-admins'
+  
+  # Group alerts by these labels
+  group_by: ['alertname', 'severity']
+  
+  # Wait before sending first notification
+  group_wait: 30s
+  
+  # Wait before sending updated notification
+  group_interval: 5m
+  
+  # Wait before resending notification
+  repeat_interval: 4h
+
+  # Child routes for specific alerts
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'pool-admins-critical'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Worker offline alerts - batch them
+    - match:
+        alertname: WorkerOffline
+      receiver: 'worker-alerts'
+      group_wait: 5m
+      group_interval: 10m
+      repeat_interval: 1h
+
+    # Block found - celebratory notification
+    - match:
+        alertname: BlockFound
+      receiver: 'block-notifications'
+      group_wait: 0s
+
+    # Payout alerts
+    - match_re:
+        alertname: ^(PayoutFailures|PendingPayoutsHigh|LowWalletBalance)$
+      receiver: 'payout-alerts'
+      group_wait: 1m
+
+# Inhibition rules - suppress less important alerts when more important ones fire
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname']
+
+# Notification receivers
+receivers:
+  - name: 'pool-admins'
+    email_configs:
+      - to: 'reid@blockdaginvestors.com'
+        send_resolved: true
+    webhook_configs:
+      - url: 'http://chimera-pool-api:8080/webhooks/alerts'
+        send_resolved: true
+
+  - name: 'pool-admins-critical'
+    email_configs:
+      - to: 'reid@blockdaginvestors.com'
+        send_resolved: true
+    webhook_configs:
+      - url: 'http://chimera-pool-api:8080/webhooks/alerts/critical'
+        send_resolved: true
+
+  - name: 'worker-alerts'
+    webhook_configs:
+      - url: 'http://chimera-pool-api:8080/webhooks/alerts/workers'
+        send_resolved: true
+
+  - name: 'block-notifications'
+    webhook_configs:
+      - url: 'http://chimera-pool-api:8080/webhooks/alerts/blocks'
+        send_resolved: false
+
+  - name: 'payout-alerts'
+    email_configs:
+      - to: 'reid@blockdaginvestors.com'
+        send_resolved: true
+    webhook_configs:
+      - url: 'http://chimera-pool-api:8080/webhooks/alerts/payouts'
+        send_resolved: true

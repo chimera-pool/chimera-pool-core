@@ -1,0 +1,134 @@
+# Chimera Pool Prometheus Alert Rules
+groups:
+  - name: pool_alerts
+    rules:
+      # Worker offline detection
+      - alert: WorkerOffline
+        expr: time() - chimera_pool_worker_last_share_timestamp > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker {{ $labels.worker_name }} is offline"
+          description: "Worker {{ $labels.worker_name }} for user {{ $labels.user_id }} has not submitted shares for more than 5 minutes."
+
+      # Pool hashrate drop
+      - alert: PoolHashrateDrop
+        expr: chimera_pool_hashrate_total < (chimera_pool_hashrate_total offset 1h) * 0.5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pool hashrate dropped significantly"
+          description: "Pool hashrate has dropped by more than 50% in the last hour."
+
+      # High reject rate
+      - alert: HighRejectRate
+        expr: rate(chimera_pool_shares_rejected_total[5m]) / rate(chimera_pool_shares_accepted_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High share rejection rate"
+          description: "Share rejection rate is above 10% for the last 5 minutes."
+
+      # Stratum server down
+      - alert: StratumServerDown
+        expr: up{job="chimera-pool-stratum"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stratum server is down"
+          description: "The stratum mining server is not responding."
+
+      # API server down
+      - alert: APIServerDown
+        expr: up{job="chimera-pool-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API server is down"
+          description: "The API server is not responding."
+
+      # Litecoin node out of sync
+      - alert: LitecoinNodeOutOfSync
+        expr: chimera_pool_litecoin_blocks_behind > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Litecoin node is out of sync"
+          description: "Litecoin node is {{ $value }} blocks behind."
+
+      # Low wallet balance
+      - alert: LowWalletBalance
+        expr: chimera_pool_payouts_wallet_balance_ltc < 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low wallet balance"
+          description: "Pool wallet balance is below 1 LTC."
+
+      # Pending payouts queue growing
+      - alert: PendingPayoutsHigh
+        expr: chimera_pool_payouts_pending_count > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of pending payouts"
+          description: "There are {{ $value }} pending payouts waiting to be processed."
+
+      # Payout failures
+      - alert: PayoutFailures
+        expr: increase(chimera_pool_payouts_failed_total[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Multiple payout failures"
+          description: "{{ $value }} payouts have failed in the last hour."
+
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection lost"
+          description: "Cannot connect to PostgreSQL database."
+
+      # Redis connection issues
+      - alert: RedisConnectionIssues
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis connection lost"
+          description: "Cannot connect to Redis cache."
+
+  - name: miner_alerts
+    rules:
+      # Individual miner hashrate drop
+      - alert: MinerHashrateDrop
+        expr: chimera_pool_worker_hashrate < (chimera_pool_worker_hashrate offset 30m) * 0.3
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Miner {{ $labels.worker_name }} hashrate dropped"
+          description: "Hashrate for worker {{ $labels.worker_name }} has dropped by more than 70%."
+
+      # New block found
+      - alert: BlockFound
+        expr: increase(chimera_pool_blocks_found_total[1m]) > 0
+        labels:
+          severity: info
+        annotations:
+          summary: "New block found!"
+          description: "Pool found a new block. Total blocks: {{ $value }}"

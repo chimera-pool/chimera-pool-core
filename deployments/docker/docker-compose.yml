@@ -56,6 +56,13 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-Champions$1956}
       SMTP_FROM: ${SMTP_FROM:-reid@blockdaginvestors.com}
       FRONTEND_URL: ${FRONTEND_URL:-https://206.162.80.230}
+      # Litecoin Wallet Configuration for Payouts
+      LTC_RPC_URL: http://litecoind:9332
+      LTC_RPC_USER: chimera
+      LTC_RPC_PASSWORD: ChimeraLTC2024!
+      LTC_WALLET_PASSWORD: ${LTC_WALLET_PASSWORD:-}
+      LTC_MIN_PAYOUT: ${LTC_MIN_PAYOUT:-1000000}
+      LTC_PAYOUT_INTERVAL: ${LTC_PAYOUT_INTERVAL:-60}
     depends_on:
       postgres:
         condition: service_healthy
@@ -164,6 +171,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -174,11 +182,44 @@ services:
       - '--web.enable-lifecycle'
     restart: unless-stopped
 
+  # Grafana - Visualization dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-ChimeraPool2024!}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # AlertManager - Alert routing and notifications
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   prometheus_data:
   litecoin_data:
+  grafana_data:
+  alertmanager_data:
 
 networks:
   default:
