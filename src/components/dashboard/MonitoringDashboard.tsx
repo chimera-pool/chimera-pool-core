@@ -225,7 +225,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
   };
 
   const openGrafana = () => {
-    window.open('http://206.162.80.230:3001', '_blank');
+    window.open('/grafana', '_blank');
   };
 
   if (loading) {
@@ -275,7 +275,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
       {/* Quick Links to Grafana Dashboards */}
       <div style={styles.dashboardLinks}>
         <a 
-          href="http://206.162.80.230:3001/d/chimera-pool-overview/chimera-pool-overview" 
+          href="/grafana/d/chimera-pool-overview/chimera-pool-overview" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
@@ -283,7 +283,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           📊 Pool Overview
         </a>
         <a 
-          href="http://206.162.80.230:3001/d/chimera-pool-workers/chimera-pool-workers" 
+          href="/grafana/d/chimera-pool-workers/chimera-pool-workers" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
@@ -291,7 +291,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           👷 Workers
         </a>
         <a 
-          href="http://206.162.80.230:3001/d/chimera-pool-payouts/chimera-pool-payouts" 
+          href="/grafana/d/chimera-pool-payouts/chimera-pool-payouts" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
@@ -299,7 +299,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           💰 Payouts
         </a>
         <a 
-          href="http://206.162.80.230:3001/d/chimera-pool-alerts/chimera-pool-alerts" 
+          href="/grafana/d/chimera-pool-alerts/chimera-pool-alerts" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
@@ -307,7 +307,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           🔔 Alerts
         </a>
         <a 
-          href="http://206.162.80.230:9093" 
+          href="https://206.162.80.230:9093" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
@@ -315,7 +315,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           ⚠️ AlertManager
         </a>
         <a 
-          href="http://206.162.80.230:9090" 
+          href="https://206.162.80.230:9090" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}

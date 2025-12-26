@@ -33,7 +33,8 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   fallbackData,
 }) => {
   const grafanaHealth = useGrafanaHealth(GRAFANA_CONFIG.baseUrl);
-  const [useFallback, setUseFallback] = useState(false);
+  // Default to native fallback charts - more reliable cross-browser
+  const [useFallback, setUseFallback] = useState(true);
   const { getSlotSelection } = useChartPreferences();
 
   // Get layout configuration for this dashboard
@@ -61,15 +62,12 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
       .map(([, chartId]) => chartId);
   }, [slotSelections]);
 
-  // If Grafana is unavailable for extended period, switch to fallback
+  // Always use native fallback for better cross-browser compatibility
+  // Grafana iframe embedding has issues with subpath proxying
   useEffect(() => {
-    if (!grafanaHealth.available) {
-      const timeout = setTimeout(() => setUseFallback(true), 5000);
-      return () => clearTimeout(timeout);
-    } else {
-      setUseFallback(false);
-    }
-  }, [grafanaHealth.available]);
+    // Keep useFallback true - native charts work better
+    setUseFallback(true);
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     background: '#111217',
