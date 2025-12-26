@@ -468,8 +468,9 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img src="/logo.png" alt="Chimera Pool" style={{ height: '56px', width: 'auto' }} />
+            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#D4A84B', letterSpacing: '0.5px' }}>Chimera Pool</span>
           </div>
           {/* Main Navigation Tabs - Elite styling */}
           <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
