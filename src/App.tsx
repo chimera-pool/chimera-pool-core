@@ -72,9 +72,9 @@ type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all'
 
 // Navigation styles - defined before App component to ensure availability
 const navStyles: { [key: string]: React.CSSProperties } = {
-  mainNav: { display: 'flex', gap: '5px', backgroundColor: '#0a0a15', borderRadius: '8px', padding: '4px' },
-  navTab: { padding: '12px 24px', backgroundColor: 'transparent', border: 'none', color: '#888', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', transition: 'all 0.2s', fontWeight: 500 },
-  navTabActive: { backgroundColor: '#00d4ff', color: '#0a0a0f', fontWeight: 'bold' },
+  mainNav: { display: 'flex', gap: '4px', background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', borderRadius: '12px', padding: '5px', border: '1px solid rgba(74, 44, 90, 0.4)' },
+  navTab: { padding: '10px 22px', backgroundColor: 'transparent', border: 'none', color: '#B8B4C8', fontSize: '0.95rem', cursor: 'pointer', borderRadius: '8px', transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', fontWeight: 500, position: 'relative' as const },
+  navTabActive: { background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', color: '#1A0F1E', fontWeight: 600, boxShadow: '0 2px 12px rgba(212, 168, 75, 0.3)' },
 };
 
 function App() {
@@ -426,21 +426,24 @@ function App() {
           {/* Main Navigation Tabs - Elite styling */}
           <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
             <button 
-              style={{ padding: '10px 20px', background: mainView === 'dashboard' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'dashboard' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'dashboard' ? 600 : 500, transition: 'all 0.2s ease' }}
+              className={mainView !== 'dashboard' ? 'nav-tab-enhanced' : ''}
+              style={{ padding: '10px 20px', background: mainView === 'dashboard' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'dashboard' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'dashboard' ? 600 : 500, transition: 'all 0.2s ease', boxShadow: mainView === 'dashboard' ? '0 2px 12px rgba(212, 168, 75, 0.3)' : 'none' }}
               onClick={() => setMainView('dashboard')}
             >
               Dashboard
             </button>
             {token && user && (
               <button 
-                style={{ padding: '10px 20px', background: mainView === 'equipment' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'equipment' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'equipment' ? 600 : 500, transition: 'all 0.2s ease' }}
+                className={mainView !== 'equipment' ? 'nav-tab-enhanced' : ''}
+                style={{ padding: '10px 20px', background: mainView === 'equipment' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'equipment' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'equipment' ? 600 : 500, transition: 'all 0.2s ease', boxShadow: mainView === 'equipment' ? '0 2px 12px rgba(212, 168, 75, 0.3)' : 'none' }}
                 onClick={() => setMainView('equipment')}
               >
                 Equipment
               </button>
             )}
             <button 
-              style={{ padding: '10px 20px', background: mainView === 'community' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'community' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'community' ? 600 : 500, transition: 'all 0.2s ease' }}
+              className={mainView !== 'community' ? 'nav-tab-enhanced' : ''}
+              style={{ padding: '10px 20px', background: mainView === 'community' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent', border: 'none', color: mainView === 'community' ? '#1A0F1E' : '#B8B4C8', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '8px', fontWeight: mainView === 'community' ? 600 : 500, transition: 'all 0.2s ease', boxShadow: mainView === 'community' ? '0 2px 12px rgba(212, 168, 75, 0.3)' : 'none' }}
               onClick={() => setMainView('community')}
             >
               Community

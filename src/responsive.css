@@ -120,6 +120,56 @@ img, video, canvas, svg {
 }
 
 /* ============================================
+   Enhanced Navigation - Cyber-Minimal Design
+   ============================================ */
+.nav-tab-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-tab-enhanced::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #D4A84B, transparent);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.nav-tab-enhanced:hover::after {
+  width: 80%;
+}
+
+.nav-tab-enhanced:hover {
+  color: #D4A84B;
+  background: rgba(212, 168, 75, 0.08);
+}
+
+/* Action buttons in header */
+.header-action-btn {
+  transition: all 0.2s ease;
+}
+
+.header-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Username hover effect */
+.username-hover {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.username-hover:hover {
+  color: #D4A84B;
+  text-shadow: 0 0 10px rgba(212, 168, 75, 0.3);
+}
+
+/* ============================================
    Enhanced Stat Cards - Cyber-Minimal Design
    ============================================ */
 .stat-card-enhanced {
