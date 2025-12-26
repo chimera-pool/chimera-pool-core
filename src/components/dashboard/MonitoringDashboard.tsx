@@ -319,20 +319,22 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           🔔 Alerts
         </a>
         <a 
-          href="/alertmanager" 
+          href="http://206.162.80.230:9093" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
           className="dashboard-link-enhanced"
+          title="Alert routing and notification management"
         >
           ⚠️ AlertManager
         </a>
         <a 
-          href="/prometheus" 
+          href="http://206.162.80.230:9090" 
           target="_blank" 
           rel="noopener noreferrer"
           style={styles.dashboardLink}
           className="dashboard-link-enhanced"
+          title="Time-series metrics database for pool monitoring"
         >
           📈 Prometheus
         </a>

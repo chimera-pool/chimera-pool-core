@@ -1599,28 +1599,49 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                       Full access to all pool settings and user management
                     </p>
                   </div>
-                  <div style={{ padding: '15px 20px', maxHeight: '300px', overflowY: 'auto' }}>
+                  <div style={{ padding: '15px 20px', maxHeight: '400px', overflowY: 'auto' }}>
                     {admins.length === 0 ? (
                       <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>No administrators assigned</p>
                     ) : (
-                      admins.map((admin: any) => (
-                        <div key={admin.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1a1a2e', borderRadius: '6px', marginBottom: '8px' }}>
-                          <div>
-                            <span style={{ color: '#9b59b6', fontWeight: 'bold' }}>{admin.username}</span>
-                            <p style={{ margin: '2px 0 0', color: '#888', fontSize: '0.8rem' }}>{admin.email}</p>
-                            <span style={{ backgroundColor: admin.role === 'super_admin' ? '#4d1a4d' : '#2a2a4a', color: admin.role === 'super_admin' ? '#d946ef' : '#9b59b6', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>
-                              {admin.role === 'super_admin' ? '⭐ Super Admin' : 'Admin'}
-                            </span>
-                          </div>
-                          <button 
-                            style={{ ...adminStyles.actionBtn, color: '#fbbf24' }}
-                            onClick={() => { setRoleChangeUser(admin); setNewRole('user'); }}
-                            title="Change Role"
-                          >
-                            ✏️
-                          </button>
-                        </div>
-                      ))
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #2a2a4a' }}>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#D4A84B', fontSize: '0.8rem' }}>ID</th>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#9b59b6', fontSize: '0.8rem' }}>User</th>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>Role</th>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>Joined</th>
+                            <th style={{ padding: '8px', textAlign: 'center', color: '#888', fontSize: '0.8rem' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {admins.map((admin: any) => (
+                            <tr key={admin.id} style={{ borderBottom: '1px solid #1a1a2e' }}>
+                              <td style={{ padding: '10px 8px', color: '#D4A84B', fontFamily: 'monospace', fontWeight: 600 }}>#{admin.id}</td>
+                              <td style={{ padding: '10px 8px' }}>
+                                <div style={{ color: '#9b59b6', fontWeight: 'bold' }}>{admin.username}</div>
+                                <div style={{ color: '#666', fontSize: '0.75rem' }}>{admin.email}</div>
+                              </td>
+                              <td style={{ padding: '10px 8px' }}>
+                                <span style={{ backgroundColor: admin.role === 'super_admin' ? '#4d1a4d' : '#2a1a4a', color: admin.role === 'super_admin' ? '#d946ef' : '#9b59b6', padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>
+                                  {admin.role === 'super_admin' ? '⭐ Super Admin' : '👑 Admin'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 8px', color: '#888', fontSize: '0.8rem' }}>
+                                {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : 'N/A'}
+                              </td>
+                              <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                                <button 
+                                  style={{ ...adminStyles.actionBtn, color: '#fbbf24', padding: '4px 8px' }}
+                                  onClick={() => { setRoleChangeUser(admin); setNewRole('user'); }}
+                                  title="Change Role"
+                                >
+                                  ✏️
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 </div>
@@ -1635,25 +1656,43 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
                       Can manage community channels, mute users, and view reports
                     </p>
                   </div>
-                  <div style={{ padding: '15px 20px', maxHeight: '300px', overflowY: 'auto' }}>
+                  <div style={{ padding: '15px 20px', maxHeight: '400px', overflowY: 'auto' }}>
                     {moderators.length === 0 ? (
                       <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>No moderators assigned</p>
                     ) : (
-                      moderators.map((mod: any) => (
-                        <div key={mod.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#1a1a2e', borderRadius: '6px', marginBottom: '8px' }}>
-                          <div>
-                            <span style={{ color: '#00d4ff', fontWeight: 'bold' }}>{mod.username}</span>
-                            <p style={{ margin: '2px 0 0', color: '#888', fontSize: '0.8rem' }}>{mod.email}</p>
-                          </div>
-                          <button 
-                            style={{ ...adminStyles.actionBtn, color: '#fbbf24' }}
-                            onClick={() => { setRoleChangeUser(mod); setNewRole('user'); }}
-                            title="Change Role"
-                          >
-                            ✏️
-                          </button>
-                        </div>
-                      ))
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #2a2a4a' }}>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#D4A84B', fontSize: '0.8rem' }}>ID</th>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#00d4ff', fontSize: '0.8rem' }}>User</th>
+                            <th style={{ padding: '8px', textAlign: 'left', color: '#888', fontSize: '0.8rem' }}>Joined</th>
+                            <th style={{ padding: '8px', textAlign: 'center', color: '#888', fontSize: '0.8rem' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {moderators.map((mod: any) => (
+                            <tr key={mod.id} style={{ borderBottom: '1px solid #1a1a2e' }}>
+                              <td style={{ padding: '10px 8px', color: '#D4A84B', fontFamily: 'monospace', fontWeight: 600 }}>#{mod.id}</td>
+                              <td style={{ padding: '10px 8px' }}>
+                                <div style={{ color: '#00d4ff', fontWeight: 'bold' }}>{mod.username}</div>
+                                <div style={{ color: '#666', fontSize: '0.75rem' }}>{mod.email}</div>
+                              </td>
+                              <td style={{ padding: '10px 8px', color: '#888', fontSize: '0.8rem' }}>
+                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : 'N/A'}
+                              </td>
+                              <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                                <button 
+                                  style={{ ...adminStyles.actionBtn, color: '#fbbf24', padding: '4px 8px' }}
+                                  onClick={() => { setRoleChangeUser(mod); setNewRole('user'); }}
+                                  title="Change Role"
+                                >
+                                  ✏️
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 </div>
