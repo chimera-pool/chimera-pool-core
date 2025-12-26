@@ -242,8 +242,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>
-          <span style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'rgba(212, 168, 75, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#D4A84B', fontSize: '0.8rem' }}>◈</span>
-          Pool Monitoring
+          📊 Pool Monitoring
         </h2>
         <button style={styles.grafanaBtn} onClick={openGrafana}>
           Open Grafana Dashboards
@@ -252,10 +251,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
 
       {/* Node Status - Unique monitoring data not shown elsewhere */}
       <div style={{ marginBottom: '20px' }}>
-        <div style={styles.statusTitle}>
-          <span style={{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(74, 222, 128, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#4ADE80', fontSize: '0.7rem' }}>◉</span>
-          Node Health
-        </div>
+        <div style={styles.statusTitle}>🔗 Node Health</div>
         <div style={styles.statusGrid}>
           <div style={styles.statusCard}>
             <span style={styles.statusName}>Litecoin Node</span>
@@ -284,7 +280,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#D4A84B' }}>◈</span> Pool Overview
+          📊 Pool Overview
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-workers/chimera-pool-workers" 
@@ -292,7 +288,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#7B5EA7' }}>◎</span> Workers
+          👷 Workers
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-payouts/chimera-pool-payouts" 
@@ -300,7 +296,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#4ADE80' }}>◇</span> Payouts
+          💰 Payouts
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-alerts/chimera-pool-alerts" 
@@ -308,7 +304,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#C45C5C' }}>◆</span> Alerts
+          🔔 Alerts
         </a>
         <a 
           href="http://206.162.80.230:9093" 
@@ -316,7 +312,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#FBBF24' }}>⚑</span> AlertManager
+          ⚠️ AlertManager
         </a>
         <a 
           href="http://206.162.80.230:9090" 
@@ -324,7 +320,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          <span style={{ color: '#60A5FA' }}>◉</span> Prometheus
+          📈 Prometheus
         </a>
       </div>
     </div>

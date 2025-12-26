@@ -249,10 +249,7 @@ export function GlobalMinerMap() {
   return (
     <section style={styles.section}>
       <div style={styles.header}>
-        <h2 style={styles.title}>
-          <span style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'rgba(96, 165, 250, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#60A5FA', fontSize: '0.8rem' }}>◉</span>
-          Global Miner Network
-        </h2>
+        <h2 style={styles.title}>🌍 Global Miner Network</h2>
         <div style={styles.statsRow}>
           <div style={styles.statBadge}>
             <span style={styles.statNumber}>{stats?.totalMiners || 0}</span>

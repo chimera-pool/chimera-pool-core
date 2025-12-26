@@ -467,7 +467,9 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
-          <ChimeraLogoFull iconSize={44} fontSize="1.6rem" />
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src="/logo.png" alt="Chimera Pool" style={{ height: '70px', width: 'auto' }} />
+          </div>
           {/* Main Navigation Tabs - Elite styling */}
           <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
             <button 
@@ -1071,7 +1073,7 @@ function App() {
         {mainView === 'dashboard' && (
           <>
         <section style={styles.section} className="section">
-          <h2 style={styles.sectionTitle} className="section-title">Connect Your Miner</h2>
+          <h2 style={styles.sectionTitle} className="section-title">🔗 Connect Your Miner</h2>
           
           {/* Hybrid Protocol Banner */}
           <div style={instructionStyles.protocolBanner}>
@@ -1088,7 +1090,7 @@ function App() {
 
           {/* Step by Step Guide */}
           <div style={instructionStyles.stepsContainer}>
-            <h3 style={instructionStyles.stepsTitle}>Quick Start Guide</h3>
+            <h3 style={instructionStyles.stepsTitle}>📋 Quick Start Guide</h3>
             <div style={instructionStyles.step}>
               <span style={instructionStyles.stepNumber}>1</span>
               <div>
@@ -1121,7 +1123,7 @@ function App() {
 
           {/* Connection Details - Login Required for Full Details */}
           <div style={instructionStyles.connectionBox}>
-            <h3 style={instructionStyles.connectionTitle}>Pool Connection Settings</h3>
+            <h3 style={instructionStyles.connectionTitle}>⚡ Pool Connection Settings</h3>
             {token && user ? (
               <>
                 <div style={instructionStyles.copyableBox}>
@@ -1147,7 +1149,7 @@ function App() {
             ) : (
               <div style={{ textAlign: 'center', padding: '30px 20px' }}>
                 <div style={{ backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', border: '1px dashed #2a2a4a', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '10px', color: '#D4A84B' }}>◈</span>
+                  <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>🔐</span>
                   <p style={{ color: '#888', margin: '0 0 15px' }}>Login to see your personalized connection settings</p>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button 
@@ -1173,12 +1175,12 @@ function App() {
 
           {/* Hardware-Specific Instructions - Login required for full details */}
           <div style={instructionStyles.hardwareSection}>
-            <h3 style={instructionStyles.examplesTitle}>Setup by Hardware Type</h3>
+            <h3 style={instructionStyles.examplesTitle}>🖥️ Setup by Hardware Type</h3>
             
             {/* Official ASIC Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(212, 168, 75, 0.15)', color: '#D4A84B'}}>◈</span>
+                <span style={instructionStyles.hardwareIcon}>⚡</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>BlockDAG X30 / X100 (Official ASIC)</h4>
                   <span style={instructionStyles.hardwareTag}>Stratum V2 + Noise Encryption</span>
@@ -1213,7 +1215,7 @@ Password: your_account_password</pre>
             {/* GPU Mining Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(123, 94, 167, 0.15)', color: '#7B5EA7'}}>◎</span>
+                <span style={instructionStyles.hardwareIcon}>🎮</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>GPU Mining (NVIDIA / AMD)</h4>
                   <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
@@ -1254,7 +1256,7 @@ SRBMiner-MULTI --algorithm scrpy --pool 206.162.80.230:3333 --wallet {user.email
             {/* CPU Mining Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(96, 165, 250, 0.15)', color: '#60A5FA'}}>▣</span>
+                <span style={instructionStyles.hardwareIcon}>💻</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>CPU Mining</h4>
                   <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
@@ -1281,7 +1283,7 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpa
 
           {/* Troubleshooting */}
           <div style={instructionStyles.troubleshootBox}>
-            <h3 style={instructionStyles.troubleshootTitle}>Troubleshooting</h3>
+            <h3 style={instructionStyles.troubleshootTitle}>🔧 Troubleshooting</h3>
             <div style={instructionStyles.troubleshootItem}>
               <strong style={{ color: '#C45C5C' }}>Connection Refused:</strong> Ensure port 3333 is not blocked by your firewall or router.
             </div>
@@ -1301,30 +1303,30 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpa
         </section>
 
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Pool Information</h2>
+          <h2 style={styles.sectionTitle}>📊 Pool Information</h2>
           <div style={styles.infoGrid}>
             <div style={styles.infoCard}>
-              <span style={{...styles.infoIcon, color: '#D4A84B'}}>◈</span>
+              <span style={styles.infoIcon}>⚙️</span>
               <span style={styles.infoLabel}>Algorithm</span>
               <span style={styles.infoValue}>Scrpy-Variant (BlockDAG Custom)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={{...styles.infoIcon, color: '#4ADE80'}}>◇</span>
+              <span style={styles.infoIcon}>💰</span>
               <span style={styles.infoLabel}>Payout System</span>
               <span style={styles.infoValue}>PPLNS (Pay Per Last N Shares)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={{...styles.infoIcon, color: '#7B5EA7'}}>◎</span>
+              <span style={styles.infoIcon}>📤</span>
               <span style={styles.infoLabel}>Minimum Payout</span>
               <span style={styles.infoValue}>1.0 BDAG</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={{...styles.infoIcon, color: '#60A5FA'}}>▣</span>
+              <span style={styles.infoIcon}>⏰</span>
               <span style={styles.infoLabel}>Payout Frequency</span>
               <span style={styles.infoValue}>Hourly (when minimum reached)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={{...styles.infoIcon, color: '#C45C5C'}}>◆</span>
+              <span style={styles.infoIcon}>🔒</span>
               <span style={styles.infoLabel}>Protocol</span>
               <span style={styles.infoValue}>Stratum V1 + V2 Hybrid</span>
             </div>
