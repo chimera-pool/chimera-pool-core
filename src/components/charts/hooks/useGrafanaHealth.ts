@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { IGrafanaStatus } from '../interfaces/IGrafanaPanel';
 
-const HEALTH_CHECK_INTERVAL = 60000; // 1 minute
 const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds
 
 /**
  * Hook to check Grafana availability
- * Falls back to native charts if Grafana is unavailable
+ * Only checks once on mount to avoid excessive polling that causes browser crashes
  */
 export function useGrafanaHealth(baseUrl: string) {
   const [status, setStatus] = useState<IGrafanaStatus>({
@@ -14,6 +13,7 @@ export function useGrafanaHealth(baseUrl: string) {
     lastCheck: new Date(),
   });
   const [isChecking, setIsChecking] = useState(false);
+  const hasChecked = useRef(false);
 
   /**
    * Check if Grafana is reachable
@@ -53,19 +53,17 @@ export function useGrafanaHealth(baseUrl: string) {
     }
   }, [baseUrl, isChecking]);
 
-  // Initial health check
+  // Single health check on mount only - no continuous polling
+  // This prevents the excessive network requests that crash the browser
   useEffect(() => {
-    checkHealth();
-  }, [checkHealth]);
-
-  // Periodic health checks
-  useEffect(() => {
-    const interval = setInterval(checkHealth, HEALTH_CHECK_INTERVAL);
-    return () => clearInterval(interval);
+    if (!hasChecked.current) {
+      hasChecked.current = true;
+      checkHealth();
+    }
   }, [checkHealth]);
 
   /**
-   * Force a health check
+   * Force a health check (manual refresh only)
    */
   const refresh = useCallback(() => {
     checkHealth();

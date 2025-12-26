@@ -45,6 +45,7 @@ export interface IGrafanaEmbedProps {
 
 /**
  * Build Grafana solo panel embed URL
+ * Uses kiosk mode to disable internal polling and reduce browser load
  */
 export function buildGrafanaEmbedUrl(
   baseUrl: string,
@@ -55,10 +56,19 @@ export function buildGrafanaEmbedUrl(
   params.set('panelId', String(panel.panelId));
   params.set('theme', panel.theme || 'dark');
   
+  // Kiosk mode disables internal Grafana polling and UI elements
+  params.set('kiosk', '1');
+  
+  // Disable live streaming to prevent continuous connections
+  params.set('__feature.live', 'false');
+  
   if (panel.from) params.set('from', panel.from);
   if (panel.to) params.set('to', panel.to);
   if (panel.timezone) params.set('timezone', panel.timezone);
-  if (panel.refreshInterval) params.set('refresh', `${panel.refreshInterval}s`);
+  
+  // Set refresh to 0 (manual only) to prevent auto-refresh
+  // Parent component will handle refresh via re-mounting if needed
+  params.set('refresh', '');
 
   return `${baseUrl}/d-solo/${panel.dashboardUid}?${params.toString()}`;
 }
