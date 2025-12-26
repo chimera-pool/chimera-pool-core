@@ -27,6 +27,12 @@ type PayoutRepository interface {
 	ReturnToBalance(ctx context.Context, userID int64, amount int64) error
 }
 
+// PayoutNotifier sends payout notifications (ISP)
+type PayoutNotifier interface {
+	NotifyPayoutSent(ctx context.Context, userID int64, amount int64, address, txHash string) error
+	NotifyPayoutFailed(ctx context.Context, userID int64, amount int64, reason string) error
+}
+
 // =============================================================================
 // PROCESSOR CONFIGURATION
 // =============================================================================
@@ -64,9 +70,10 @@ type ProcessorStats struct {
 
 // PayoutProcessor handles automatic payout processing
 type PayoutProcessor struct {
-	wallet WalletClient
-	repo   PayoutRepository
-	config ProcessorConfig
+	wallet   WalletClient
+	repo     PayoutRepository
+	notifier PayoutNotifier
+	config   ProcessorConfig
 
 	// Stats
 	stats ProcessorStats
@@ -196,6 +203,11 @@ func (p *PayoutProcessor) processSinglePayout(ctx context.Context, payout Pendin
 		return
 	}
 
+	// Send notification
+	if p.notifier != nil {
+		_ = p.notifier.NotifyPayoutSent(ctx, payout.UserID, payout.Amount, payout.Address, txHash)
+	}
+
 	// Update stats
 	p.mu.Lock()
 	p.stats.PayoutsProcessed++
@@ -212,8 +224,18 @@ func (p *PayoutProcessor) handleFailedPayout(ctx context.Context, payout Pending
 	// Return funds to user balance
 	_ = p.repo.ReturnToBalance(ctx, payout.UserID, payout.Amount)
 
+	// Send failure notification
+	if p.notifier != nil {
+		_ = p.notifier.NotifyPayoutFailed(ctx, payout.UserID, payout.Amount, errorMsg)
+	}
+
 	// Update stats
 	atomic.AddInt64(&p.stats.PayoutsFailed, 1)
+}
+
+// SetNotifier sets the payout notifier
+func (p *PayoutProcessor) SetNotifier(notifier PayoutNotifier) {
+	p.notifier = notifier
 }
 
 // GetStats returns current processor statistics
