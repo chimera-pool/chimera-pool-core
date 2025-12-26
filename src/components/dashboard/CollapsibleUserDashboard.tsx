@@ -24,12 +24,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '30px',
   },
   collapsedSection: {
-    background: gradients.card,
-    borderRadius: '12px',
-    padding: '20px 24px',
-    border: `1px solid ${colors.border}`,
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)',
+    borderRadius: '16px',
+    padding: '24px 28px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
   },
   collapsedHeader: {
     display: 'flex',
@@ -44,10 +45,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     margin: 0,
   },
   titleText: {
-    fontSize: '1.3rem',
-    color: colors.primary,
+    fontSize: '1.25rem',
+    color: '#F0EDF4',
     margin: 0,
-    fontWeight: 600,
+    fontWeight: 700,
+    letterSpacing: '0.01em',
   },
   statusBadge: {
     display: 'inline-flex',
@@ -63,6 +65,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: 'rgba(74, 222, 128, 0.15)',
     color: '#4ADE80',
     border: '1px solid rgba(74, 222, 128, 0.3)',
+    boxShadow: '0 0 8px rgba(74, 222, 128, 0.2)',
   },
   inactiveBadge: {
     backgroundColor: 'rgba(156, 163, 175, 0.15)',
@@ -75,10 +78,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid rgba(96, 165, 250, 0.3)',
   },
   collapsedMessage: {
-    color: colors.textSecondary,
-    fontSize: '0.9rem',
-    margin: '12px 0 0',
-    lineHeight: '1.5',
+    color: '#B8B4C8',
+    fontSize: '0.95rem',
+    margin: '16px 0 0',
+    lineHeight: '1.6',
   },
   expandIcon: {
     fontSize: '1.2rem',
@@ -110,11 +113,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
     border: 'none',
     color: '#1A0F1E',
+    boxShadow: '0 2px 12px rgba(212, 168, 75, 0.3)',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    border: `1px solid ${colors.border}`,
-    color: colors.textSecondary,
+    border: '1px solid rgba(74, 44, 90, 0.5)',
+    color: '#B8B4C8',
   },
   equipmentSummary: {
     display: 'flex',
