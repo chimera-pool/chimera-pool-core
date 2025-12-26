@@ -174,6 +174,7 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
             dashboardId={dashboardId}
             initialChartId={slotSelections[slot.slotId] || slot.selectedChartId}
             allowedCategories={slot.allowedCategories as ChartCategory[]}
+            allowedChartIds={slot.allowedChartIds}
             excludedChartIds={getExcludedChartsForSlot(slot.slotId)}
             onSelectionChange={(chartId) => handleSlotSelectionChange(slot.slotId, chartId)}
             showSelector={showSelectors}

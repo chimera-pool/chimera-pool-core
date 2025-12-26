@@ -5,6 +5,7 @@ import { ChimeraLogoFull } from './components/common/ChimeraLogo';
 
 // Error Boundary for graceful error handling
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ChartErrorBoundary } from './components/charts/ChartErrorBoundary';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
 // Real-time data provider for synchronized mining data across all components
@@ -935,12 +936,14 @@ function App() {
             )}
 
             {/* Mining Graphs - Visible to ALL users with Grafana integration and dropdown selectors */}
-            <GrafanaDashboardLazy 
-              dashboardId="main" 
-              token={token || undefined} 
-              isLoggedIn={!!token && !!user}
-              showSelectors={true}
-            />
+            <ChartErrorBoundary fallbackMessage="Charts failed to load. Click retry to try again.">
+              <GrafanaDashboardLazy 
+                dashboardId="main" 
+                token={token || undefined} 
+                isLoggedIn={!!token && !!user}
+                showSelectors={true}
+              />
+            </ChartErrorBoundary>
 
             {/* Pool Monitoring Dashboard - Shows node health and Grafana links */}
             <MonitoringDashboard token={token || undefined} />

@@ -17,6 +17,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   dashboardId,
   initialChartId,
   allowedCategories,
+  allowedChartIds,
   excludedChartIds = [],
   onSelectionChange,
   showSelector = true,
@@ -25,12 +26,15 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   height = 280,
   className,
 }) => {
-  // Get available charts for this dashboard (excluding already selected in other slots)
+  // Get available charts for this slot - use allowedChartIds if provided (unique per slot)
   const availableCharts = useMemo(() => {
-    let charts = chartRegistry.getChartsForDashboard(dashboardId);
+    let charts = chartRegistry.getAllCharts();
     
-    // Filter by allowed categories if specified
-    if (allowedCategories && allowedCategories.length > 0) {
+    // If specific chart IDs are provided, use those exclusively (unique charts per slot)
+    if (allowedChartIds && allowedChartIds.length > 0) {
+      charts = charts.filter(c => allowedChartIds.includes(c.id));
+    } else if (allowedCategories && allowedCategories.length > 0) {
+      // Fall back to category filtering if no specific IDs
       charts = charts.filter(c => allowedCategories.includes(c.category));
     }
     
@@ -43,7 +47,7 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     }
     
     return charts;
-  }, [dashboardId, allowedCategories, excludedChartIds]);
+  }, [allowedChartIds, allowedCategories, excludedChartIds]);
 
   // User preferences for chart selection
   const { getSlotSelection, setSlotSelection } = useChartPreferences();

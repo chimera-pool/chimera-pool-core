@@ -17,6 +17,8 @@ export interface IChartSlot {
   selectedChartId: string;
   /** Allowed categories for this slot (empty = all) */
   allowedCategories?: ChartCategory[];
+  /** Specific chart IDs allowed for this slot (overrides categories if provided) */
+  allowedChartIds?: string[];
 }
 
 /**
@@ -99,6 +101,8 @@ export interface IChartSlotProps {
   initialChartId?: string;
   /** Allowed categories for selector */
   allowedCategories?: ChartCategory[];
+  /** Specific chart IDs allowed for this slot (overrides categories) */
+  allowedChartIds?: string[];
   /** Chart IDs to exclude from selection (prevents duplicates) */
   excludedChartIds?: string[];
   /** Callback when chart selection changes */

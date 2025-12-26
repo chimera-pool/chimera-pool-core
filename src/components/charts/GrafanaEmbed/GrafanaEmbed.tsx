@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { IGrafanaEmbedProps, buildGrafanaEmbedUrl } from '../interfaces/IGrafanaPanel';
 
 /**
  * GrafanaEmbed - Embeds a Grafana panel via iframe
- * Provides loading state and error handling with callbacks
+ * Provides loading state, error handling, and timeout protection
  */
 export const GrafanaEmbed: React.FC<IGrafanaEmbedProps> = ({
   baseUrl,
@@ -15,20 +15,73 @@ export const GrafanaEmbed: React.FC<IGrafanaEmbedProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
   const embedUrl = buildGrafanaEmbedUrl(baseUrl, panel);
 
+  // Cleanup on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Loading timeout - if iframe doesn't load in 15 seconds, show timeout message
+  useEffect(() => {
+    if (isLoading && !hasError && !timedOut) {
+      timeoutRef.current = setTimeout(() => {
+        if (mountedRef.current && isLoading) {
+          setTimedOut(true);
+          setIsLoading(false);
+        }
+      }, 15000);
+    }
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isLoading, hasError, timedOut]);
+
   const handleLoad = useCallback(() => {
+    if (!mountedRef.current) return;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsLoading(false);
     setHasError(false);
+    setTimedOut(false);
     onLoad?.();
   }, [onLoad]);
 
   const handleError = useCallback(() => {
+    if (!mountedRef.current) return;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsLoading(false);
     setHasError(true);
     onError?.(new Error(`Failed to load Grafana panel: ${panel.title}`));
   }, [onError, panel.title]);
+
+  const handleRetry = useCallback(() => {
+    setIsLoading(true);
+    setHasError(false);
+    setTimedOut(false);
+    // Force iframe reload by clearing and resetting src
+    if (iframeRef.current) {
+      const src = iframeRef.current.src;
+      iframeRef.current.src = '';
+      setTimeout(() => {
+        if (iframeRef.current && mountedRef.current) {
+          iframeRef.current.src = src;
+        }
+      }, 100);
+    }
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     position: 'relative',
@@ -44,8 +97,9 @@ export const GrafanaEmbed: React.FC<IGrafanaEmbedProps> = ({
     width: '100%',
     height: panel.height || 280,
     border: 'none',
-    opacity: isLoading ? 0 : 1,
+    opacity: isLoading || hasError || timedOut ? 0 : 1,
     transition: 'opacity 0.3s ease',
+    pointerEvents: hasError || timedOut ? 'none' : 'auto',
   };
 
   const loadingStyle: React.CSSProperties = {
@@ -104,17 +158,33 @@ export const GrafanaEmbed: React.FC<IGrafanaEmbedProps> = ({
         </div>
       )}
 
-      {hasError && (
+      {(hasError || timedOut) && (
         <div style={errorStyle}>
-          <span style={{ marginBottom: '8px' }}>⚠️</span>
-          <span>Failed to load chart</span>
+          <span style={{ marginBottom: '8px' }}>{timedOut ? '⏱️' : '⚠️'}</span>
+          <span>{timedOut ? 'Chart loading timed out' : 'Failed to load chart'}</span>
           <span style={{ fontSize: '0.75rem', color: 'rgba(204, 204, 220, 0.5)', marginTop: '4px' }}>
             {panel.title}
           </span>
+          <button
+            onClick={handleRetry}
+            style={{
+              marginTop: '12px',
+              padding: '6px 12px',
+              backgroundColor: 'rgba(245, 184, 0, 0.1)',
+              border: '1px solid rgba(245, 184, 0, 0.3)',
+              borderRadius: '4px',
+              color: '#F5B800',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
       <iframe
+        ref={iframeRef}
         src={embedUrl}
         title={panel.title}
         style={iframeStyle}

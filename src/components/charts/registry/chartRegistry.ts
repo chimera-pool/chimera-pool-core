@@ -375,6 +375,7 @@ const ALL_CHARTS: ChartConfig[] = [...GRAFANA_PANELS, ...NATIVE_CHARTS];
 
 /**
  * Default dashboard layouts
+ * Each slot has unique allowedChartIds to prevent duplicate options in dropdowns
  */
 export const DEFAULT_LAYOUTS: Record<string, IDashboardLayout> = {
   main: {
@@ -382,10 +383,30 @@ export const DEFAULT_LAYOUTS: Record<string, IDashboardLayout> = {
     slotCount: 4,
     columns: 2,
     slots: [
-      { slotId: 'main-1', selectedChartId: 'grafana-pool-hashrate', allowedCategories: ['pool-metrics'] },
-      { slotId: 'main-2', selectedChartId: 'grafana-shares-submitted', allowedCategories: ['pool-metrics'] },
-      { slotId: 'main-3', selectedChartId: 'grafana-active-miners', allowedCategories: ['pool-metrics'] },
-      { slotId: 'main-4', selectedChartId: 'grafana-block-history', allowedCategories: ['pool-metrics', 'earnings'] },
+      { 
+        slotId: 'main-1', 
+        selectedChartId: 'grafana-pool-hashrate', 
+        allowedCategories: ['pool-metrics'],
+        allowedChartIds: ['grafana-pool-hashrate', 'grafana-pool-hashrate-7d', 'grafana-network-difficulty']
+      },
+      { 
+        slotId: 'main-2', 
+        selectedChartId: 'grafana-shares-submitted', 
+        allowedCategories: ['pool-metrics'],
+        allowedChartIds: ['grafana-shares-submitted', 'grafana-worker-shares', 'grafana-worker-efficiency']
+      },
+      { 
+        slotId: 'main-3', 
+        selectedChartId: 'grafana-active-miners', 
+        allowedCategories: ['pool-metrics', 'worker-metrics'],
+        allowedChartIds: ['grafana-active-miners', 'grafana-worker-hashrate', 'grafana-worker-status']
+      },
+      { 
+        slotId: 'main-4', 
+        selectedChartId: 'grafana-block-history', 
+        allowedCategories: ['pool-metrics', 'earnings'],
+        allowedChartIds: ['grafana-block-history', 'grafana-earnings-cumulative', 'grafana-earnings-daily', 'grafana-payout-history']
+      },
     ],
   },
   miner: {
@@ -393,10 +414,30 @@ export const DEFAULT_LAYOUTS: Record<string, IDashboardLayout> = {
     slotCount: 4,
     columns: 2,
     slots: [
-      { slotId: 'miner-1', selectedChartId: 'grafana-worker-hashrate', allowedCategories: ['worker-metrics'] },
-      { slotId: 'miner-2', selectedChartId: 'grafana-worker-shares', allowedCategories: ['worker-metrics'] },
-      { slotId: 'miner-3', selectedChartId: 'grafana-earnings-cumulative', allowedCategories: ['earnings'] },
-      { slotId: 'miner-4', selectedChartId: 'grafana-worker-status', allowedCategories: ['worker-metrics'] },
+      { 
+        slotId: 'miner-1', 
+        selectedChartId: 'grafana-worker-hashrate', 
+        allowedCategories: ['worker-metrics'],
+        allowedChartIds: ['grafana-worker-hashrate', 'grafana-pool-hashrate']
+      },
+      { 
+        slotId: 'miner-2', 
+        selectedChartId: 'grafana-worker-shares', 
+        allowedCategories: ['worker-metrics'],
+        allowedChartIds: ['grafana-worker-shares', 'grafana-shares-submitted']
+      },
+      { 
+        slotId: 'miner-3', 
+        selectedChartId: 'grafana-earnings-cumulative', 
+        allowedCategories: ['earnings'],
+        allowedChartIds: ['grafana-earnings-cumulative', 'grafana-earnings-daily', 'grafana-pending-balance']
+      },
+      { 
+        slotId: 'miner-4', 
+        selectedChartId: 'grafana-worker-status', 
+        allowedCategories: ['worker-metrics'],
+        allowedChartIds: ['grafana-worker-status', 'grafana-worker-efficiency']
+      },
     ],
   },
   admin: {
@@ -404,10 +445,30 @@ export const DEFAULT_LAYOUTS: Record<string, IDashboardLayout> = {
     slotCount: 4,
     columns: 2,
     slots: [
-      { slotId: 'admin-1', selectedChartId: 'grafana-node-health', allowedCategories: ['system'] },
-      { slotId: 'admin-2', selectedChartId: 'grafana-stratum-connections', allowedCategories: ['system'] },
-      { slotId: 'admin-3', selectedChartId: 'grafana-payout-history', allowedCategories: ['earnings'] },
-      { slotId: 'admin-4', selectedChartId: 'grafana-alert-timeline', allowedCategories: ['alerts'] },
+      { 
+        slotId: 'admin-1', 
+        selectedChartId: 'grafana-node-health', 
+        allowedCategories: ['system'],
+        allowedChartIds: ['grafana-node-health', 'grafana-api-latency']
+      },
+      { 
+        slotId: 'admin-2', 
+        selectedChartId: 'grafana-stratum-connections', 
+        allowedCategories: ['system'],
+        allowedChartIds: ['grafana-stratum-connections', 'grafana-active-miners']
+      },
+      { 
+        slotId: 'admin-3', 
+        selectedChartId: 'grafana-payout-history', 
+        allowedCategories: ['earnings'],
+        allowedChartIds: ['grafana-payout-history', 'grafana-earnings-cumulative', 'grafana-pending-balance']
+      },
+      { 
+        slotId: 'admin-4', 
+        selectedChartId: 'grafana-alert-timeline', 
+        allowedCategories: ['alerts'],
+        allowedChartIds: ['grafana-alert-timeline', 'grafana-alert-frequency']
+      },
     ],
   },
 };
