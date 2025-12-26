@@ -180,8 +180,6 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
-      - '--web.external-url=https://206.162.80.230/prometheus'
-      - '--web.route-prefix=/prometheus'
     restart: unless-stopped
 
   # Grafana - Visualization dashboards
@@ -221,8 +219,6 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
-      - '--web.external-url=https://206.162.80.230/alertmanager'
-      - '--web.route-prefix=/alertmanager'
     restart: unless-stopped
 
 volumes:
