@@ -3,6 +3,7 @@ import { colors, gradients } from '../../styles/shared';
 import { formatHashrate } from '../../utils/formatters';
 import { useUserDashboard } from '../../services/realtime/useRealTimeData';
 import { PayoutSettings } from './PayoutSettings';
+import NotificationSettings from './NotificationSettings';
 
 // ============================================================================
 // USER DASHBOARD COMPONENT
@@ -279,6 +280,9 @@ export function UserDashboard({ token }: UserDashboardProps) {
 
       {/* Payout Settings */}
       <PayoutSettings token={token} />
+
+      {/* Notification Settings */}
+      <NotificationSettings token={token} />
 
       {/* Recent Payouts */}
       {stats.recent_payouts.length > 0 && (
