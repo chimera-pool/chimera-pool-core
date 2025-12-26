@@ -108,11 +108,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   mapWrapper: {
     flex: '1 1 600px',
     height: '400px',
-    backgroundColor: colors.bgInput,
-    borderRadius: '10px',
-    border: `1px solid ${colors.border}`,
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)',
+    borderRadius: '12px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
     overflow: 'hidden',
     position: 'relative' as const,
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
   },
   tooltip: {
     position: 'fixed' as const,
@@ -147,15 +148,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '20px',
   },
   sidebarSection: {
-    backgroundColor: colors.bgInput,
-    borderRadius: '10px',
-    padding: '15px',
-    border: `1px solid ${colors.border}`,
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
+    borderRadius: '12px',
+    padding: '16px',
+    border: '1px solid rgba(74, 44, 90, 0.4)',
   },
   sidebarTitle: {
-    color: colors.primary,
+    color: '#D4A84B',
     fontSize: '0.95rem',
     margin: '0 0 12px 0',
+    fontWeight: 600,
   },
   countryRow: {
     display: 'flex',
