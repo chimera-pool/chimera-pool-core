@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+import { ChimeraLogoFull } from './components/common/ChimeraLogo';
 
 // Error Boundary for graceful error handling
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -466,12 +467,7 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerContent} className="header-content">
-          <div>
-            <h1 style={styles.title} className="header-title">
-              <span style={{ fontSize: '2rem' }}>🦁</span> Chimera Pool
-            </h1>
-            <p style={styles.subtitle} className="header-subtitle">Elite Mining Platform</p>
-          </div>
+          <ChimeraLogoFull iconSize={44} fontSize="1.6rem" />
           {/* Main Navigation Tabs - Elite styling */}
           <nav className="header-nav" style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '12px', padding: '4px', border: '1px solid #4A2C5A' }}>
             <button 
@@ -942,39 +938,39 @@ function App() {
 
             {/* Call-to-action for non-logged users */}
             {!token && (
-              <section style={{ ...styles.section, background: 'linear-gradient(135deg, #1a2a3e 0%, #0f1a2e 100%)', border: '2px solid #00d4ff', textAlign: 'center' }}>
-                <h2 style={{ color: '#00d4ff', marginBottom: '15px' }}>🚀 Start Mining Today!</h2>
-                <p style={{ color: '#ccc', marginBottom: '20px', maxWidth: '600px', margin: '0 auto 20px', lineHeight: '1.6' }}>
-                  Join hundreds of miners earning BDAG rewards. Create a free account to track your hashrate, 
+              <section style={{ ...styles.section, background: 'linear-gradient(135deg, #2D1F3D 0%, #3A1F2E 50%, #1A0F1E 100%)', border: '1px solid rgba(212, 168, 75, 0.3)', textAlign: 'center', boxShadow: '0 0 40px rgba(212, 168, 75, 0.1)' }}>
+                <h2 style={{ color: '#D4A84B', marginBottom: '12px', fontSize: '1.5rem', fontWeight: 700 }}>Start Mining Today</h2>
+                <p style={{ color: '#B8B4C8', marginBottom: '24px', maxWidth: '600px', margin: '0 auto 24px', lineHeight: '1.7', fontSize: '0.95rem' }}>
+                  Join hundreds of miners earning rewards. Create a free account to track your hashrate, 
                   manage payouts, report issues, and connect with the community.
                 </p>
-                <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '20px' }}>
-                  <div style={{ backgroundColor: '#0a0a15', padding: '15px 20px', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
-                    <span style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>📊</span>
-                    <p style={{ color: '#888', margin: '5px 0 0', fontSize: '0.85rem' }}>Real-time Stats</p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
+                  <div style={{ background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '16px 20px', borderRadius: '12px', border: '1px solid #4A2C5A', minWidth: '100px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: 'rgba(74, 222, 128, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', color: '#4ADE80', fontSize: '0.9rem' }}>◈</div>
+                    <p style={{ color: '#B8B4C8', margin: 0, fontSize: '0.8rem', fontWeight: 500 }}>Real-time Stats</p>
                   </div>
-                  <div style={{ backgroundColor: '#0a0a15', padding: '15px 20px', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
-                    <span style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>💰</span>
-                    <p style={{ color: '#888', margin: '5px 0 0', fontSize: '0.85rem' }}>Auto Payouts</p>
+                  <div style={{ background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '16px 20px', borderRadius: '12px', border: '1px solid #4A2C5A', minWidth: '100px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: 'rgba(212, 168, 75, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', color: '#D4A84B', fontSize: '0.9rem' }}>◎</div>
+                    <p style={{ color: '#B8B4C8', margin: 0, fontSize: '0.8rem', fontWeight: 500 }}>Auto Payouts</p>
                   </div>
-                  <div style={{ backgroundColor: '#0a0a15', padding: '15px 20px', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
-                    <span style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>🐛</span>
-                    <p style={{ color: '#888', margin: '5px 0 0', fontSize: '0.85rem' }}>Bug Tracking</p>
+                  <div style={{ background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '16px 20px', borderRadius: '12px', border: '1px solid #4A2C5A', minWidth: '100px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: 'rgba(123, 94, 167, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', color: '#7B5EA7', fontSize: '0.9rem' }}>⚑</div>
+                    <p style={{ color: '#B8B4C8', margin: 0, fontSize: '0.8rem', fontWeight: 500 }}>Bug Tracking</p>
                   </div>
-                  <div style={{ backgroundColor: '#0a0a15', padding: '15px 20px', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
-                    <span style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>💬</span>
-                    <p style={{ color: '#888', margin: '5px 0 0', fontSize: '0.85rem' }}>Community</p>
+                  <div style={{ background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '16px 20px', borderRadius: '12px', border: '1px solid #4A2C5A', minWidth: '100px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: 'rgba(96, 165, 250, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', color: '#60A5FA', fontSize: '0.9rem' }}>◉</div>
+                    <p style={{ color: '#B8B4C8', margin: 0, fontSize: '0.8rem', fontWeight: 500 }}>Community</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button 
-                    style={{ padding: '14px 35px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '8px', color: '#0a0a0f', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }} 
+                    style={{ padding: '14px 32px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 16px rgba(212, 168, 75, 0.3)' }} 
                     onClick={() => setAuthView('register')}
                   >
                     Create Free Account
                   </button>
                   <button 
-                    style={{ padding: '14px 35px', backgroundColor: 'transparent', border: '2px solid #00d4ff', borderRadius: '8px', color: '#00d4ff', fontSize: '1.1rem', cursor: 'pointer' }} 
+                    style={{ padding: '14px 32px', backgroundColor: 'transparent', border: '2px solid #7B5EA7', borderRadius: '10px', color: '#B8B4C8', fontSize: '1rem', fontWeight: 500, cursor: 'pointer' }} 
                     onClick={() => setAuthView('login')}
                   >
                     Login
@@ -1075,12 +1071,12 @@ function App() {
         {mainView === 'dashboard' && (
           <>
         <section style={styles.section} className="section">
-          <h2 style={styles.sectionTitle} className="section-title">🔗 Connect Your Miner</h2>
+          <h2 style={styles.sectionTitle} className="section-title">Connect Your Miner</h2>
           
           {/* Hybrid Protocol Banner */}
           <div style={instructionStyles.protocolBanner}>
             <div style={instructionStyles.protocolBadge}>
-              <span style={instructionStyles.v2Badge}>✨ Stratum V2</span>
+              <span style={instructionStyles.v2Badge}>Stratum V2</span>
               <span style={instructionStyles.plusSign}>+</span>
               <span style={instructionStyles.v1Badge}>Stratum V1</span>
             </div>
@@ -1092,7 +1088,7 @@ function App() {
 
           {/* Step by Step Guide */}
           <div style={instructionStyles.stepsContainer}>
-            <h3 style={instructionStyles.stepsTitle}>📋 Quick Start Guide</h3>
+            <h3 style={instructionStyles.stepsTitle}>Quick Start Guide</h3>
             <div style={instructionStyles.step}>
               <span style={instructionStyles.stepNumber}>1</span>
               <div>
@@ -1125,7 +1121,7 @@ function App() {
 
           {/* Connection Details - Login Required for Full Details */}
           <div style={instructionStyles.connectionBox}>
-            <h3 style={instructionStyles.connectionTitle}>⚡ Pool Connection Settings</h3>
+            <h3 style={instructionStyles.connectionTitle}>Pool Connection Settings</h3>
             {token && user ? (
               <>
                 <div style={instructionStyles.copyableBox}>
@@ -1146,22 +1142,22 @@ function App() {
                     <code style={instructionStyles.detailCode}>scrpy-variant (BlockDAG Custom)</code>
                   </div>
                 </div>
-                <p style={instructionStyles.tipText}>💡 <strong>Tip:</strong> Use your Chimera Pool login credentials as username/password</p>
+                <p style={instructionStyles.tipText}><strong>Tip:</strong> Use your Chimera Pool login credentials as username/password</p>
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '30px 20px' }}>
                 <div style={{ backgroundColor: '#0a0a15', padding: '20px', borderRadius: '8px', border: '1px dashed #2a2a4a', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>🔐</span>
+                  <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '10px', color: '#D4A84B' }}>◈</span>
                   <p style={{ color: '#888', margin: '0 0 15px' }}>Login to see your personalized connection settings</p>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button 
-                      style={{ padding: '10px 25px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '6px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer' }}
+                      style={{ padding: '10px 25px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '8px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer' }}
                       onClick={() => setAuthView('login')}
                     >
                       Login
                     </button>
                     <button 
-                      style={{ padding: '10px 25px', backgroundColor: 'transparent', border: '1px solid #00d4ff', borderRadius: '6px', color: '#00d4ff', cursor: 'pointer' }}
+                      style={{ padding: '10px 25px', backgroundColor: 'transparent', border: '1px solid #7B5EA7', borderRadius: '8px', color: '#B8B4C8', cursor: 'pointer' }}
                       onClick={() => setAuthView('register')}
                     >
                       Create Account
@@ -1177,12 +1173,12 @@ function App() {
 
           {/* Hardware-Specific Instructions - Login required for full details */}
           <div style={instructionStyles.hardwareSection}>
-            <h3 style={instructionStyles.examplesTitle}>🖥️ Setup by Hardware Type</h3>
+            <h3 style={instructionStyles.examplesTitle}>Setup by Hardware Type</h3>
             
             {/* Official ASIC Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={instructionStyles.hardwareIcon}>⚡</span>
+                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(212, 168, 75, 0.15)', color: '#D4A84B'}}>◈</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>BlockDAG X30 / X100 (Official ASIC)</h4>
                   <span style={instructionStyles.hardwareTag}>Stratum V2 + Noise Encryption</span>
@@ -1217,7 +1213,7 @@ Password: your_account_password</pre>
             {/* GPU Mining Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={instructionStyles.hardwareIcon}>🎮</span>
+                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(123, 94, 167, 0.15)', color: '#7B5EA7'}}>◎</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>GPU Mining (NVIDIA / AMD)</h4>
                   <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
@@ -1230,19 +1226,19 @@ Password: your_account_password</pre>
                 {token && user ? (
                   <>
                     <div style={instructionStyles.minerExample}>
-                      <h5 style={instructionStyles.minerName}>🔹 lolMiner (Recommended)</h5>
+                      <h5 style={instructionStyles.minerName}>lolMiner (Recommended)</h5>
                       <code style={instructionStyles.commandCode}>
 lolminer --algo SCRPY --pool stratum+tcp://206.162.80.230:3333 --user {user.email} --pass yourpassword</code>
                     </div>
 
                     <div style={instructionStyles.minerExample}>
-                      <h5 style={instructionStyles.minerName}>🔹 BzMiner</h5>
+                      <h5 style={instructionStyles.minerName}>BzMiner</h5>
                       <code style={instructionStyles.commandCode}>
 bzminer -a scrpy -p stratum+tcp://206.162.80.230:3333 -w {user.email} --pass yourpassword</code>
                     </div>
 
                     <div style={instructionStyles.minerExample}>
-                      <h5 style={instructionStyles.minerName}>🔹 SRBMiner-MULTI</h5>
+                      <h5 style={instructionStyles.minerName}>SRBMiner-MULTI</h5>
                       <code style={instructionStyles.commandCode}>
 SRBMiner-MULTI --algorithm scrpy --pool 206.162.80.230:3333 --wallet {user.email} --password yourpassword</code>
                     </div>
@@ -1258,7 +1254,7 @@ SRBMiner-MULTI --algorithm scrpy --pool 206.162.80.230:3333 --wallet {user.email
             {/* CPU Mining Tab */}
             <div style={instructionStyles.hardwareCard}>
               <div style={instructionStyles.hardwareHeader}>
-                <span style={instructionStyles.hardwareIcon}>💻</span>
+                <span style={{...instructionStyles.hardwareIcon, background: 'rgba(96, 165, 250, 0.15)', color: '#60A5FA'}}>▣</span>
                 <div>
                   <h4 style={instructionStyles.hardwareName}>CPU Mining</h4>
                   <span style={instructionStyles.hardwareTagAlt}>Stratum V1</span>
@@ -1270,7 +1266,7 @@ SRBMiner-MULTI --algorithm scrpy --pool 206.162.80.230:3333 --wallet {user.email
                 </p>
                 {token && user ? (
                   <div style={instructionStyles.minerExample}>
-                    <h5 style={instructionStyles.minerName}>🔹 CPUMiner-Multi</h5>
+                    <h5 style={instructionStyles.minerName}>CPUMiner-Multi</h5>
                     <code style={instructionStyles.commandCode}>
 cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpassword</code>
                   </div>
@@ -1285,50 +1281,50 @@ cpuminer -a scrpy -o stratum+tcp://206.162.80.230:3333 -u {user.email} -p yourpa
 
           {/* Troubleshooting */}
           <div style={instructionStyles.troubleshootBox}>
-            <h3 style={instructionStyles.troubleshootTitle}>🔧 Troubleshooting</h3>
+            <h3 style={instructionStyles.troubleshootTitle}>Troubleshooting</h3>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>❌ Connection Refused:</strong> Ensure port 3333 is not blocked by your firewall or router.
+              <strong style={{ color: '#C45C5C' }}>Connection Refused:</strong> Ensure port 3333 is not blocked by your firewall or router.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>❌ Authentication Failed:</strong> Double-check your email and password match your Chimera Pool account.
+              <strong style={{ color: '#C45C5C' }}>Authentication Failed:</strong> Double-check your email and password match your Chimera Pool account.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>❌ Shares Rejected:</strong> Make sure you're using the correct algorithm (scrpy-variant). Update your miner software.
+              <strong style={{ color: '#C45C5C' }}>Shares Rejected:</strong> Make sure you're using the correct algorithm (scrpy-variant). Update your miner software.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>❌ No Payouts:</strong> Verify you've added a valid BDAG wallet address in your account settings.
+              <strong style={{ color: '#C45C5C' }}>No Payouts:</strong> Verify you've added a valid BDAG wallet address in your account settings.
             </div>
             <div style={instructionStyles.troubleshootItem}>
-              <strong>💡 Need Help?</strong> Join our Community chat for real-time support from other miners!
+              <strong style={{ color: '#4ADE80' }}>Need Help?</strong> Join our Community chat for real-time support from other miners!
             </div>
           </div>
         </section>
 
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>📊 Pool Information</h2>
+          <h2 style={styles.sectionTitle}>Pool Information</h2>
           <div style={styles.infoGrid}>
             <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>⚙️</span>
+              <span style={{...styles.infoIcon, color: '#D4A84B'}}>◈</span>
               <span style={styles.infoLabel}>Algorithm</span>
               <span style={styles.infoValue}>Scrpy-Variant (BlockDAG Custom)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>💰</span>
+              <span style={{...styles.infoIcon, color: '#4ADE80'}}>◇</span>
               <span style={styles.infoLabel}>Payout System</span>
               <span style={styles.infoValue}>PPLNS (Pay Per Last N Shares)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>📤</span>
+              <span style={{...styles.infoIcon, color: '#7B5EA7'}}>◎</span>
               <span style={styles.infoLabel}>Minimum Payout</span>
               <span style={styles.infoValue}>1.0 BDAG</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>⏰</span>
+              <span style={{...styles.infoIcon, color: '#60A5FA'}}>▣</span>
               <span style={styles.infoLabel}>Payout Frequency</span>
               <span style={styles.infoValue}>Hourly (when minimum reached)</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={styles.infoIcon}>🔒</span>
+              <span style={{...styles.infoIcon, color: '#C45C5C'}}>◆</span>
               <span style={styles.infoLabel}>Protocol</span>
               <span style={styles.infoValue}>Stratum V1 + V2 Hybrid</span>
             </div>

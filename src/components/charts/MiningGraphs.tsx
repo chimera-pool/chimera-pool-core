@@ -4,13 +4,12 @@ import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { colors, gradients } from '../../styles/shared';
+import { colors, gradients, shadows, transitions } from '../../styles/shared';
 import { useDashboardGraphs } from '../../services/realtime/useRealTimeData';
 
 // ============================================================================
-// MINING GRAPHS COMPONENT
-// Displays hashrate, shares, acceptance rate, and earnings charts
-// Supports both pool-wide and personal view modes
+// MINING GRAPHS COMPONENT - GRAFANA-QUALITY ELITE DESIGN
+// Professional dark theme with smooth gradients and premium styling
 // ============================================================================
 
 export type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
@@ -21,82 +20,123 @@ export interface MiningGraphsProps {
   isLoggedIn: boolean;
 }
 
+// Grafana-inspired chart colors
+const chartColors = {
+  gold: '#D4A84B',
+  goldLight: '#E8C171',
+  purple: '#7B5EA7',
+  purpleLight: '#9B7EC7',
+  green: '#4ADE80',
+  greenDark: '#22C55E',
+  coral: '#C45C5C',
+  coralLight: '#E07777',
+  blue: '#60A5FA',
+  silver: '#B8B4C8',
+  gridLine: 'rgba(74, 44, 90, 0.3)',
+  axisText: '#7A7490',
+  background: '#0D0811',
+  cardBg: 'rgba(45, 31, 61, 0.4)',
+};
+
 const styles: { [key: string]: React.CSSProperties } = {
   section: {
-    background: gradients.card,
-    borderRadius: '12px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
+    borderRadius: '16px',
     padding: '24px',
-    border: `1px solid ${colors.border}`,
-    marginBottom: '20px',
+    border: '1px solid #4A2C5A',
+    marginBottom: '24px',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
+    marginBottom: '24px',
     flexWrap: 'wrap' as const,
-    gap: '15px',
+    gap: '16px',
   },
   title: {
-    fontSize: '1.3rem',
-    color: colors.primary,
+    fontSize: '1.15rem',
+    color: '#F0EDF4',
     margin: 0,
+    fontWeight: 600,
+    letterSpacing: '0.01em',
   },
   timeSelector: {
     display: 'flex',
-    gap: '5px',
+    gap: '4px',
     flexWrap: 'wrap' as const,
   },
   timeBtn: {
     padding: '6px 12px',
-    backgroundColor: colors.bgInput,
-    border: `1px solid ${colors.border}`,
+    backgroundColor: 'rgba(31, 20, 40, 0.8)',
+    border: '1px solid #4A2C5A',
     borderRadius: '6px',
-    color: colors.textSecondary,
+    color: '#7A7490',
     cursor: 'pointer',
-    fontSize: '0.85rem',
-    transition: 'all 0.2s',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    transition: 'all 0.15s ease',
   },
   timeBtnActive: {
-    backgroundColor: colors.primary,
-    color: colors.bgDark,
-    borderColor: colors.primary,
+    background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+    color: '#1A0F1E',
+    borderColor: '#D4A84B',
+    boxShadow: '0 0 12px rgba(212, 168, 75, 0.3)',
   },
   viewToggle: {
     display: 'flex',
-    backgroundColor: colors.bgInput,
-    borderRadius: '8px',
-    padding: '4px',
-    border: `1px solid ${colors.border}`,
+    backgroundColor: 'rgba(31, 20, 40, 0.8)',
+    borderRadius: '10px',
+    padding: '3px',
+    border: '1px solid #4A2C5A',
   },
   viewBtn: {
     padding: '8px 16px',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '0.85rem',
-    transition: 'all 0.2s',
+    fontWeight: 500,
+    transition: 'all 0.15s ease',
+    backgroundColor: 'transparent',
+    color: '#B8B4C8',
   },
   loading: {
     textAlign: 'center',
-    padding: '60px',
-    color: colors.primary,
+    padding: '80px',
+    color: '#D4A84B',
+    fontSize: '0.95rem',
   },
   chartsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
     gap: '20px',
   },
   chartCard: {
-    backgroundColor: colors.bgInput,
-    borderRadius: '10px',
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.9) 0%, rgba(26, 15, 30, 0.95) 100%)',
+    borderRadius: '12px',
     padding: '20px',
-    border: `1px solid ${colors.border}`,
+    border: '1px solid rgba(74, 44, 90, 0.5)',
+    boxShadow: '0 2px 16px rgba(0, 0, 0, 0.3)',
   },
   chartTitle: {
-    color: colors.primary,
-    fontSize: '1rem',
-    margin: '0 0 15px',
+    color: '#F0EDF4',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    margin: '0 0 16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  chartTitleIcon: {
+    width: '18px',
+    height: '18px',
+    borderRadius: '4px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.7rem',
   },
 };
 
@@ -112,13 +152,17 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: 'all', label: 'All' },
 ];
 
+// Grafana-style tooltip
 const tooltipStyle = {
   contentStyle: { 
-    backgroundColor: colors.bgCard, 
-    border: `1px solid ${colors.border}`, 
-    borderRadius: '8px' 
+    backgroundColor: 'rgba(13, 8, 17, 0.95)', 
+    border: '1px solid #4A2C5A', 
+    borderRadius: '8px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+    padding: '12px 16px',
   },
-  labelStyle: { color: colors.primary },
+  labelStyle: { color: '#D4A84B', fontWeight: 600, marginBottom: '4px' },
+  itemStyle: { color: '#F0EDF4', fontSize: '0.9rem' },
 };
 
 export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
@@ -271,36 +315,36 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
   return (
     <section style={styles.section}>
       <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' as const }}>
-          <h2 style={styles.title}>📊 {viewMode === 'pool' ? 'Pool' : 'My'} Mining Statistics</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' as const }}>
+          <h2 style={styles.title}>{viewMode === 'pool' ? 'Pool' : 'Personal'} Mining Statistics</h2>
           {isLoggedIn && (
             <div style={styles.viewToggle}>
               <button
                 style={{
                   ...styles.viewBtn,
-                  backgroundColor: viewMode === 'pool' ? colors.primary : 'transparent',
-                  color: viewMode === 'pool' ? colors.bgDark : colors.textSecondary,
-                  fontWeight: viewMode === 'pool' ? 'bold' : 'normal',
+                  background: viewMode === 'pool' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent',
+                  color: viewMode === 'pool' ? '#1A0F1E' : '#B8B4C8',
+                  fontWeight: viewMode === 'pool' ? 600 : 500,
                 }}
                 onClick={() => setViewMode('pool')}
               >
-                🌐 Pool
+                Pool
               </button>
               <button
                 style={{
                   ...styles.viewBtn,
-                  backgroundColor: viewMode === 'personal' ? colors.primary : 'transparent',
-                  color: viewMode === 'personal' ? colors.bgDark : colors.textSecondary,
-                  fontWeight: viewMode === 'personal' ? 'bold' : 'normal',
+                  background: viewMode === 'personal' ? 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)' : 'transparent',
+                  color: viewMode === 'personal' ? '#1A0F1E' : '#B8B4C8',
+                  fontWeight: viewMode === 'personal' ? 600 : 500,
                 }}
                 onClick={() => setViewMode('personal')}
               >
-                👤 Personal
+                Personal
               </button>
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' as const }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' as const }}>
           <div style={styles.timeSelector}>
             {TIME_RANGES.map(({ value, label }) => (
               <button
@@ -316,39 +360,60 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
             ))}
           </div>
           
-          {/* Auto-Refresh Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', backgroundColor: colors.bgInput, borderRadius: '8px', border: `1px solid ${colors.border}` }}>
-            <span style={{ color: autoRefresh.isActive ? colors.success : colors.textSecondary, fontSize: '0.8rem' }}>
-              {autoRefresh.isActive ? '🔴 LIVE' : '⏸️'}
+          {/* Auto-Refresh Controls - Grafana-style */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', backgroundColor: 'rgba(31, 20, 40, 0.8)', borderRadius: '8px', border: '1px solid #4A2C5A' }}>
+            <span style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              color: autoRefresh.isActive ? chartColors.coral : '#7A7490', 
+              fontSize: '0.75rem',
+              fontWeight: 600,
+            }}>
+              <span style={{ 
+                width: '6px', 
+                height: '6px', 
+                borderRadius: '50%', 
+                backgroundColor: autoRefresh.isActive ? chartColors.coral : '#7A7490',
+                boxShadow: autoRefresh.isActive ? '0 0 8px rgba(196, 92, 92, 0.6)' : 'none',
+                animation: autoRefresh.isActive ? 'pulse 1.5s infinite' : 'none',
+              }} />
+              {autoRefresh.isActive ? 'LIVE' : 'PAUSED'}
             </span>
             <button
               onClick={autoRefresh.toggle}
               style={{
-                ...styles.timeBtn,
-                backgroundColor: autoRefresh.isActive ? colors.success : colors.border,
-                color: autoRefresh.isActive ? colors.bgDark : colors.textSecondary,
-                borderColor: autoRefresh.isActive ? colors.success : colors.border,
-                padding: '4px 8px',
+                padding: '4px 10px',
+                backgroundColor: autoRefresh.isActive ? 'rgba(196, 92, 92, 0.15)' : 'rgba(74, 44, 90, 0.5)',
+                border: `1px solid ${autoRefresh.isActive ? 'rgba(196, 92, 92, 0.3)' : '#4A2C5A'}`,
+                borderRadius: '4px',
+                color: autoRefresh.isActive ? chartColors.coral : '#B8B4C8',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 500,
               }}
             >
-              {autoRefresh.isActive ? 'Pause' : 'Live'}
+              {autoRefresh.isActive ? 'Pause' : 'Start'}
             </button>
             <button
               onClick={() => autoRefresh.refresh()}
               disabled={autoRefresh.isRefreshing}
               style={{
-                ...styles.timeBtn,
-                backgroundColor: colors.primary,
-                color: colors.bgDark,
-                borderColor: colors.primary,
                 padding: '4px 8px',
+                background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+                border: 'none',
+                borderRadius: '4px',
+                color: '#1A0F1E',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 600,
                 opacity: autoRefresh.isRefreshing ? 0.5 : 1,
               }}
             >
               ↻
             </button>
             {autoRefresh.isActive && (
-              <span style={{ color: colors.textSecondary, fontSize: '0.7rem' }}>
+              <span style={{ color: '#7A7490', fontSize: '0.7rem', fontWeight: 500 }}>
                 {autoRefresh.nextRefreshIn}s
               </span>
             )}
@@ -357,79 +422,193 @@ export function MiningGraphs({ token, isLoggedIn }: MiningGraphsProps) {
       </div>
 
       {loading ? (
-        <div style={styles.loading}>Loading charts...</div>
+        <div style={styles.loading}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '40px', height: '40px', border: '3px solid #4A2C5A', borderTopColor: '#D4A84B', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <span>Loading charts...</span>
+          </div>
+        </div>
       ) : (
         <div style={styles.chartsGrid}>
-          {/* Hashrate Chart */}
+          {/* Hashrate Chart - Grafana Style */}
           <div style={styles.chartCard}>
-            <h3 style={styles.chartTitle}>⚡ Hashrate History</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={hashrateData}>
+            <h3 style={styles.chartTitle}>
+              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(212, 168, 75, 0.2)', color: chartColors.gold }}>⚡</span>
+              Hashrate History
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={hashrateData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <defs>
                   <linearGradient id="hashGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={colors.primary} stopOpacity={0}/>
+                    <stop offset="0%" stopColor={chartColors.gold} stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor={chartColors.gold} stopOpacity={0.15}/>
+                    <stop offset="100%" stopColor={chartColors.gold} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="time" stroke={colors.textSecondary} fontSize={12} />
-                <YAxis stroke={colors.textSecondary} fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} TH/s`} />
+                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke={chartColors.axisText} 
+                  fontSize={11} 
+                  tickLine={false}
+                  axisLine={{ stroke: chartColors.gridLine }}
+                />
+                <YAxis 
+                  stroke={chartColors.axisText} 
+                  fontSize={11} 
+                  tickFormatter={(v) => `${v.toFixed(1)}TH/s`} 
+                  tickLine={false}
+                  axisLine={false}
+                  width={70}
+                />
                 <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)} TH/s`, 'Hashrate']} />
-                <Area type="monotone" dataKey="hashrateTH" stroke={colors.primary} fill="url(#hashGradient)" strokeWidth={2} />
+                <Area 
+                  type="monotoneX" 
+                  dataKey="hashrateTH" 
+                  stroke={chartColors.gold} 
+                  fill="url(#hashGradient)" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: chartColors.gold, stroke: '#1A0F1E', strokeWidth: 2 }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Shares Chart */}
+          {/* Shares Chart - Grafana Style */}
           <div style={styles.chartCard}>
-            <h3 style={styles.chartTitle}>📦 Shares Submitted</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={sharesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="time" stroke={colors.textSecondary} fontSize={12} />
-                <YAxis stroke={colors.textSecondary} fontSize={12} />
+            <h3 style={styles.chartTitle}>
+              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(74, 222, 128, 0.2)', color: chartColors.green }}>▤</span>
+              Shares Submitted
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={sharesData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="validGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={chartColors.green} stopOpacity={0.9}/>
+                    <stop offset="100%" stopColor={chartColors.greenDark} stopOpacity={0.7}/>
+                  </linearGradient>
+                  <linearGradient id="invalidGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={chartColors.coral} stopOpacity={0.9}/>
+                    <stop offset="100%" stopColor={chartColors.coral} stopOpacity={0.7}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke={chartColors.axisText} 
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: chartColors.gridLine }}
+                />
+                <YAxis 
+                  stroke={chartColors.axisText} 
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  width={50}
+                />
                 <Tooltip {...tooltipStyle} />
-                <Legend />
-                <Bar dataKey="validShares" name="Valid" fill={colors.success} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="invalidShares" name="Invalid" fill={colors.error} radius={[4, 4, 0, 0]} />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '10px' }}
+                  formatter={(value) => <span style={{ color: '#B8B4C8', fontSize: '0.8rem' }}>{value}</span>}
+                />
+                <Bar dataKey="validShares" name="Valid" fill="url(#validGradient)" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="invalidShares" name="Invalid" fill="url(#invalidGradient)" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Acceptance Rate Chart */}
+          {/* Acceptance Rate Chart - Grafana Style */}
           <div style={styles.chartCard}>
-            <h3 style={styles.chartTitle}>✅ Acceptance Rate</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={sharesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="time" stroke={colors.textSecondary} fontSize={12} />
-                <YAxis stroke={colors.textSecondary} fontSize={12} domain={[90, 100]} tickFormatter={(v) => `${v}%`} />
+            <h3 style={styles.chartTitle}>
+              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(74, 222, 128, 0.2)', color: chartColors.green }}>✓</span>
+              Acceptance Rate
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={sharesData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="acceptGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={chartColors.green} stopOpacity={0.3}/>
+                    <stop offset="100%" stopColor={chartColors.green} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke={chartColors.axisText} 
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: chartColors.gridLine }}
+                />
+                <YAxis 
+                  stroke={chartColors.axisText} 
+                  fontSize={11} 
+                  domain={[90, 100]} 
+                  tickFormatter={(v) => `${v}%`}
+                  tickLine={false}
+                  axisLine={false}
+                  width={45}
+                />
                 <Tooltip {...tooltipStyle} formatter={(value: number) => [`${value.toFixed(2)}%`, 'Rate']} />
-                <Line type="monotone" dataKey="acceptanceRate" stroke={colors.success} strokeWidth={2} dot={false} />
-              </LineChart>
+                <Area 
+                  type="monotoneX" 
+                  dataKey="acceptanceRate" 
+                  stroke={chartColors.green} 
+                  fill="url(#acceptGradient)"
+                  strokeWidth={2} 
+                  dot={false}
+                  activeDot={{ r: 4, fill: chartColors.green, stroke: '#1A0F1E', strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Earnings Chart */}
+          {/* Earnings Chart - Grafana Style */}
           <div style={styles.chartCard}>
-            <h3 style={styles.chartTitle}>💰 Earnings History</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={earningsData}>
+            <h3 style={styles.chartTitle}>
+              <span style={{ ...styles.chartTitleIcon, backgroundColor: 'rgba(123, 94, 167, 0.2)', color: chartColors.purple }}>◈</span>
+              Earnings History
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={earningsData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <defs>
                   <linearGradient id="earnGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#9b59b6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#9b59b6" stopOpacity={0}/>
+                    <stop offset="0%" stopColor={chartColors.purple} stopOpacity={0.4}/>
+                    <stop offset="50%" stopColor={chartColors.purple} stopOpacity={0.15}/>
+                    <stop offset="100%" stopColor={chartColors.purple} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={colors.border} />
-                <XAxis dataKey="time" stroke={colors.textSecondary} fontSize={12} />
-                <YAxis stroke={colors.textSecondary} fontSize={12} tickFormatter={(v) => `${v.toFixed(2)}`} />
+                <CartesianGrid strokeDasharray="0" stroke={chartColors.gridLine} vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke={chartColors.axisText} 
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: chartColors.gridLine }}
+                />
+                <YAxis 
+                  stroke={chartColors.axisText} 
+                  fontSize={11} 
+                  tickFormatter={(v) => `${v.toFixed(2)}`}
+                  tickLine={false}
+                  axisLine={false}
+                  width={50}
+                />
                 <Tooltip 
                   {...tooltipStyle}
-                  labelStyle={{ color: '#9b59b6' }}
+                  labelStyle={{ color: chartColors.purple, fontWeight: 600 }}
                   formatter={(value: number) => [`${value.toFixed(4)} BDAG`, 'Cumulative']} 
                 />
-                <Area type="monotone" dataKey="cumulative" stroke="#9b59b6" fill="url(#earnGradient)" strokeWidth={2} />
+                <Area 
+                  type="monotoneX" 
+                  dataKey="cumulative" 
+                  stroke={chartColors.purple} 
+                  fill="url(#earnGradient)" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, fill: chartColors.purple, stroke: '#1A0F1E', strokeWidth: 2 }}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>

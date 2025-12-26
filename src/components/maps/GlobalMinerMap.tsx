@@ -31,23 +31,26 @@ export interface LocationStats {
   continentBreakdown: { continent: string; minerCount: number; hashrate: number }[];
 }
 
+// Chimera theme continent colors
 const CONTINENT_COLORS: { [key: string]: string } = {
-  'North America': '#00d4ff',
-  'South America': '#4ade80',
-  'Europe': '#9b59b6',
-  'Asia': '#f59e0b',
-  'Africa': '#ef4444',
-  'Oceania': '#3b82f6',
-  'Unknown': '#888888'
+  'North America': '#D4A84B',
+  'South America': '#4ADE80',
+  'Europe': '#7B5EA7',
+  'Asia': '#FBBF24',
+  'Africa': '#C45C5C',
+  'Oceania': '#60A5FA',
+  'Unknown': '#7A7490'
 };
 
+// Chimera Elite Theme Styles
 const styles: { [key: string]: React.CSSProperties } = {
   section: {
-    background: gradients.card,
-    borderRadius: '12px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
+    borderRadius: '16px',
     padding: '24px',
-    border: `1px solid ${colors.border}`,
-    marginBottom: '20px',
+    border: '1px solid #4A2C5A',
+    marginBottom: '24px',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
   },
   header: {
     display: 'flex',
@@ -55,40 +58,47 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     marginBottom: '20px',
     flexWrap: 'wrap' as const,
-    gap: '15px',
+    gap: '16px',
   },
   title: {
-    fontSize: '1.3rem',
-    color: colors.primary,
+    fontSize: '1.15rem',
+    color: '#F0EDF4',
     margin: 0,
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
   },
   statsRow: {
     display: 'flex',
-    gap: '15px',
+    gap: '12px',
   },
   statBadge: {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    backgroundColor: colors.bgInput,
-    padding: '10px 20px',
-    borderRadius: '8px',
-    border: `1px solid ${colors.border}`,
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
+    padding: '10px 18px',
+    borderRadius: '10px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
   },
   statNumber: {
-    color: colors.primary,
-    fontSize: '1.4rem',
-    fontWeight: 'bold',
+    color: '#D4A84B',
+    fontSize: '1.3rem',
+    fontWeight: 700,
   },
   statLabel: {
-    color: colors.textSecondary,
-    fontSize: '0.75rem',
+    color: '#B8B4C8',
+    fontSize: '0.7rem',
     textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    fontWeight: 500,
   },
   loading: {
     textAlign: 'center' as const,
-    padding: '100px',
-    color: colors.primary,
+    padding: '80px',
+    color: '#D4A84B',
+    fontSize: '0.95rem',
   },
   mapContainer: {
     display: 'flex',
@@ -239,7 +249,10 @@ export function GlobalMinerMap() {
   return (
     <section style={styles.section}>
       <div style={styles.header}>
-        <h2 style={styles.title}>🌍 Global Miner Network</h2>
+        <h2 style={styles.title}>
+          <span style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'rgba(96, 165, 250, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#60A5FA', fontSize: '0.8rem' }}>◉</span>
+          Global Miner Network
+        </h2>
         <div style={styles.statsRow}>
           <div style={styles.statBadge}>
             <span style={styles.statNumber}>{stats?.totalMiners || 0}</span>

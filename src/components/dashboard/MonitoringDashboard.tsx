@@ -23,41 +23,47 @@ interface MonitoringDashboardProps {
   token?: string;
 }
 
+// Chimera Elite Theme - Grafana-inspired monitoring styles
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    background: gradients.card,
-    borderRadius: '12px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
+    borderRadius: '16px',
     padding: '24px',
-    border: `1px solid ${colors.border}`,
-    marginBottom: '30px',
+    border: '1px solid #4A2C5A',
+    marginBottom: '24px',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
+    flexWrap: 'wrap' as const,
+    gap: '12px',
   },
   title: {
-    fontSize: '1.3rem',
-    color: colors.primary,
+    fontSize: '1.15rem',
+    color: '#F0EDF4',
     margin: 0,
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
+    fontWeight: 600,
   },
   grafanaBtn: {
-    padding: '10px 20px',
-    backgroundColor: colors.primary,
-    color: colors.bgDark,
+    padding: '10px 18px',
+    background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+    color: '#1A0F1E',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
+    borderRadius: '10px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     transition: 'all 0.2s',
+    boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)',
   },
   metricsGrid: {
     display: 'grid',
@@ -66,90 +72,101 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '24px',
   },
   metricCard: {
-    backgroundColor: colors.bgInput,
-    borderRadius: '10px',
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)',
+    borderRadius: '12px',
     padding: '16px',
-    border: `1px solid ${colors.border}`,
+    border: '1px solid rgba(74, 44, 90, 0.5)',
   },
   metricLabel: {
-    color: colors.textSecondary,
-    fontSize: '0.85rem',
+    color: '#B8B4C8',
+    fontSize: '0.8rem',
     marginBottom: '8px',
+    fontWeight: 500,
+    letterSpacing: '0.03em',
   },
   metricValue: {
-    color: colors.textPrimary,
+    color: '#D4A84B',
     fontSize: '1.8rem',
-    fontWeight: 'bold',
+    fontWeight: 700,
   },
   metricSubtext: {
-    color: colors.textMuted,
+    color: '#7A7490',
     fontSize: '0.75rem',
     marginTop: '4px',
   },
   statusSection: {
     marginTop: '20px',
     paddingTop: '20px',
-    borderTop: `1px solid ${colors.border}`,
+    borderTop: '1px solid rgba(74, 44, 90, 0.5)',
   },
   statusTitle: {
-    color: colors.textPrimary,
-    fontSize: '1rem',
+    color: '#F0EDF4',
+    fontSize: '0.95rem',
     marginBottom: '12px',
-    fontWeight: 'bold',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   statusGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '12px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '10px',
   },
   statusCard: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.bgInput,
-    borderRadius: '8px',
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
+    borderRadius: '10px',
     padding: '12px 16px',
-    border: `1px solid ${colors.border}`,
+    border: '1px solid rgba(74, 44, 90, 0.4)',
   },
   statusName: {
-    color: colors.textPrimary,
-    fontSize: '0.95rem',
+    color: '#B8B4C8',
+    fontSize: '0.9rem',
+    fontWeight: 500,
   },
   statusBadge: {
     padding: '4px 12px',
     borderRadius: '20px',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    letterSpacing: '0.02em',
   },
   online: {
-    backgroundColor: `${colors.success}20`,
-    color: colors.success,
+    backgroundColor: 'rgba(74, 222, 128, 0.15)',
+    color: '#4ADE80',
+    border: '1px solid rgba(74, 222, 128, 0.3)',
   },
   offline: {
-    backgroundColor: `${colors.error}20`,
-    color: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    color: '#EF4444',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
   },
   warning: {
-    backgroundColor: `${colors.warning}20`,
-    color: colors.warning,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    color: '#FBBF24',
+    border: '1px solid rgba(251, 191, 36, 0.3)',
   },
   dashboardLinks: {
     display: 'flex',
-    gap: '12px',
+    gap: '10px',
     flexWrap: 'wrap' as const,
-    marginTop: '20px',
+    marginTop: '16px',
   },
   dashboardLink: {
-    padding: '10px 16px',
-    backgroundColor: colors.bgInput,
-    border: `1px solid ${colors.border}`,
+    padding: '10px 14px',
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
+    border: '1px solid rgba(74, 44, 90, 0.4)',
     borderRadius: '8px',
-    color: colors.textPrimary,
+    color: '#B8B4C8',
     textDecoration: 'none',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
+    fontWeight: 500,
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
     transition: 'all 0.2s',
   },
 };
@@ -225,40 +242,36 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>
-          📊 Pool Monitoring
+          <span style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'rgba(212, 168, 75, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#D4A84B', fontSize: '0.8rem' }}>◈</span>
+          Pool Monitoring
         </h2>
         <button style={styles.grafanaBtn} onClick={openGrafana}>
-          📈 Open Grafana Dashboards
+          Open Grafana Dashboards
         </button>
       </div>
 
       {/* Node Status - Unique monitoring data not shown elsewhere */}
       <div style={{ marginBottom: '20px' }}>
-        <div style={styles.statusTitle}>🔗 Node Health</div>
+        <div style={styles.statusTitle}>
+          <span style={{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(74, 222, 128, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#4ADE80', fontSize: '0.7rem' }}>◉</span>
+          Node Health
+        </div>
         <div style={styles.statusGrid}>
           <div style={styles.statusCard}>
             <span style={styles.statusName}>Litecoin Node</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>
-              ✓ Healthy
-            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Healthy</span>
           </div>
           <div style={styles.statusCard}>
             <span style={styles.statusName}>Stratum Server</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>
-              ✓ Running
-            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Running</span>
           </div>
           <div style={styles.statusCard}>
             <span style={styles.statusName}>Alert Manager</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>
-              ✓ Active
-            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Active</span>
           </div>
           <div style={styles.statusCard}>
             <span style={styles.statusName}>Prometheus</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }}>
-              ✓ Collecting
-            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Collecting</span>
           </div>
         </div>
       </div>
@@ -271,7 +284,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          📊 Pool Overview
+          <span style={{ color: '#D4A84B' }}>◈</span> Pool Overview
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-workers/chimera-pool-workers" 
@@ -279,7 +292,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          👷 Workers Dashboard
+          <span style={{ color: '#7B5EA7' }}>◎</span> Workers
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-payouts/chimera-pool-payouts" 
@@ -287,7 +300,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          💰 Payouts Dashboard
+          <span style={{ color: '#4ADE80' }}>◇</span> Payouts
         </a>
         <a 
           href="http://206.162.80.230:3001/d/chimera-pool-alerts/chimera-pool-alerts" 
@@ -295,7 +308,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          🔔 Alerts Dashboard
+          <span style={{ color: '#C45C5C' }}>◆</span> Alerts
         </a>
         <a 
           href="http://206.162.80.230:9093" 
@@ -303,7 +316,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          ⚠️ AlertManager
+          <span style={{ color: '#FBBF24' }}>⚑</span> AlertManager
         </a>
         <a 
           href="http://206.162.80.230:9090" 
@@ -311,7 +324,7 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
           rel="noopener noreferrer"
           style={styles.dashboardLink}
         >
-          📈 Prometheus
+          <span style={{ color: '#60A5FA' }}>◉</span> Prometheus
         </a>
       </div>
     </div>
