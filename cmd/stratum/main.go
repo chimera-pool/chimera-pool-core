@@ -71,6 +71,12 @@ func main() {
 	// Create stratum server
 	server := NewStratumServer(config, db, redisClient)
 
+	// Connect stratum server as pool metrics provider for Prometheus
+	if healthService != nil && healthService.GetExporter() != nil {
+		healthService.GetExporter().SetPoolMetricsProvider(server)
+		log.Println("✅ Pool metrics provider connected to Prometheus exporter")
+	}
+
 	// Start listening
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", config.Port))
 	if err != nil {
@@ -1591,4 +1597,39 @@ func (s *StratumServer) Shutdown() {
 	for _, miner := range s.miners {
 		miner.Conn.Close()
 	}
+}
+
+// GetPoolMetrics implements health.PoolMetricsProvider for Prometheus export
+func (s *StratumServer) GetPoolMetrics() *health.PoolMetrics {
+	s.minersMutex.RLock()
+	defer s.minersMutex.RUnlock()
+
+	metrics := &health.PoolMetrics{}
+
+	// Count online workers and calculate total hashrate
+	var totalShares int64
+	for _, miner := range s.miners {
+		if miner.Authorized {
+			metrics.WorkersOnline++
+			totalShares += miner.SharesValid
+
+			// Calculate hashrate from hashrate windows if available
+			s.hashrateMux.RLock()
+			if window, exists := s.hashrateWindows[miner.ID]; exists {
+				metrics.TotalHashrate += window.GetHashrate()
+			}
+			s.hashrateMux.RUnlock()
+		}
+	}
+
+	metrics.SharesAccepted = totalShares
+
+	// Get current job info for block height
+	s.jobMutex.RLock()
+	if s.currentJob != nil {
+		metrics.BlockHeight = s.currentJob.Height
+	}
+	s.jobMutex.RUnlock()
+
+	return metrics
 }

@@ -7,12 +7,32 @@ import (
 	"time"
 )
 
+// PoolMetrics contains pool-level mining metrics for Prometheus export.
+type PoolMetrics struct {
+	TotalHashrate    float64 // Pool total hashrate in H/s
+	WorkersOnline    int     // Number of online workers
+	WorkersOffline   int     // Number of offline workers
+	SharesSubmitted  int64   // Total shares submitted
+	SharesAccepted   int64   // Total shares accepted
+	SharesRejected   int64   // Total shares rejected
+	BlocksFound      int64   // Total blocks found
+	WalletBalanceLTC float64 // Wallet balance in LTC
+	Difficulty       float64 // Current network difficulty
+	BlockHeight      int64   // Current block height
+}
+
+// PoolMetricsProvider interface for getting pool metrics
+type PoolMetricsProvider interface {
+	GetPoolMetrics() *PoolMetrics
+}
+
 // PrometheusExporter exports health metrics in Prometheus format.
 type PrometheusExporter struct {
-	monitor    *HealthMonitor
-	listenAddr string
-	server     *http.Server
-	mu         sync.RWMutex
+	monitor      *HealthMonitor
+	listenAddr   string
+	server       *http.Server
+	poolProvider PoolMetricsProvider
+	mu           sync.RWMutex
 }
 
 // NewPrometheusExporter creates a new Prometheus metrics exporter.
@@ -21,6 +41,13 @@ func NewPrometheusExporter(monitor *HealthMonitor, listenAddr string) *Prometheu
 		monitor:    monitor,
 		listenAddr: listenAddr,
 	}
+}
+
+// SetPoolMetricsProvider sets the pool metrics provider for pool-level metrics.
+func (p *PrometheusExporter) SetPoolMetricsProvider(provider PoolMetricsProvider) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.poolProvider = provider
 }
 
 // Start starts the Prometheus HTTP endpoint.
@@ -216,6 +243,66 @@ func (p *PrometheusExporter) metricsHandler(w http.ResponseWriter, r *http.Reque
 			fmt.Fprintf(w, "# HELP chimera_node_chain_errors_count Number of chain-specific errors\n")
 			fmt.Fprintf(w, "# TYPE chimera_node_chain_errors_count gauge\n")
 			fmt.Fprintf(w, "chimera_node_chain_errors_count{%s} %d\n", labels, len(diag.ChainSpecificErrors))
+		}
+	}
+
+	// Pool-level metrics (if provider is set)
+	p.mu.RLock()
+	provider := p.poolProvider
+	p.mu.RUnlock()
+
+	if provider != nil {
+		poolMetrics := provider.GetPoolMetrics()
+		if poolMetrics != nil {
+			// Pool hashrate
+			fmt.Fprintf(w, "# HELP chimera_pool_hashrate_total Total pool hashrate in H/s\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_hashrate_total gauge\n")
+			fmt.Fprintf(w, "chimera_pool_hashrate_total %.2f\n", poolMetrics.TotalHashrate)
+
+			// Workers online
+			fmt.Fprintf(w, "# HELP chimera_pool_workers_online Number of online workers\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_workers_online gauge\n")
+			fmt.Fprintf(w, "chimera_pool_workers_online %d\n", poolMetrics.WorkersOnline)
+
+			// Workers offline
+			fmt.Fprintf(w, "# HELP chimera_pool_workers_offline Number of offline workers\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_workers_offline gauge\n")
+			fmt.Fprintf(w, "chimera_pool_workers_offline %d\n", poolMetrics.WorkersOffline)
+
+			// Shares submitted
+			fmt.Fprintf(w, "# HELP chimera_pool_shares_submitted_total Total shares submitted\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_shares_submitted_total counter\n")
+			fmt.Fprintf(w, "chimera_pool_shares_submitted_total %d\n", poolMetrics.SharesSubmitted)
+
+			// Shares accepted
+			fmt.Fprintf(w, "# HELP chimera_pool_shares_accepted_total Total shares accepted\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_shares_accepted_total counter\n")
+			fmt.Fprintf(w, "chimera_pool_shares_accepted_total %d\n", poolMetrics.SharesAccepted)
+
+			// Shares rejected
+			fmt.Fprintf(w, "# HELP chimera_pool_shares_rejected_total Total shares rejected\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_shares_rejected_total counter\n")
+			fmt.Fprintf(w, "chimera_pool_shares_rejected_total %d\n", poolMetrics.SharesRejected)
+
+			// Blocks found
+			fmt.Fprintf(w, "# HELP chimera_pool_blocks_found_total Total blocks found\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_blocks_found_total counter\n")
+			fmt.Fprintf(w, "chimera_pool_blocks_found_total %d\n", poolMetrics.BlocksFound)
+
+			// Wallet balance
+			fmt.Fprintf(w, "# HELP chimera_pool_payouts_wallet_balance_ltc Wallet balance in LTC\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_payouts_wallet_balance_ltc gauge\n")
+			fmt.Fprintf(w, "chimera_pool_payouts_wallet_balance_ltc %.8f\n", poolMetrics.WalletBalanceLTC)
+
+			// Network difficulty
+			fmt.Fprintf(w, "# HELP chimera_pool_network_difficulty Current network difficulty\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_network_difficulty gauge\n")
+			fmt.Fprintf(w, "chimera_pool_network_difficulty %.2f\n", poolMetrics.Difficulty)
+
+			// Block height
+			fmt.Fprintf(w, "# HELP chimera_pool_block_height Current block height\n")
+			fmt.Fprintf(w, "# TYPE chimera_pool_block_height gauge\n")
+			fmt.Fprintf(w, "chimera_pool_block_height %d\n", poolMetrics.BlockHeight)
 		}
 	}
 }

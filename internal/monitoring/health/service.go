@@ -262,6 +262,11 @@ func (s *HealthService) GetStats() *MonitorStats {
 	return s.monitor.GetStats()
 }
 
+// GetExporter returns the Prometheus exporter (for setting pool metrics provider).
+func (s *HealthService) GetExporter() *PrometheusExporter {
+	return s.exporter
+}
+
 // =============================================================================
 // Global Health Service Instance (for easy integration)
 // =============================================================================
