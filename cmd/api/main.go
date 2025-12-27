@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -89,8 +90,8 @@ func main() {
 			authGroup.POST("/reset-password", handleResetPassword(db))
 		}
 
-		// Public routes (no rate limiting needed)
-		apiGroup.GET("/pool/stats", handlePoolStats(db))
+		// Public routes (no rate limiting needed) - with Redis caching
+		apiGroup.GET("/pool/stats", handlePoolStatsWithCache(db, redisClient))
 		apiGroup.GET("/pool/stats/hashrate", handlePublicPoolHashrateHistory(db))
 		apiGroup.GET("/pool/stats/shares", handlePublicPoolSharesHistory(db))
 		apiGroup.GET("/pool/stats/miners", handlePublicPoolMinersHistory(db))
@@ -467,8 +468,28 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 }
 
 func handlePoolStats(db *sql.DB) gin.HandlerFunc {
+	return handlePoolStatsWithCache(db, nil) // No cache - direct DB queries
+}
+
+// handlePoolStatsWithCache returns pool stats with optional Redis caching
+func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.HandlerFunc {
+	const cacheKey = "chimera:pool:stats"
+	const cacheTTL = 10 * time.Second
+
 	return func(c *gin.Context) {
-		// Get pool statistics
+		ctx := c.Request.Context()
+
+		// Try cache first if Redis is available
+		if redisClient != nil {
+			cached, err := redisClient.Get(ctx, cacheKey).Result()
+			if err == nil && cached != "" {
+				c.Header("X-Cache", "HIT")
+				c.Data(http.StatusOK, "application/json", []byte(cached))
+				return
+			}
+		}
+
+		// Cache miss - query database
 		var totalMiners, totalBlocks int64
 		var totalHashrate float64
 
@@ -496,7 +517,7 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		response := gin.H{
 			"total_miners":     totalMiners,
 			"total_hashrate":   totalHashrate,
 			"blocks_found":     totalBlocks,
@@ -506,7 +527,17 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 			"network":          "Litecoin",
 			"currency":         "LTC",
 			"algorithm":        "Scrypt",
-		})
+		}
+
+		// Cache the response if Redis is available
+		if redisClient != nil {
+			if jsonData, err := json.Marshal(response); err == nil {
+				redisClient.Set(ctx, cacheKey, jsonData, cacheTTL)
+			}
+		}
+
+		c.Header("X-Cache", "MISS")
+		c.JSON(http.StatusOK, response)
 	}
 }
 
