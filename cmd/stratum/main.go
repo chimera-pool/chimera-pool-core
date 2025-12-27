@@ -25,6 +25,7 @@ import (
 
 	"github.com/chimera-pool/chimera-pool-core/internal/geolocation"
 	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/health"
+	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/recovery"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/hashrate"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/keepalive"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/merkle"
@@ -156,6 +157,9 @@ func initHealthMonitor(config *Config) *health.HealthService {
 		log.Println("⚠️ Health monitoring disabled via HEALTH_MONITOR_ENABLED=false")
 		return nil
 	}
+
+	// Initialize Network Watchdog for automatic recovery on internet restore
+	initNetworkWatchdog()
 
 	// Create health service configuration from environment and config
 	healthConfig := &health.ServiceConfig{
@@ -1646,4 +1650,87 @@ func (s *StratumServer) GetPoolMetrics() *health.PoolMetrics {
 	s.jobMutex.RUnlock()
 
 	return metrics
+}
+
+// =============================================================================
+// NETWORK WATCHDOG - Auto-recovery on internet restoration
+// =============================================================================
+
+var (
+	networkWatchdog      *recovery.DefaultNetworkWatchdog
+	recoveryOrchestrator *recovery.DefaultRecoveryOrchestrator
+)
+
+// initNetworkWatchdog initializes the network watchdog and recovery orchestrator
+// This addresses the gap where "Max restarts reached" stops recovery attempts
+// When network is restored, counters are reset and services are automatically restarted
+func initNetworkWatchdog() {
+	log.Println("🌐 Initializing Network Watchdog for automatic recovery...")
+
+	// Create network watchdog
+	watchdogConfig := recovery.DefaultNetworkWatchdogConfig()
+	watchdogConfig.CheckInterval = 10 * time.Second // Check every 10 seconds
+	networkWatchdog = recovery.NewNetworkWatchdog(watchdogConfig)
+
+	// Create recovery orchestrator
+	orchestratorConfig := recovery.DefaultRecoveryOrchestratorConfig()
+	orchestratorConfig.ResetCountersOnNetworkRestore = true // KEY: Reset restart counters!
+	orchestratorConfig.EnableAutoRecovery = true
+	recoveryOrchestrator = recovery.NewRecoveryOrchestrator(orchestratorConfig, nil)
+
+	// Register services in recovery order (priority: lower = starts first)
+	registerRecoverableServices()
+
+	// Register orchestrator as network state observer
+	networkWatchdog.RegisterObserver(recoveryOrchestrator)
+
+	// Start the watchdog
+	ctx := context.Background()
+	if err := networkWatchdog.Start(ctx); err != nil {
+		log.Printf("⚠️ Failed to start network watchdog: %v", err)
+		return
+	}
+
+	if err := recoveryOrchestrator.Start(ctx); err != nil {
+		log.Printf("⚠️ Failed to start recovery orchestrator: %v", err)
+		return
+	}
+
+	log.Println("✅ Network Watchdog started - will auto-recover services on internet restoration")
+}
+
+// registerRecoverableServices registers all Docker services for recovery
+func registerRecoverableServices() {
+	services := []struct {
+		name      string
+		container string
+		priority  int
+	}{
+		{"redis", "docker-redis-1", 1},
+		{"postgres", "docker-postgres-1", 2},
+		{"litecoind", "docker-litecoind-1", 3},
+		{"chimera-pool-api", "docker-chimera-pool-api-1", 4},
+		{"chimera-pool-stratum", "docker-chimera-pool-stratum-1", 5},
+		{"chimera-pool-web", "docker-chimera-pool-web-1", 6},
+		{"nginx", "docker-nginx-1", 7},
+	}
+
+	for _, svc := range services {
+		dockerService := recovery.NewDockerService(svc.name, svc.container, nil)
+		if err := recoveryOrchestrator.RegisterService(dockerService, svc.priority); err != nil {
+			log.Printf("⚠️ Failed to register service %s: %v", svc.name, err)
+		}
+	}
+}
+
+// stopNetworkWatchdog gracefully stops the network watchdog
+func stopNetworkWatchdog() {
+	ctx := context.Background()
+	if networkWatchdog != nil {
+		networkWatchdog.Stop(ctx)
+	}
+	if recoveryOrchestrator != nil {
+		recoveryOrchestrator.Stop(ctx)
+	}
+	log.Println("🌐 Network Watchdog stopped")
 }
