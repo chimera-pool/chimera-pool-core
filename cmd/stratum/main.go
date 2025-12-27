@@ -618,6 +618,28 @@ func (s *StratumServer) doLitecoinRPC(method string, params interface{}) (json.R
 	}
 	defer resp.Body.Close()
 
+	// Read response body first to handle non-JSON responses
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	// Check HTTP status code - Litecoin returns 500 for RPC errors but with valid JSON
+	// 401/403 usually means auth failure and returns HTML
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		return nil, fmt.Errorf("RPC authentication failed (HTTP %d)", resp.StatusCode)
+	}
+
+	// Check if response starts with '<' (HTML) - node may return HTML error pages during startup
+	if len(respBody) > 0 && respBody[0] == '<' {
+		// Extract a snippet of the HTML for debugging
+		snippet := string(respBody)
+		if len(snippet) > 100 {
+			snippet = snippet[:100] + "..."
+		}
+		return nil, fmt.Errorf("node returned HTML instead of JSON (HTTP %d): %s", resp.StatusCode, snippet)
+	}
+
 	var rpcResp struct {
 		Result json.RawMessage `json:"result"`
 		Error  *struct {
@@ -625,8 +647,8 @@ func (s *StratumServer) doLitecoinRPC(method string, params interface{}) (json.R
 			Message string `json:"message"`
 		} `json:"error"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return nil, err
+	if err := json.Unmarshal(respBody, &rpcResp); err != nil {
+		return nil, fmt.Errorf("invalid JSON response: %v (body: %.100s)", err, string(respBody))
 	}
 	if rpcResp.Error != nil {
 		return nil, fmt.Errorf("RPC error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message)
