@@ -39,7 +39,11 @@ type AuthResponse struct {
 	Token string `json:"token"`
 }
 
-// ErrorResponse represents an error response
+// AuthErrorResponse is a local alias for consistent error responses
+// Note: For cross-package usage, prefer api.ErrorResponse
+type AuthErrorResponse = ErrorResponse
+
+// ErrorResponse represents an error response (local to auth package)
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
@@ -57,14 +61,14 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	user, err := h.authService.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
 		statusCode := http.StatusBadRequest
 		if strings.Contains(err.Error(), "already exists") {
 			statusCode = http.StatusConflict
 		}
-		
+
 		c.JSON(statusCode, ErrorResponse{
 			Error:   "registration_failed",
 			Message: err.Error(),
@@ -72,7 +76,7 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Generate JWT token for the new user
 	token, err := h.authService.GenerateJWT(user)
 	if err != nil {
@@ -83,7 +87,7 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, AuthResponse{
 		User:  user,
 		Token: token,
@@ -101,14 +105,14 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	user, token, err := h.authService.LoginUser(req.Username, req.Password)
 	if err != nil {
 		statusCode := http.StatusUnauthorized
 		if strings.Contains(err.Error(), "required") {
 			statusCode = http.StatusBadRequest
 		}
-		
+
 		c.JSON(statusCode, ErrorResponse{
 			Error:   "authentication_failed",
 			Message: err.Error(),
@@ -116,7 +120,7 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, AuthResponse{
 		User:  user,
 		Token: token,
@@ -134,7 +138,7 @@ func (h *AuthHandlers) Profile(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"user": user,
 	})
@@ -151,12 +155,12 @@ func (h *AuthHandlers) ValidateToken(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Remove "Bearer " prefix if present
 	if strings.HasPrefix(tokenString, "Bearer ") {
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 	}
-	
+
 	claims, err := h.authService.ValidateJWT(tokenString)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{
@@ -166,7 +170,7 @@ func (h *AuthHandlers) ValidateToken(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"valid":      true,
 		"claims":     claims,
@@ -189,12 +193,12 @@ func (h *AuthHandlers) AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Remove "Bearer " prefix if present
 		if strings.HasPrefix(tokenString, "Bearer ") {
 			tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 		}
-		
+
 		claims, err := h.authService.ValidateJWT(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
@@ -205,7 +209,7 @@ func (h *AuthHandlers) AuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Set user information in context
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
@@ -216,7 +220,7 @@ func (h *AuthHandlers) AuthMiddleware() gin.HandlerFunc {
 			Email:    claims.Email,
 			IsActive: true,
 		})
-		
+
 		c.Next()
 	}
 }
@@ -224,7 +228,7 @@ func (h *AuthHandlers) AuthMiddleware() gin.HandlerFunc {
 // SetupAuthRoutes sets up authentication routes
 func SetupAuthRoutes(router *gin.Engine, authService *AuthService) {
 	handlers := NewAuthHandlers(authService)
-	
+
 	// Public routes
 	auth := router.Group("/api/auth")
 	{
@@ -232,7 +236,7 @@ func SetupAuthRoutes(router *gin.Engine, authService *AuthService) {
 		auth.POST("/login", handlers.Login)
 		auth.POST("/validate", handlers.ValidateToken)
 	}
-	
+
 	// Protected routes
 	protected := router.Group("/api/user")
 	protected.Use(handlers.AuthMiddleware())

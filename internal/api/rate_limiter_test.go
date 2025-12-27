@@ -22,9 +22,9 @@ func TestNewRateLimiter_DefaultConfig(t *testing.T) {
 	defer rl.Stop()
 
 	assert.NotNil(t, rl)
-	assert.Equal(t, 5, rl.config.MaxAttempts)
-	assert.Equal(t, 15*time.Minute, rl.config.WindowSize)
-	assert.Equal(t, 30*time.Minute, rl.config.BlockDuration)
+	assert.Equal(t, 30, rl.config.MaxAttempts) // Updated for community launches
+	assert.Equal(t, 5*time.Minute, rl.config.WindowSize)
+	assert.Equal(t, 5*time.Minute, rl.config.BlockDuration)
 }
 
 func TestNewRateLimiter_AuthConfig(t *testing.T) {
@@ -33,7 +33,7 @@ func TestNewRateLimiter_AuthConfig(t *testing.T) {
 	defer rl.Stop()
 
 	assert.NotNil(t, rl)
-	assert.Equal(t, 5, rl.config.MaxAttempts)
+	assert.Equal(t, 20, rl.config.MaxAttempts) // Updated for community launches
 }
 
 func TestRateLimiter_Allow_FirstRequest(t *testing.T) {
