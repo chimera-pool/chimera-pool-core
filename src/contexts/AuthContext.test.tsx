@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { AuthProvider, useAuth } from './AuthContext';
 
 // Mock fetch globally
@@ -89,7 +88,7 @@ describe('AuthContext', () => {
       );
 
       await act(async () => {
-        await userEvent.click(screen.getByText('Login'));
+        fireEvent.click(screen.getByText('Login'));
       });
 
       await waitFor(() => {
@@ -129,7 +128,7 @@ describe('AuthContext', () => {
       });
 
       await act(async () => {
-        await userEvent.click(screen.getByText('Logout'));
+        fireEvent.click(screen.getByText('Logout'));
       });
 
       expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
@@ -161,7 +160,7 @@ describe('AuthContext', () => {
       });
 
       await act(async () => {
-        await userEvent.click(screen.getByText('Update Profile'));
+        fireEvent.click(screen.getByText('Update Profile'));
       });
 
       // Profile update should be called with correct data

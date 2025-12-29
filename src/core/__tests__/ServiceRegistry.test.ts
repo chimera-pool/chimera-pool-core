@@ -5,6 +5,8 @@ import {
   DefaultStorageService,
   DefaultFeatureFlags,
   initializeDefaultServices,
+  type IApiClient,
+  type IFeatureFlags,
 } from '../ServiceRegistry';
 
 describe('ServiceRegistry', () => {
@@ -42,8 +44,8 @@ describe('ServiceRegistry', () => {
         return { id: callCount };
       }, false);
       
-      const first = ServiceRegistry.get('test:transient');
-      const second = ServiceRegistry.get('test:transient');
+      const first = ServiceRegistry.get<{ id: number }>('test:transient');
+      const second = ServiceRegistry.get<{ id: number }>('test:transient');
       
       expect(first).not.toBe(second);
       expect(callCount).toBe(2);
@@ -95,12 +97,12 @@ describe('ServiceRegistry', () => {
         return { id: callCount };
       });
       
-      const first = ServiceRegistry.get('test:reset');
+      const first = ServiceRegistry.get<{ id: number }>('test:reset');
       expect(first.id).toBe(1);
       
       ServiceRegistry.resetInstances();
       
-      const second = ServiceRegistry.get('test:reset');
+      const second = ServiceRegistry.get<{ id: number }>('test:reset');
       expect(second.id).toBe(2);
     });
   });
@@ -208,14 +210,14 @@ describe('initializeDefaultServices', () => {
   it('should create working API client', () => {
     initializeDefaultServices();
     
-    const client = ServiceRegistry.get(Services.API_CLIENT);
+    const client = ServiceRegistry.get<IApiClient>(Services.API_CLIENT);
     expect(client).toBeDefined();
   });
 
   it('should create working feature flags', () => {
     initializeDefaultServices();
     
-    const flags = ServiceRegistry.get(Services.FEATURE_FLAGS);
+    const flags = ServiceRegistry.get<IFeatureFlags>(Services.FEATURE_FLAGS);
     expect(flags.isEnabled('dark-mode')).toBe(true);
   });
 });

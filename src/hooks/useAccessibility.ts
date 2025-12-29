@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import {
   createFocusTrap,
-  releaseFocusTrap,
   announceToScreenReader,
   generateAriaId,
-  handleKeyboardInteraction,
-  getInputAriaProps,
-  getButtonAriaProps,
+  handleKeyboardActivation,
+  createAriaInputProps,
   prefersReducedMotion,
+  type FocusTrapOptions,
+  type AriaInputProps,
+  type AriaButtonProps,
 } from '../utils/accessibility';
 
 // ============================================================================
@@ -17,20 +18,22 @@ import {
 // ============================================================================
 
 /** Focus trap hook for modals and dialogs */
-export function useFocusTrap(isActive: boolean = true) {
+export function useFocusTrap(isActive: boolean = true, onEscape?: () => void) {
   const containerRef = useRef<HTMLElement | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!isActive || !containerRef.current) return;
 
-    createFocusTrap(containerRef.current);
+    cleanupRef.current = createFocusTrap({
+      container: containerRef.current,
+      onEscape,
+    });
 
     return () => {
-      if (containerRef.current) {
-        releaseFocusTrap(containerRef.current);
-      }
+      cleanupRef.current?.();
     };
-  }, [isActive]);
+  }, [isActive, onEscape]);
 
   return containerRef;
 }
@@ -51,16 +54,14 @@ export function useAriaId(prefix: string = 'aria') {
 }
 
 /** Keyboard interaction handler hook */
-export function useKeyboardHandler(
-  onEnter?: () => void,
-  onSpace?: () => void,
-  onEscape?: () => void
-) {
+export function useKeyboardHandler(onActivate?: () => void) {
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
-      handleKeyboardInteraction(event.nativeEvent, onEnter, onSpace, onEscape);
+      if (onActivate) {
+        handleKeyboardActivation(event.nativeEvent, onActivate);
+      }
     },
-    [onEnter, onSpace, onEscape]
+    [onActivate]
   );
 
   return handleKeyDown;
@@ -95,7 +96,12 @@ export function useInputA11y(options: {
   hasError?: boolean;
   errorMessage?: string;
 }) {
-  const props = getInputAriaProps(options);
+  const props = createAriaInputProps(options.id, {
+    hasError: options.hasError,
+    errorMessage: options.errorMessage,
+    isRequired: options.required,
+    description: options.description,
+  });
   
   return {
     inputProps: props,
@@ -112,8 +118,13 @@ export function useButtonA11y(options: {
   isExpanded?: boolean;
   controls?: string;
   isDisabled?: boolean;
-}) {
-  return getButtonAriaProps(options);
+}): AriaButtonProps {
+  return {
+    'aria-label': options.label,
+    'aria-pressed': options.isPressed,
+    'aria-expanded': options.isExpanded,
+    'aria-controls': options.controls,
+  };
 }
 
 /** Focus management hook */

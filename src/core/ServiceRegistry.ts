@@ -93,9 +93,9 @@ class ServiceRegistryClass {
    * Reset singleton instances (useful for testing)
    */
   resetInstances(): void {
-    for (const descriptor of this.services.values()) {
+    this.services.forEach((descriptor) => {
       descriptor.instance = undefined;
-    }
+    });
   }
 
   /**
@@ -111,7 +111,7 @@ class ServiceRegistryClass {
   initialize(): void {
     if (this.initialized) return;
     
-    for (const [name, descriptor] of this.services.entries()) {
+    this.services.forEach((descriptor, name) => {
       if (descriptor.singleton && !descriptor.instance) {
         try {
           descriptor.instance = descriptor.factory();
@@ -119,7 +119,7 @@ class ServiceRegistryClass {
           console.error(`Failed to initialize service "${name}":`, error);
         }
       }
-    }
+    });
     
     this.initialized = true;
   }

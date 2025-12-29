@@ -10,19 +10,21 @@ export * from './formatters';
 // Accessibility utilities
 export {
   createFocusTrap,
-  releaseFocusTrap,
+  getFocusableElements,
   announceToScreenReader,
   createSkipLink,
   generateAriaId,
-  handleKeyboardInteraction,
-  getInputAriaProps,
-  getButtonAriaProps,
+  KeyboardKeys,
+  isActivationKey,
+  handleKeyboardActivation,
+  createAriaInputProps,
   prefersReducedMotion,
   prefersHighContrast,
   getContrastRatio,
   meetsContrastAA,
   meetsContrastAAA,
 } from './accessibility';
+export type { FocusTrapOptions, AriaButtonProps, AriaInputProps } from './accessibility';
 
 // Animation utilities
 export {
