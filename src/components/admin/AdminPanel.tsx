@@ -25,6 +25,7 @@ import AdminMinersTab from './tabs/AdminMinersTab';
 import AdminNetworkTab from './tabs/AdminNetworkTab';
 import AdminRolesTab from './tabs/AdminRolesTab';
 import AdminAlgorithmTab from './tabs/AdminAlgorithmTab';
+import AdminUsersTab from './tabs/AdminUsersTab';
 
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
