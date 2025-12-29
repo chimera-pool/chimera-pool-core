@@ -12,8 +12,15 @@ export interface UseWebSocketOptions {
   onError?: (error: Error) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
+  onReconnectAttempt?: (attempt: number, delay: number) => void;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
+  /** Enable exponential backoff for reconnection delays */
+  useExponentialBackoff?: boolean;
+  /** Maximum delay in ms for exponential backoff (default: 30000) */
+  maxBackoffDelay?: number;
+  /** Jitter factor to add randomness to backoff (0-1, default: 0.1) */
+  backoffJitter?: number;
 }
 
 export interface UseWebSocketReturn {
@@ -21,6 +28,10 @@ export interface UseWebSocketReturn {
   sendMessage: (message: WebSocketMessage) => void;
   disconnect: () => void;
   reconnect: () => void;
+  /** Current reconnection attempt number */
+  reconnectAttempt: number;
+  /** Time until next reconnection attempt in ms */
+  nextReconnectDelay: number;
 }
 
 export const useWebSocket = (
@@ -32,11 +43,31 @@ export const useWebSocket = (
     onError,
     onConnect,
     onDisconnect,
+    onReconnectAttempt,
     reconnectInterval = 3000,
-    maxReconnectAttempts = 5,
+    maxReconnectAttempts = 10,
+    useExponentialBackoff = true,
+    maxBackoffDelay = 30000,
+    backoffJitter = 0.1,
   } = options;
 
+  /**
+   * Calculate reconnection delay with exponential backoff
+   * Formula: min(baseDelay * 2^attempt + jitter, maxDelay)
+   */
+  const calculateBackoffDelay = useCallback((attempt: number): number => {
+    if (!useExponentialBackoff) {
+      return reconnectInterval;
+    }
+    
+    const exponentialDelay = reconnectInterval * Math.pow(2, attempt);
+    const jitter = exponentialDelay * backoffJitter * Math.random();
+    return Math.min(exponentialDelay + jitter, maxBackoffDelay);
+  }, [reconnectInterval, useExponentialBackoff, maxBackoffDelay, backoffJitter]);
+
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [nextReconnectDelay, setNextReconnectDelay] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -51,6 +82,8 @@ export const useWebSocket = (
       ws.addEventListener('open', () => {
         setConnectionState('connected');
         reconnectAttemptsRef.current = 0;
+        setReconnectAttempt(0);
+        setNextReconnectDelay(0);
         onConnect?.();
       });
 
@@ -77,19 +110,25 @@ export const useWebSocket = (
           shouldReconnectRef.current &&
           reconnectAttemptsRef.current < maxReconnectAttempts
         ) {
+          const currentAttempt = reconnectAttemptsRef.current;
           reconnectAttemptsRef.current++;
+          setReconnectAttempt(currentAttempt + 1);
           setConnectionState('reconnecting');
+          
+          const delay = calculateBackoffDelay(currentAttempt);
+          setNextReconnectDelay(delay);
+          onReconnectAttempt?.(currentAttempt + 1, delay);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
-          }, reconnectInterval);
+          }, delay);
         }
       });
     } catch (error) {
       setConnectionState('error');
       onError?.(error as Error);
     }
-  }, [url, onMessage, onError, onConnect, onDisconnect, reconnectInterval, maxReconnectAttempts]);
+  }, [url, onMessage, onError, onConnect, onDisconnect, onReconnectAttempt, maxReconnectAttempts, calculateBackoffDelay]);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -116,6 +155,8 @@ export const useWebSocket = (
   const reconnect = useCallback(() => {
     shouldReconnectRef.current = true;
     reconnectAttemptsRef.current = 0;
+    setReconnectAttempt(0);
+    setNextReconnectDelay(0);
     
     if (wsRef.current) {
       wsRef.current.close();
@@ -145,5 +186,7 @@ export const useWebSocket = (
     sendMessage,
     disconnect,
     reconnect,
+    reconnectAttempt,
+    nextReconnectDelay,
   };
 };

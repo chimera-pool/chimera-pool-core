@@ -195,4 +195,105 @@ describe('useWebSocket', () => {
     
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
   });
+
+  it('should expose reconnectAttempt and nextReconnectDelay', () => {
+    const { result } = renderHook(() => useWebSocket('ws://localhost:8080'));
+    
+    expect(result.current.reconnectAttempt).toBe(0);
+    expect(result.current.nextReconnectDelay).toBe(0);
+  });
+
+  it('should call onReconnectAttempt callback with attempt number and delay', () => {
+    jest.useFakeTimers();
+    const onReconnectAttempt = jest.fn();
+    const { result } = renderHook(() => 
+      useWebSocket('ws://localhost:8080', { 
+        onReconnectAttempt,
+        reconnectInterval: 1000,
+        useExponentialBackoff: true
+      })
+    );
+    
+    const ws = MockWebSocket.instances[0];
+    
+    act(() => {
+      ws.simulateOpen();
+    });
+    
+    act(() => {
+      ws.simulateClose();
+    });
+    
+    // Should call onReconnectAttempt with attempt 1 and calculated delay
+    expect(onReconnectAttempt).toHaveBeenCalledWith(1, expect.any(Number));
+    expect(result.current.reconnectAttempt).toBe(1);
+    expect(result.current.nextReconnectDelay).toBeGreaterThan(0);
+    
+    jest.useRealTimers();
+  });
+
+  it('should use fixed interval when exponential backoff is disabled', () => {
+    jest.useFakeTimers();
+    const onReconnectAttempt = jest.fn();
+    const fixedInterval = 5000;
+    
+    renderHook(() => 
+      useWebSocket('ws://localhost:8080', { 
+        onReconnectAttempt,
+        reconnectInterval: fixedInterval,
+        useExponentialBackoff: false
+      })
+    );
+    
+    const ws = MockWebSocket.instances[0];
+    
+    act(() => {
+      ws.simulateOpen();
+    });
+    
+    act(() => {
+      ws.simulateClose();
+    });
+    
+    // With exponential backoff disabled, delay should be the fixed interval
+    expect(onReconnectAttempt).toHaveBeenCalledWith(1, fixedInterval);
+    
+    jest.useRealTimers();
+  });
+
+  it('should reset reconnect state on successful connection', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => useWebSocket('ws://localhost:8080'));
+    
+    const ws = MockWebSocket.instances[0];
+    
+    // Simulate connection and disconnect to trigger reconnect
+    act(() => {
+      ws.simulateOpen();
+    });
+    
+    act(() => {
+      ws.simulateClose();
+    });
+    
+    expect(result.current.reconnectAttempt).toBe(1);
+    
+    // Fast forward to trigger reconnect
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    
+    // Get the new WebSocket instance and simulate open
+    const newWs = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+    
+    act(() => {
+      newWs.simulateOpen();
+    });
+    
+    // Reconnect state should be reset
+    expect(result.current.reconnectAttempt).toBe(0);
+    expect(result.current.nextReconnectDelay).toBe(0);
+    
+    jest.useRealTimers();
+  });
 });
