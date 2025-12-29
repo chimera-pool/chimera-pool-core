@@ -30,6 +30,9 @@ import { useUserEquipmentStatus } from './hooks/useUserEquipmentStatus';
 // Litecoin Mining Instructions
 import { MiningInstructionsLitecoin } from './components/mining/MiningInstructionsLitecoin';
 
+// Modular modal components
+import { BugReportModal, ProfileModal } from './components/modals';
+
 
 interface PoolStats {
   total_miners: number;
