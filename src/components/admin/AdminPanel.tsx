@@ -858,225 +858,233 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
             </div>
 
             {loading ? (
-          <div style={adminStyles.loading}>Loading users...</div>
-        ) : (
-          <>
-            <div style={adminStyles.tableContainer} className="admin-table-container">
-              <table style={adminStyles.table}>
-                <thead>
-                  <tr>
-                    <SortableHeader field="id" label="#" />
-                    <SortableHeader field="username" label="Username" />
-                    <SortableHeader field="email" label="Email" />
-                    <SortableHeader field="wallet_count" label="Wallets" />
-                    <SortableHeader field="total_hashrate" label="Hashrate" />
-                    <SortableHeader field="total_earnings" label="Earnings" />
-                    <SortableHeader field="pool_fee_percent" label="Fee %" />
-                    <SortableHeader field="is_active" label="Status" />
-                    <th style={adminStyles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id} style={adminStyles.tr}>
-                      <td style={{...adminStyles.td, color: '#D4A84B', fontWeight: 600, fontFamily: 'monospace'}}>{user.id}</td>
-                      <td style={adminStyles.td}><span style={user.is_admin ? adminStyles.adminBadge : {}}>{user.username} {user.is_admin && '👑'}</span></td>
-                      <td style={adminStyles.td}>{user.email}</td>
-                      <td style={adminStyles.td}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ color: user.wallet_count > 1 ? '#00d4ff' : '#888', fontWeight: user.wallet_count > 1 ? 'bold' : 'normal' }}>
-                            {user.wallet_count || 0} wallet{user.wallet_count !== 1 ? 's' : ''}
-                          </span>
-                          {user.primary_wallet && (
-                            <span style={{ fontSize: '0.75rem', color: '#666', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.primary_wallet}>
-                              {user.primary_wallet.substring(0, 12)}...
-                            </span>
-                          )}
-                          {user.wallet_count > 1 && (
-                            <span style={{ fontSize: '0.7rem', backgroundColor: '#1a3a4a', color: '#00d4ff', padding: '1px 4px', borderRadius: '3px', display: 'inline-block', width: 'fit-content' }}>
-                              Split: {user.total_allocated?.toFixed(0) || 0}%
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={adminStyles.td}>{formatHashrate(user.total_hashrate)}</td>
-                      <td style={adminStyles.td}>{user.total_earnings.toFixed(4)}</td>
-                      <td style={adminStyles.td}>{user.pool_fee_percent || 'Default'}</td>
-                      <td style={adminStyles.td}><span style={user.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{user.is_active ? 'Active' : 'Inactive'}</span></td>
-                      <td style={adminStyles.td}>
-                        <button style={adminStyles.actionBtn} onClick={() => fetchUserDetail(user.id)} title="View Details">👁️</button>
-                        <button style={adminStyles.actionBtn} onClick={() => handleEditUser(user)} title="Edit User">✏️</button>
-                        <button style={{...adminStyles.actionBtn, backgroundColor: '#2a1a4a', borderColor: '#8b5cf6'}} onClick={() => setRoleChangeUser(user)} title="Change Role">👑</button>
-                        <button style={{...adminStyles.actionBtn, opacity: 0.7}} onClick={() => handleDeleteUser(user.id)} title="Delete User">🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={adminStyles.pagination}>
-              <button style={adminStyles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-              <span style={adminStyles.pageInfo}>Page {page} of {totalPages} ({totalCount} users)</span>
-              <button style={adminStyles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
-            </div>
-          </>
-        )}
-
-        {editingUser && (
-          <div style={adminStyles.editModal}>
-            <h3 style={adminStyles.editTitle}>Edit User: {editingUser.username}</h3>
-            <div style={adminStyles.formGroup}>
-              <label style={adminStyles.label}>Pool Fee % (leave empty for default)</label>
-              <input style={adminStyles.formInput} type="number" min="0" max="100" step="0.1" placeholder="e.g., 1.5" value={editForm.pool_fee_percent} onChange={e => setEditForm({...editForm, pool_fee_percent: e.target.value})} />
-            </div>
-            <div style={adminStyles.formGroup}>
-              <label style={adminStyles.label}>Payout Address</label>
-              <input style={adminStyles.formInput} type="text" placeholder="0x..." value={editForm.payout_address} onChange={e => setEditForm({...editForm, payout_address: e.target.value})} />
-            </div>
-            <div style={adminStyles.formGroup}>
-              <label style={adminStyles.checkboxLabel}><input type="checkbox" checked={editForm.is_active} onChange={e => setEditForm({...editForm, is_active: e.target.checked})} /> Active</label>
-              <label style={adminStyles.checkboxLabel}><input type="checkbox" checked={editForm.is_admin} onChange={e => setEditForm({...editForm, is_admin: e.target.checked})} /> Admin</label>
-            </div>
-            <div style={adminStyles.editActions}>
-              <button style={adminStyles.cancelBtn} onClick={() => setEditingUser(null)}>Cancel</button>
-              <button style={adminStyles.saveBtn} onClick={handleSaveUser}>Save Changes</button>
-            </div>
-          </div>
-        )}
-
-        {selectedUser && (
-          <div style={adminStyles.detailModal}>
-            <button style={adminStyles.closeDetailBtn} onClick={() => setSelectedUser(null)}>×</button>
-            <h3 style={adminStyles.detailTitle}>User Details: {selectedUser.user.username}</h3>
-            <div style={adminStyles.detailCard}>
-              <p><strong>Email:</strong> {selectedUser.user.email}</p>
-              <p><strong>Payout Address:</strong> {selectedUser.user.payout_address || 'Not set'}</p>
-              <p><strong>Pool Fee:</strong> {selectedUser.user.pool_fee_percent || 'Default'}%</p>
-              <p><strong>Total Earnings:</strong> {selectedUser.user.total_earnings}</p>
-              <p><strong>Pending Payout:</strong> {selectedUser.user.pending_payout}</p>
-              <p><strong>Blocks Found:</strong> {selectedUser.user.blocks_found}</p>
-            </div>
-
-            {/* Wallet Configuration Section */}
-            <h4 style={adminStyles.subTitle}>💰 Wallet Configuration ({selectedUser.wallets?.length || 0} wallets)</h4>
-            {selectedUser.wallet_summary && (
-              <div style={{ ...adminStyles.detailCard, backgroundColor: '#0a1520', borderColor: '#00d4ff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <span>Total Allocated:</span>
-                  <span style={{ color: selectedUser.wallet_summary.total_allocated >= 100 ? '#4ade80' : '#fbbf24', fontWeight: 'bold' }}>
-                    {selectedUser.wallet_summary.total_allocated?.toFixed(1)}%
-                  </span>
+              <div style={adminStyles.loading}>Loading users...</div>
+            ) : (
+              <>
+                <div style={adminStyles.tableContainer} className="admin-table-container">
+                  <table style={adminStyles.table}>
+                    <thead>
+                      <tr>
+                        <SortableHeader field="id" label="#" />
+                        <SortableHeader field="username" label="Username" />
+                        <SortableHeader field="email" label="Email" />
+                        <SortableHeader field="wallet_count" label="Wallets" />
+                        <SortableHeader field="total_hashrate" label="Hashrate" />
+                        <SortableHeader field="total_earnings" label="Earnings" />
+                        <SortableHeader field="pool_fee_percent" label="Fee %" />
+                        <SortableHeader field="is_active" label="Status" />
+                        <th style={adminStyles.th}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map(user => (
+                        <tr key={user.id} style={adminStyles.tr}>
+                          <td style={{...adminStyles.td, color: '#D4A84B', fontWeight: 600, fontFamily: 'monospace'}}>{user.id}</td>
+                          <td style={adminStyles.td}><span style={user.is_admin ? adminStyles.adminBadge : {}}>{user.username} {user.is_admin && '👑'}</span></td>
+                          <td style={adminStyles.td}>{user.email}</td>
+                          <td style={adminStyles.td}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ color: user.wallet_count > 1 ? '#00d4ff' : '#888', fontWeight: user.wallet_count > 1 ? 'bold' : 'normal' }}>
+                                {user.wallet_count || 0} wallet{user.wallet_count !== 1 ? 's' : ''}
+                              </span>
+                              {user.primary_wallet && (
+                                <span style={{ fontSize: '0.75rem', color: '#666', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.primary_wallet}>
+                                  {user.primary_wallet.substring(0, 12)}...
+                                </span>
+                              )}
+                              {user.wallet_count > 1 && (
+                                <span style={{ fontSize: '0.7rem', backgroundColor: '#1a3a4a', color: '#00d4ff', padding: '1px 4px', borderRadius: '3px', display: 'inline-block', width: 'fit-content' }}>
+                                  Split: {user.total_allocated?.toFixed(0) || 0}%
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={adminStyles.td}>{formatHashrate(user.total_hashrate)}</td>
+                          <td style={adminStyles.td}>{user.total_earnings.toFixed(4)}</td>
+                          <td style={adminStyles.td}>{user.pool_fee_percent || 'Default'}</td>
+                          <td style={adminStyles.td}><span style={user.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{user.is_active ? 'Active' : 'Inactive'}</span></td>
+                          <td style={adminStyles.td}>
+                            <button style={adminStyles.actionBtn} onClick={() => fetchUserDetail(user.id)} title="View Details">👁️</button>
+                            <button style={adminStyles.actionBtn} onClick={() => handleEditUser(user)} title="Edit User">✏️</button>
+                            <button style={{...adminStyles.actionBtn, backgroundColor: '#2a1a4a', borderColor: '#8b5cf6'}} onClick={() => setRoleChangeUser(user)} title="Change Role">👑</button>
+                            <button style={{...adminStyles.actionBtn, opacity: 0.7}} onClick={() => handleDeleteUser(user.id)} title="Delete User">🗑️</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                {selectedUser.wallet_summary.has_multiple_wallets && (
-                  <div style={{ backgroundColor: '#1a3a4a', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px' }}>
-                    <span style={{ color: '#00d4ff', fontSize: '0.9rem' }}>⚡ Multi-wallet split payments enabled</span>
-                  </div>
-                )}
-                {selectedUser.wallet_summary.remaining_percent > 0 && (
-                  <div style={{ backgroundColor: '#4d3a1a', padding: '8px 12px', borderRadius: '6px' }}>
-                    <span style={{ color: '#fbbf24', fontSize: '0.9rem' }}>⚠️ {selectedUser.wallet_summary.remaining_percent?.toFixed(1)}% unallocated</span>
-                  </div>
-                )}
+
+                <div style={adminStyles.pagination}>
+                  <button style={adminStyles.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
+                  <span style={adminStyles.pageInfo}>Page {page} of {totalPages} ({totalCount} users)</span>
+                  <button style={adminStyles.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
+                </div>
+              </>
+            )}
+
+            {editingUser && (
+              <div style={adminStyles.editModal}>
+                <h3 style={adminStyles.editTitle}>Edit User: {editingUser.username}</h3>
+                <div style={adminStyles.formGroup}>
+                  <label style={adminStyles.label}>Pool Fee % (leave empty for default)</label>
+                  <input style={adminStyles.formInput} type="number" min="0" max="100" step="0.1" placeholder="e.g., 1.5" value={editForm.pool_fee_percent} onChange={e => setEditForm({...editForm, pool_fee_percent: e.target.value})} />
+                </div>
+                <div style={adminStyles.formGroup}>
+                  <label style={adminStyles.label}>Payout Address</label>
+                  <input style={adminStyles.formInput} type="text" placeholder="0x..." value={editForm.payout_address} onChange={e => setEditForm({...editForm, payout_address: e.target.value})} />
+                </div>
+                <div style={adminStyles.formGroup}>
+                  <label style={adminStyles.checkboxLabel}><input type="checkbox" checked={editForm.is_active} onChange={e => setEditForm({...editForm, is_active: e.target.checked})} /> Active</label>
+                  <label style={adminStyles.checkboxLabel}><input type="checkbox" checked={editForm.is_admin} onChange={e => setEditForm({...editForm, is_admin: e.target.checked})} /> Admin</label>
+                </div>
+                <div style={adminStyles.editActions}>
+                  <button style={adminStyles.cancelBtn} onClick={() => setEditingUser(null)}>Cancel</button>
+                  <button style={adminStyles.saveBtn} onClick={handleSaveUser}>Save Changes</button>
+                </div>
               </div>
             )}
-            {selectedUser.wallets?.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedUser.wallets.map((wallet: any) => (
-                  <div key={wallet.id} style={{ 
-                    ...adminStyles.detailCard, 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    borderColor: wallet.is_primary ? '#9b59b6' : '#2a2a4a',
-                    backgroundColor: wallet.is_active ? '#0a0a15' : '#1a1a1a',
-                    opacity: wallet.is_active ? 1 : 0.6
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        {wallet.is_primary && <span style={{ backgroundColor: '#4d1a4d', color: '#d946ef', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>PRIMARY</span>}
-                        {!wallet.is_active && <span style={{ backgroundColor: '#4d1a1a', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>INACTIVE</span>}
-                        {wallet.label && <span style={{ color: '#888', fontSize: '0.85rem' }}>{wallet.label}</span>}
+
+            {selectedUser && (
+              <div style={adminStyles.detailModal}>
+                <button style={adminStyles.closeDetailBtn} onClick={() => setSelectedUser(null)}>×</button>
+                <h3 style={adminStyles.detailTitle}>User Details: {selectedUser.user.username}</h3>
+                <div style={adminStyles.detailCard}>
+                  <p><strong>Email:</strong> {selectedUser.user.email}</p>
+                  <p><strong>Payout Address:</strong> {selectedUser.user.payout_address || 'Not set'}</p>
+                  <p><strong>Pool Fee:</strong> {selectedUser.user.pool_fee_percent || 'Default'}%</p>
+                  <p><strong>Total Earnings:</strong> {selectedUser.user.total_earnings}</p>
+                  <p><strong>Pending Payout:</strong> {selectedUser.user.pending_payout}</p>
+                  <p><strong>Blocks Found:</strong> {selectedUser.user.blocks_found}</p>
+                </div>
+
+                {/* Wallet Configuration Section */}
+                <h4 style={adminStyles.subTitle}>💰 Wallet Configuration ({selectedUser.wallets?.length || 0} wallets)</h4>
+                {selectedUser.wallet_summary && (
+                  <div style={{ ...adminStyles.detailCard, backgroundColor: '#0a1520', borderColor: '#00d4ff' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <span>Total Allocated:</span>
+                      <span style={{ color: selectedUser.wallet_summary.total_allocated >= 100 ? '#4ade80' : '#fbbf24', fontWeight: 'bold' }}>
+                        {selectedUser.wallet_summary.total_allocated?.toFixed(1)}%
+                      </span>
+                    </div>
+                    {selectedUser.wallet_summary.has_multiple_wallets && (
+                      <div style={{ backgroundColor: '#1a3a4a', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px' }}>
+                        <span style={{ color: '#00d4ff', fontSize: '0.9rem' }}>⚡ Multi-wallet split payments enabled</span>
                       </div>
-                      <p style={{ margin: 0, fontFamily: 'monospace', fontSize: '0.85rem', color: '#00d4ff', wordBreak: 'break-all' }}>
-                        {wallet.address}
-                      </p>
-                    </div>
-                    <div style={{ 
-                      backgroundColor: '#1a1a2e', 
-                      padding: '8px 16px', 
-                      borderRadius: '8px', 
-                      marginLeft: '15px',
-                      textAlign: 'center',
-                      minWidth: '80px'
-                    }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80' }}>{wallet.percentage}%</div>
-                      <div style={{ fontSize: '0.7rem', color: '#888' }}>allocation</div>
-                    </div>
+                    )}
+                    {selectedUser.wallet_summary.remaining_percent > 0 && (
+                      <div style={{ backgroundColor: '#4d3a1a', padding: '8px 12px', borderRadius: '6px' }}>
+                        <span style={{ color: '#fbbf24', fontSize: '0.9rem' }}>⚠️ {selectedUser.wallet_summary.remaining_percent?.toFixed(1)}% unallocated</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {selectedUser.wallets?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedUser.wallets.map((wallet: any) => (
+                      <div key={wallet.id} style={{ 
+                        ...adminStyles.detailCard, 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        borderColor: wallet.is_primary ? '#9b59b6' : '#2a2a4a',
+                        backgroundColor: wallet.is_active ? '#0a0a15' : '#1a1a1a',
+                        opacity: wallet.is_active ? 1 : 0.6
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            {wallet.is_primary && <span style={{ backgroundColor: '#4d1a4d', color: '#d946ef', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>PRIMARY</span>}
+                            {!wallet.is_active && <span style={{ backgroundColor: '#4d1a1a', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>INACTIVE</span>}
+                            {wallet.label && <span style={{ color: '#888', fontSize: '0.85rem' }}>{wallet.label}</span>}
+                          </div>
+                          <p style={{ margin: 0, fontFamily: 'monospace', fontSize: '0.85rem', color: '#00d4ff', wordBreak: 'break-all' }}>
+                            {wallet.address}
+                          </p>
+                        </div>
+                        <div style={{ 
+                          backgroundColor: '#1a1a2e', 
+                          padding: '8px 16px', 
+                          borderRadius: '8px', 
+                          marginLeft: '15px',
+                          textAlign: 'center',
+                          minWidth: '80px'
+                        }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80' }}>{wallet.percentage}%</div>
+                          <div style={{ fontSize: '0.7rem', color: '#888' }}>allocation</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ ...adminStyles.detailCard, textAlign: 'center', color: '#666' }}>
+                    <p>No wallets configured. User is using legacy payout address.</p>
+                  </div>
+                )}
+
+                <h4 style={adminStyles.subTitle}>Share Statistics</h4>
+                <div style={adminStyles.detailCard}>
+                  <p><strong>Total Shares:</strong> {selectedUser.shares_stats.total_shares}</p>
+                  <p><strong>Valid:</strong> {selectedUser.shares_stats.valid_shares}</p>
+                  <p><strong>Invalid:</strong> {selectedUser.shares_stats.invalid_shares}</p>
+                  <p><strong>Last 24h:</strong> {selectedUser.shares_stats.last_24_hours}</p>
+                </div>
+                <h4 style={adminStyles.subTitle}>Miners ({selectedUser.miners?.length || 0})</h4>
+                {selectedUser.miners?.map((m: any) => (
+                  <div key={m.id} style={adminStyles.minerRow}>
+                    <span>{m.name}</span>
+                    <span>{formatHashrate(m.hashrate)}</span>
+                    <span style={m.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{m.is_active ? 'Online' : 'Offline'}</span>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div style={{ ...adminStyles.detailCard, textAlign: 'center', color: '#666' }}>
-                <p>No wallets configured. User is using legacy payout address.</p>
-              </div>
             )}
 
-            <h4 style={adminStyles.subTitle}>Share Statistics</h4>
-            <div style={adminStyles.detailCard}>
-              <p><strong>Total Shares:</strong> {selectedUser.shares_stats.total_shares}</p>
-              <p><strong>Valid:</strong> {selectedUser.shares_stats.valid_shares}</p>
-              <p><strong>Invalid:</strong> {selectedUser.shares_stats.invalid_shares}</p>
-              <p><strong>Last 24h:</strong> {selectedUser.shares_stats.last_24_hours}</p>
-            </div>
-            <h4 style={adminStyles.subTitle}>Miners ({selectedUser.miners?.length || 0})</h4>
-            {selectedUser.miners?.map((m: any) => (
-              <div key={m.id} style={adminStyles.minerRow}>
-                <span>{m.name}</span>
-                <span>{formatHashrate(m.hashrate)}</span>
-                <span style={m.is_active ? adminStyles.activeBadge : adminStyles.inactiveBadge}>{m.is_active ? 'Online' : 'Offline'}</span>
+            {/* Role Change Modal (accessible from Users tab) */}
+            {roleChangeUser && (
+              <div style={adminStyles.editModal}>
+                <h3 style={adminStyles.editTitle}>👑 Change Role: {roleChangeUser.username}</h3>
+                <p style={{ color: '#888', marginBottom: '15px' }}>
+                  Current role: <strong style={{ color: '#00d4ff' }}>{roleChangeUser.role || 'user'}</strong>
+                </p>
+                <div style={adminStyles.formGroup}>
+                  <label style={adminStyles.label}>New Role</label>
+                  <select 
+                    style={adminStyles.algoSelect} 
+                    value={newRole} 
+                    onChange={e => setNewRole(e.target.value)}
+                  >
+                    <option value="">Select a role</option>
+                    <option value="user">👤 User</option>
+                    <option value="moderator">🛡️ Moderator</option>
+                    <option value="admin">👑 Admin</option>
+                    <option value="super_admin">⭐ Super Admin</option>
+                  </select>
+                </div>
+                <div style={adminStyles.editActions}>
+                  <button style={adminStyles.cancelBtn} onClick={() => { setRoleChangeUser(null); setNewRole(''); }}>Cancel</button>
+                  <button style={adminStyles.saveBtn} onClick={handleChangeRole} disabled={!newRole}>Change Role</button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Role Change Modal (accessible from Users tab) */}
-        {roleChangeUser && (
-          <div style={adminStyles.editModal}>
-            <h3 style={adminStyles.editTitle}>👑 Change Role: {roleChangeUser.username}</h3>
-            <p style={{ color: '#888', marginBottom: '15px' }}>
-              Current role: <strong style={{ color: '#00d4ff' }}>{roleChangeUser.role || 'user'}</strong>
-            </p>
-            <div style={adminStyles.formGroup}>
-              <label style={adminStyles.label}>New Role</label>
-              <select 
-                style={adminStyles.algoSelect} 
-                value={newRole} 
-                onChange={e => setNewRole(e.target.value)}
-              >
-                <option value="">Select a role</option>
-                <option value="user">👤 User</option>
-                <option value="moderator">🛡️ Moderator</option>
-                <option value="admin">👑 Admin</option>
-                <option value="super_admin">⭐ Super Admin</option>
-              </select>
-            </div>
-            <div style={adminStyles.editActions}>
-              <button style={adminStyles.cancelBtn} onClick={() => { setRoleChangeUser(null); setNewRole(''); }}>Cancel</button>
-              <button style={adminStyles.saveBtn} onClick={handleChangeRole} disabled={!newRole}>Change Role</button>
-            </div>
-          </div>
-        )}
+            )}
           </>
         )}
 
-        {/* Pool Statistics Tab - Isolated Component (prevents parent re-renders) */}
-        {activeTab === 'stats' && <AdminGrafanaSection token={token} />}
-        <AdminStatsTab token={token} isActive={activeTab === 'stats'} />
+        {/* Pool Statistics Tab */}
+        {activeTab === 'stats' && (
+          <div style={adminStyles.algorithmContainer}>
+            <div style={adminStyles.algoHeader}>
+              <h3 style={adminStyles.algoTitle}>📊 Pool Statistics</h3>
+              <p style={adminStyles.algoDesc}>
+                View pool performance metrics and charts.
+              </p>
+            </div>
+            <AdminStatsTab token={token} isActive={activeTab === 'stats'} />
+          </div>
+        )}
 
         {/* Algorithm Settings Tab */}
-        <AdminAlgorithmTab token={token} isActive={activeTab === 'algorithm'} showMessage={showMessage} />
-        {false && activeTab === 'algorithm' && (
+        {activeTab === 'algorithm' && (
           <div style={adminStyles.algorithmContainer}>
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>⚙️ Mining Algorithm Configuration</h3>
@@ -1358,8 +1366,7 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Network Configuration Tab */}
-        <AdminNetworkTab token={token} isActive={activeTab === 'network'} showMessage={showMessage} />
-        {false && activeTab === 'network' && (
+        {activeTab === 'network' && (
           <div style={adminStyles.algorithmContainer}>
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>🌐 Network Configuration</h3>
