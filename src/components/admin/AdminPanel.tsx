@@ -20,6 +20,11 @@ import {
 import { formatHashrate } from '../../utils/formatters';
 import AdminStatsTab from './tabs/AdminStatsTab';
 import { AdminGrafanaSection } from './tabs/AdminGrafanaSection';
+import AdminBugsTab from './tabs/AdminBugsTab';
+import AdminMinersTab from './tabs/AdminMinersTab';
+import AdminNetworkTab from './tabs/AdminNetworkTab';
+import AdminRolesTab from './tabs/AdminRolesTab';
+import AdminAlgorithmTab from './tabs/AdminAlgorithmTab';
 
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
@@ -1070,7 +1075,8 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         <AdminStatsTab token={token} isActive={activeTab === 'stats'} />
 
         {/* Algorithm Settings Tab */}
-        {activeTab === 'algorithm' && (
+        <AdminAlgorithmTab token={token} isActive={activeTab === 'algorithm'} showMessage={showMessage} />
+        {false && activeTab === 'algorithm' && (
           <div style={adminStyles.algorithmContainer}>
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>⚙️ Mining Algorithm Configuration</h3>
@@ -1352,7 +1358,8 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Network Configuration Tab */}
-        {activeTab === 'network' && (
+        <AdminNetworkTab token={token} isActive={activeTab === 'network'} showMessage={showMessage} />
+        {false && activeTab === 'network' && (
           <div style={adminStyles.algorithmContainer}>
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>🌐 Network Configuration</h3>
@@ -1576,7 +1583,8 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Role Management Tab */}
-        {activeTab === 'roles' && (
+        <AdminRolesTab token={token} isActive={activeTab === 'roles'} showMessage={showMessage} onNavigateToUsers={() => setActiveTab('users')} />
+        {false && activeTab === 'roles' && (
           <div style={adminStyles.algorithmContainer}>
             <div style={adminStyles.algoHeader}>
               <h3 style={adminStyles.algoTitle}>👑 Role Management</h3>
@@ -1769,7 +1777,8 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Bug Reports Tab */}
-        {activeTab === 'bugs' && (
+        <AdminBugsTab token={token} isActive={activeTab === 'bugs'} showMessage={showMessage} />
+        {false && activeTab === 'bugs' && (
           <div style={adminStyles.algorithmContainer}>
             {selectedAdminBug ? (
               <>
@@ -2085,7 +2094,8 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         )}
 
         {/* Miner Monitoring Tab */}
-        {activeTab === 'miners' && (
+        <AdminMinersTab token={token} isActive={activeTab === 'miners'} showMessage={showMessage} />
+        {false && activeTab === 'miners' && (
           <div style={adminStyles.algorithmContainer}>
             {selectedMiner ? (
               // Miner Detail View

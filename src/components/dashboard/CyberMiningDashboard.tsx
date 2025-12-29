@@ -131,7 +131,7 @@ export const CyberMiningDashboard: React.FC<CyberMiningDashboardProps> = ({
             <span className="cyber-bracket">]</span>
           </h1>
           <div className="cyber-status-line">
-            <span className="cyber-timestamp">{new Date().toISOString()}</span>
+            <span className="cyber-timestamp">{(() => { try { return new Date().toISOString(); } catch { return new Date().toString(); } })()}</span>
             <div className="cyber-connection-indicator">
               <div className={`cyber-pulse ${connectionState === 'connected' ? 'cyber-pulse--active' : ''}`}></div>
               {connectionState.toUpperCase()}

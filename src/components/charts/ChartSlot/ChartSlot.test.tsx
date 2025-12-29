@@ -24,6 +24,10 @@ jest.mock('../ChartSelector', () => ({
 
 jest.mock('../registry', () => ({
   chartRegistry: {
+    getAllCharts: () => [
+      { id: 'grafana-pool-hashrate', type: 'grafana', title: 'Pool Hashrate', category: 'pool-metrics' },
+      { id: 'grafana-shares-submitted', type: 'grafana', title: 'Shares', category: 'pool-metrics' },
+    ],
     getChartById: (id: string) => ({
       id,
       type: 'grafana',
@@ -108,7 +112,7 @@ describe('ChartSlot', () => {
       const selector = screen.getByTestId('chart-selector-mock');
       fireEvent.change(selector, { target: { value: 'grafana-shares-submitted' } });
       
-      expect(screen.getByText('Shares')).toBeInTheDocument();
+      expect(screen.getByTestId('grafana-embed')).toHaveTextContent('Shares');
     });
   });
 

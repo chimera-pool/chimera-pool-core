@@ -164,6 +164,12 @@ describe('RealTimeDataService', () => {
         { id: 'miner2', name: 'X30-NYC', hashrate: 5000000000000, isActive: true },
       ];
 
+      // Mock pool stats first (called first in refresh)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ active_miners: 2 })
+      });
+      // Mock miners endpoint (called second in refresh)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ miners: mockMiners })
@@ -271,6 +277,17 @@ describe('RealTimeDataService', () => {
     it('should return user stats when authenticated', async () => {
       service.setAuthToken('test-token');
 
+      // Mock pool stats (called first)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ active_miners: 1 })
+      });
+      // Mock miners endpoint (called second)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ miners: [] })
+      });
+      // Mock user stats (called third when authenticated)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({

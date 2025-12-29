@@ -134,7 +134,7 @@ export const useWebSocket = (
         clearTimeout(reconnectTimeoutRef.current);
       }
       
-      if (wsRef.current) {
+      if (wsRef.current && typeof wsRef.current.close === 'function') {
         wsRef.current.close();
       }
     };

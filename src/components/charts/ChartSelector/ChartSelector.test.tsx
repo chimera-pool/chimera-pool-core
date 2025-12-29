@@ -62,7 +62,9 @@ describe('ChartSelector', () => {
       );
 
       const select = screen.getByRole('combobox');
-      expect(select.children).toHaveLength(mockCharts.length);
+      // Charts are grouped by category into optgroups, so check total options
+      const options = select.querySelectorAll('option');
+      expect(options).toHaveLength(mockCharts.length);
     });
 
     it('should filter charts by category when categoryFilter provided', () => {

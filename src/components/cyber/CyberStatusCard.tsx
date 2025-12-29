@@ -44,7 +44,7 @@ export const CyberStatusCard: React.FC<CyberStatusCardProps> = ({
       
       <div className="cyber-status-card__footer">
         <div className="cyber-status-card__timestamp">
-          {new Date().toISOString()}
+          {(() => { try { return new Date().toISOString(); } catch { return new Date().toString(); } })()}
         </div>
       </div>
     </div>
