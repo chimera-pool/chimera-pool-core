@@ -31,8 +31,8 @@ import MonitoringDashboard from './components/dashboard/MonitoringDashboard';
 import { CollapsibleUserDashboard } from './components/dashboard/CollapsibleUserDashboard';
 import { useUserEquipmentStatus } from './hooks/useUserEquipmentStatus';
 
-// Litecoin Mining Instructions
-import { MiningInstructionsLitecoin } from './components/mining/MiningInstructionsLitecoin';
+// Multi-Network Mining Instructions
+import { MiningInstructionsMultiNetwork } from './components/mining/MiningInstructionsMultiNetwork';
 
 // Modular modal components
 import { BugReportModal, ProfileModal, MyBugsModal, EquipmentSupportModal } from './components/modals';
@@ -282,7 +282,7 @@ function DashboardView({ loading, stats, token, user, equipmentStatus, showMessa
 
       {/* Mining Instructions */}
       <section style={styles.section} className="section">
-        <MiningInstructionsLitecoin className="mining-instructions-section" showAdvanced={true} onCopySuccess={() => showMessage('success', 'Copied to clipboard')} />
+        <MiningInstructionsMultiNetwork className="mining-instructions-section" onCopySuccess={() => showMessage('success', 'Copied to clipboard')} />
       </section>
 
       {/* Pool Information */}

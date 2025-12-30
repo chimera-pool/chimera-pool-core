@@ -30,9 +30,11 @@ func (p *DBPoolStatsProvider) GetPoolStats() (*PoolStats, error) {
 	var totalMiners, blocksFound, totalShares, validShares int64
 	var totalHashrate float64
 
-	p.db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
+	// Count miners seen in the last 5 minutes as "active" (not just is_active flag)
+	p.db.QueryRow("SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalMiners)
 	p.db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&blocksFound)
-	p.db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE is_active = true").Scan(&totalHashrate)
+	// Sum hashrate only from recently active miners
+	p.db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
 	p.db.QueryRow("SELECT COUNT(*) FROM shares").Scan(&totalShares)
 	p.db.QueryRow("SELECT COUNT(*) FROM shares WHERE is_valid = true").Scan(&validShares)
 
