@@ -26,20 +26,51 @@ func NewDBPoolStatsProvider(db *sql.DB) *DBPoolStatsProvider {
 }
 
 // GetPoolStats returns overall pool statistics
+// If networkID is provided, filters stats to that network only
 func (p *DBPoolStatsProvider) GetPoolStats() (*PoolStats, error) {
+	return p.GetPoolStatsForNetwork("")
+}
+
+// GetPoolStatsForNetwork returns pool statistics for a specific network (or all if empty)
+func (p *DBPoolStatsProvider) GetPoolStatsForNetwork(networkID string) (*PoolStats, error) {
 	var totalMiners, blocksFound, totalShares, validShares int64
 	var totalHashrate float64
 
-	// Count miners seen in the last 5 minutes as "active" (not just is_active flag)
-	p.db.QueryRow("SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalMiners)
-	p.db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&blocksFound)
-	// Sum hashrate only from recently active miners
-	p.db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
-	p.db.QueryRow("SELECT COUNT(*) FROM shares").Scan(&totalShares)
-	p.db.QueryRow("SELECT COUNT(*) FROM shares WHERE is_valid = true").Scan(&validShares)
+	// Build queries with optional network filter
+	activeMinersQuery := "SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'"
+	blocksQuery := "SELECT COUNT(*) FROM blocks"
+	hashrateQuery := "SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'"
+	sharesQuery := "SELECT COUNT(*) FROM shares"
+	validSharesQuery := "SELECT COUNT(*) FROM shares WHERE is_valid = true"
+	lastBlockQuery := "SELECT COALESCE(MAX(timestamp), NOW()) FROM blocks"
+
+	if networkID != "" {
+		activeMinersQuery += " AND network_id = $1"
+		blocksQuery += " WHERE network_id = $1"
+		hashrateQuery += " AND network_id = $1"
+		sharesQuery += " WHERE network_id = $1"
+		validSharesQuery += " AND network_id = $1"
+		lastBlockQuery = "SELECT COALESCE(MAX(timestamp), NOW()) FROM blocks WHERE network_id = $1"
+
+		p.db.QueryRow(activeMinersQuery, networkID).Scan(&totalMiners)
+		p.db.QueryRow(blocksQuery, networkID).Scan(&blocksFound)
+		p.db.QueryRow(hashrateQuery, networkID).Scan(&totalHashrate)
+		p.db.QueryRow(sharesQuery, networkID).Scan(&totalShares)
+		p.db.QueryRow(validSharesQuery, networkID).Scan(&validShares)
+	} else {
+		p.db.QueryRow(activeMinersQuery).Scan(&totalMiners)
+		p.db.QueryRow(blocksQuery).Scan(&blocksFound)
+		p.db.QueryRow(hashrateQuery).Scan(&totalHashrate)
+		p.db.QueryRow(sharesQuery).Scan(&totalShares)
+		p.db.QueryRow(validSharesQuery).Scan(&validShares)
+	}
 
 	var lastBlockTime time.Time
-	p.db.QueryRow("SELECT COALESCE(MAX(timestamp), NOW()) FROM blocks").Scan(&lastBlockTime)
+	if networkID != "" {
+		p.db.QueryRow(lastBlockQuery, networkID).Scan(&lastBlockTime)
+	} else {
+		p.db.QueryRow(lastBlockQuery).Scan(&lastBlockTime)
+	}
 
 	return &PoolStats{
 		TotalHashrate:     totalHashrate,
