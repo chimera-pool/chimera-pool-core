@@ -20,12 +20,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/chimera-pool/chimera-pool-core/internal/geolocation"
 	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/health"
 	"github.com/chimera-pool/chimera-pool-core/internal/monitoring/recovery"
+	"github.com/chimera-pool/chimera-pool-core/internal/network"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/hashrate"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/keepalive"
 	"github.com/chimera-pool/chimera-pool-core/internal/stratum/merkle"
@@ -420,6 +422,8 @@ type StratumServer struct {
 	hashrateMux      sync.RWMutex
 	hashrateCalc     *hashrate.Calculator
 	geoService       *geolocation.GeoIPService
+	networkLoader    *network.ConfigLoader
+	activeNetworkID  *uuid.UUID
 }
 
 // MiningJob represents current mining work from the node
@@ -509,6 +513,17 @@ func NewStratumServer(config *Config, db *ResilientDB, redisClient *redis.Client
 	keepaliveConfig.MaxMissed = 3               // 3 missed = disconnect
 	keepaliveConfig.SendWorkAsAlive = true      // Work updates count as keepalive
 
+	// Initialize network config loader for multi-coin support
+	networkLoader := network.NewConfigLoader(db.db)
+	if err := networkLoader.Start(); err != nil {
+		log.Printf("⚠️ Failed to start network config loader: %v (using env config as fallback)", err)
+	} else {
+		activeNet := networkLoader.GetActiveNetwork()
+		if activeNet != nil {
+			log.Printf("🌐 Loaded active network: %s (%s) - Algorithm: %s", activeNet.DisplayName, activeNet.Symbol, activeNet.Algorithm)
+		}
+	}
+
 	s := &StratumServer{
 		config:          config,
 		db:              db,
@@ -521,6 +536,8 @@ func NewStratumServer(config *Config, db *ResilientDB, redisClient *redis.Client
 		hashrateWindows: make(map[string]*hashrate.Window),
 		hashrateCalc:    hashrate.NewCalculator(),
 		geoService:      geolocation.NewGeoIPService(db.db),
+		networkLoader:   networkLoader,
+		activeNetworkID: networkLoader.GetActiveNetworkID(),
 	}
 
 	log.Println("📍 IP geolocation service initialized for miner location tracking")
@@ -1444,8 +1461,8 @@ func (s *StratumServer) handleAuthorize(miner *Miner, req StratumRequest) error 
 			ipOnly = host
 		}
 		_, err = s.db.Exec(
-			"INSERT INTO miners (user_id, name, address, is_active) VALUES ($1, $2, $3, true)",
-			userID, actualUsername, ipOnly,
+			"INSERT INTO miners (user_id, name, address, is_active, network_id) VALUES ($1, $2, $3, true, $4)",
+			userID, actualUsername, ipOnly, s.activeNetworkID,
 		)
 		if err != nil {
 			log.Printf("Failed to create miner for user %d: %v", userID, err)
@@ -1457,8 +1474,8 @@ func (s *StratumServer) handleAuthorize(miner *Miner, req StratumRequest) error 
 			ipOnly = host
 		}
 		_, err = s.db.Exec(
-			"UPDATE miners SET address = $1, is_active = true, updated_at = NOW() WHERE id = $2",
-			ipOnly, existingMinerID,
+			"UPDATE miners SET address = $1, is_active = true, updated_at = NOW(), network_id = $3 WHERE id = $2",
+			ipOnly, existingMinerID, s.activeNetworkID,
 		)
 		if err != nil {
 			log.Printf("Failed to update miner %d: %v", existingMinerID, err)
@@ -1526,12 +1543,12 @@ func (s *StratumServer) handleSubmit(miner *Miner, req StratumRequest) error {
 	).Scan(&minerDBID)
 
 	if err == sql.ErrNoRows {
-		// Create miner record if it doesn't exist
+		// Create miner record if it doesn't exist (with network_id)
 		err = s.db.QueryRow(`
-			INSERT INTO miners (user_id, name, address, is_active) 
-			VALUES ($1, $2, $3, true) 
+			INSERT INTO miners (user_id, name, address, is_active, network_id) 
+			VALUES ($1, $2, $3, true, $4) 
 			RETURNING id`,
-			miner.UserID, miner.Username, miner.Address,
+			miner.UserID, miner.Username, miner.Address, s.activeNetworkID,
 		).Scan(&minerDBID)
 		if err != nil {
 			log.Printf("Failed to create miner record for user %d: %v", miner.UserID, err)
@@ -1542,11 +1559,11 @@ func (s *StratumServer) handleSubmit(miner *Miner, req StratumRequest) error {
 		minerDBID = 1 // Fallback to prevent share loss
 	}
 
-	// Record share in database with correct user_id and miner_id
+	// Record share in database with correct user_id, miner_id, and network_id
 	_, err = s.db.Exec(`
-		INSERT INTO shares (miner_id, user_id, difficulty, is_valid, nonce, hash, timestamp) 
-		VALUES ($1, $2, $3, true, $4, $5, NOW())`,
-		minerDBID, miner.UserID, miner.Difficulty, "submitted", "hash",
+		INSERT INTO shares (miner_id, user_id, difficulty, is_valid, nonce, hash, timestamp, network_id) 
+		VALUES ($1, $2, $3, true, $4, $5, NOW(), $6)`,
+		minerDBID, miner.UserID, miner.Difficulty, "submitted", "hash", s.activeNetworkID,
 	)
 	if err != nil {
 		log.Printf("Failed to record share for user %d: %v", miner.UserID, err)
