@@ -277,10 +277,20 @@ Phase 7.1 → Phase 7.2 → Phase 7.3
 
 ## Current Progress
 
-- [x] Phase 1: Database Schema Extension - NOT STARTED
-- [ ] Phase 2: Stratum Dynamic Network Loading
-- [ ] Phase 3: Share Processing with Network Context
-- [ ] Phase 4: API Stats Network Awareness
-- [ ] Phase 5: Frontend Multi-Coin Dashboard
+- [x] Phase 1: Database Schema Extension - COMPLETE (migration 017)
+- [x] Phase 2: Stratum Dynamic Network Loading - COMPLETE (NetworkConfigLoader)
+- [x] Phase 3: Share Processing with Network Context - COMPLETE (network_id in Go models)
+- [~] Phase 4: API Stats Network Awareness - IN PROGRESS
+- [~] Phase 5: Frontend Multi-Coin Dashboard - PARTIAL (multi-network instructions done)
 - [ ] Phase 6: Payout System Network Awareness
 - [ ] Phase 7: Integration Testing
+
+### Completed Items (Dec 30, 2025):
+- Migration 017: Added network_id to shares, blocks, payouts, miners tables
+- Go models updated with NetworkID fields
+- NetworkConfigLoader service created for dynamic network loading
+- Stratum server integrated with network loader
+- Share/miner DB operations include network_id
+- Multi-network mining instructions component
+- Time range selector for Grafana charts
+- Active miners query fixed (last 5 min window)
