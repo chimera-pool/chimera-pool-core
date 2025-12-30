@@ -269,11 +269,19 @@ const styles: { [key: string]: React.CSSProperties } = {
 
 export interface MiningInstructionsMultiNetworkProps {
   className?: string;
+  userEmail?: string;
   onCopySuccess?: (text: string) => void;
 }
 
+// Helper to replace placeholder email with actual user email
+const replaceEmail = (text: string, userEmail?: string): string => {
+  const email = userEmail || 'your@email.com';
+  return text.replace(/your@email\.com/g, email);
+};
+
 export const MiningInstructionsMultiNetwork: React.FC<MiningInstructionsMultiNetworkProps> = ({
   className = '',
+  userEmail,
   onCopySuccess
 }) => {
   const [selectedNetwork, setSelectedNetwork] = useState<string>('litecoin');
@@ -387,42 +395,122 @@ export const MiningInstructionsMultiNetwork: React.FC<MiningInstructionsMultiNet
               </div>
             </div>
 
+            {/* Step-by-Step Guide */}
+            <div style={styles.section} data-testid="step-by-step-guide">
+              <h3 style={styles.sectionTitle}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#7B5EA7' }} />
+                Step-by-Step Setup Guide
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A0F1E', fontWeight: 700, flexShrink: 0 }}>1</div>
+                  <div>
+                    <h4 style={{ color: '#F0EDF4', margin: '0 0 4px 0', fontSize: '0.95rem' }}>Create an Account</h4>
+                    <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.85rem' }}>Register on Chimera Pool using your email address. This email will be your miner username.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A0F1E', fontWeight: 700, flexShrink: 0 }}>2</div>
+                  <div>
+                    <h4 style={{ color: '#F0EDF4', margin: '0 0 4px 0', fontSize: '0.95rem' }}>Add Your {network.symbol} Wallet Address</h4>
+                    <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.85rem' }}>Go to your Profile and add your {network.symbol} wallet address (starts with <code style={{ color: '#D4A84B' }}>{network.walletPrefix}</code>). This is where your mining rewards will be sent.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A0F1E', fontWeight: 700, flexShrink: 0 }}>3</div>
+                  <div>
+                    <h4 style={{ color: '#F0EDF4', margin: '0 0 4px 0', fontSize: '0.95rem' }}>Download Mining Software</h4>
+                    <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.85rem' }}>Download one of the supported mining programs below ({network.minerConfigs.map(m => m.name).join(', ')}). Extract the files to a folder on your computer.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A0F1E', fontWeight: 700, flexShrink: 0 }}>4</div>
+                  <div>
+                    <h4 style={{ color: '#F0EDF4', margin: '0 0 4px 0', fontSize: '0.95rem' }}>Configure Your Miner</h4>
+                    <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.85rem' }}>Copy the command from the "Mining Software Commands" section below. Replace <code style={{ color: '#D4A84B' }}>yourpassword</code> with any password you choose (or just use "x").</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A0F1E', fontWeight: 700, flexShrink: 0 }}>5</div>
+                  <div>
+                    <h4 style={{ color: '#F0EDF4', margin: '0 0 4px 0', fontSize: '0.95rem' }}>Start Mining!</h4>
+                    <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.85rem' }}>Run the command in your terminal or create a batch file (.bat). Your miner should connect and you'll see your hashrate appear on the dashboard within a few minutes.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Miner Configurations */}
             <div style={styles.section} data-testid="miner-configs-section">
               <h3 style={styles.sectionTitle}>
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#D4A84B' }} />
-                Supported Mining Software
+                Mining Software Commands
               </h3>
-              {network.minerConfigs.map((miner, idx) => (
-                <div key={idx} style={styles.minerCard} data-testid={`miner-card-${miner.name.toLowerCase()}`}>
-                  <div 
-                    style={{ ...styles.minerName, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    onClick={() => toggleMiner(miner.name)}
-                    role="button"
-                    aria-expanded={expandedMiners.has(miner.name)}
-                    tabIndex={0}
-                    onKeyPress={(e) => e.key === 'Enter' && toggleMiner(miner.name)}
-                  >
-                    <span>{miner.name}</span>
-                    <span style={{ color: '#9A95A8', fontSize: '0.9rem' }}>
-                      {expandedMiners.has(miner.name) ? '▼' : '▶'}
-                    </span>
-                  </div>
-                  {expandedMiners.has(miner.name) && (
-                    <div style={styles.codeBlock}>
-                      <code style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{miner.example}</code>
-                      <button 
-                        style={styles.copyBtn}
-                        onClick={() => copyToClipboard(miner.example)}
-                        aria-label={`Copy ${miner.name} command`}
-                        data-testid={`copy-${miner.name.toLowerCase()}-btn`}
-                      >
-                        {copied === miner.example ? '✓ Copied' : 'Copy'}
-                      </button>
+              <p style={{ color: '#9A95A8', fontSize: '0.85rem', marginBottom: '16px' }}>
+                {userEmail 
+                  ? <>Your email (<code style={{ color: '#D4A84B' }}>{userEmail}</code>) is automatically filled in below. Just copy and run!</>
+                  : <>Replace <code style={{ color: '#D4A84B' }}>your@email.com</code> with your registered email address.</>
+                }
+              </p>
+              {network.minerConfigs.map((miner, idx) => {
+                const minerCommand = replaceEmail(miner.example, userEmail);
+                return (
+                  <div key={idx} style={styles.minerCard} data-testid={`miner-card-${miner.name.toLowerCase()}`}>
+                    <div 
+                      style={{ ...styles.minerName, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onClick={() => toggleMiner(miner.name)}
+                      role="button"
+                      aria-expanded={expandedMiners.has(miner.name)}
+                      tabIndex={0}
+                      onKeyPress={(e) => e.key === 'Enter' && toggleMiner(miner.name)}
+                    >
+                      <span>{miner.name}</span>
+                      <span style={{ color: '#9A95A8', fontSize: '0.9rem' }}>
+                        {expandedMiners.has(miner.name) ? '▼' : '▶'}
+                      </span>
                     </div>
-                  )}
+                    {expandedMiners.has(miner.name) && (
+                      <div style={styles.codeBlock}>
+                        <code style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{minerCommand}</code>
+                        <button 
+                          style={styles.copyBtn}
+                          onClick={() => copyToClipboard(minerCommand)}
+                          aria-label={`Copy ${miner.name} command`}
+                          data-testid={`copy-${miner.name.toLowerCase()}-btn`}
+                        >
+                          {copied === minerCommand ? '✓ Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Troubleshooting */}
+            <div style={styles.section} data-testid="troubleshooting-section">
+              <h3 style={styles.sectionTitle}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FF6B6B' }} />
+                Troubleshooting Tips
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                <div style={{ background: 'rgba(255, 107, 107, 0.1)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255, 107, 107, 0.2)' }}>
+                  <h4 style={{ color: '#FF6B6B', margin: '0 0 4px 0', fontSize: '0.9rem' }}>Connection Refused</h4>
+                  <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.8rem' }}>Verify the pool address and port. Check your firewall isn't blocking port {network.stratumPort}.</p>
                 </div>
-              ))}
+                <div style={{ background: 'rgba(255, 107, 107, 0.1)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255, 107, 107, 0.2)' }}>
+                  <h4 style={{ color: '#FF6B6B', margin: '0 0 4px 0', fontSize: '0.9rem' }}>Authentication Failed</h4>
+                  <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.8rem' }}>Make sure you're using your registered email as the username. Password can be anything.</p>
+                </div>
+                <div style={{ background: 'rgba(212, 168, 75, 0.1)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(212, 168, 75, 0.2)' }}>
+                  <h4 style={{ color: '#D4A84B', margin: '0 0 4px 0', fontSize: '0.9rem' }}>Shares Rejected</h4>
+                  <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.8rem' }}>Ensure you're using the correct algorithm ({network.algorithm.toUpperCase()}) for {network.name}.</p>
+                </div>
+                <div style={{ background: 'rgba(212, 168, 75, 0.1)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(212, 168, 75, 0.2)' }}>
+                  <h4 style={{ color: '#D4A84B', margin: '0 0 4px 0', fontSize: '0.9rem' }}>Low Hashrate</h4>
+                  <p style={{ color: '#9A95A8', margin: 0, fontSize: '0.8rem' }}>Check your miner settings and ensure proper cooling. GPU/ASIC may need driver updates.</p>
+                </div>
+              </div>
             </div>
 
             {/* Wallet Reminder */}

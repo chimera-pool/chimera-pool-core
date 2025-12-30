@@ -282,7 +282,7 @@ function DashboardView({ loading, stats, token, user, equipmentStatus, showMessa
 
       {/* Mining Instructions */}
       <section style={styles.section} className="section">
-        <MiningInstructionsMultiNetwork className="mining-instructions-section" onCopySuccess={() => showMessage('success', 'Copied to clipboard')} />
+        <MiningInstructionsMultiNetwork className="mining-instructions-section" userEmail={user?.email} onCopySuccess={() => showMessage('success', 'Copied to clipboard')} />
       </section>
 
       {/* Pool Information */}

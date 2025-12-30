@@ -168,7 +168,7 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
     backgroundColor: 'rgba(31, 20, 40, 0.8)',
     border: '1px solid #4A2C5A',
     borderRadius: '6px',
-    color: '#7A7490',
+    color: '#B8B4C8',
     cursor: 'pointer',
     fontSize: '0.75rem',
     fontWeight: 500,
@@ -176,11 +176,17 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   };
 
   const timeRangeBtnActiveStyle: React.CSSProperties = {
-    ...timeRangeBtnStyle,
+    padding: '6px 10px',
+    backgroundColor: '#D4A84B',
     background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+    border: '1px solid #D4A84B',
+    borderRadius: '6px',
     color: '#1A0F1E',
-    borderColor: '#D4A84B',
-    boxShadow: '0 0 12px rgba(212, 168, 75, 0.3)',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    boxShadow: '0 0 12px rgba(212, 168, 75, 0.4)',
+    transition: 'all 0.15s ease',
   };
 
   return (
