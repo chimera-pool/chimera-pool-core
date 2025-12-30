@@ -1,8 +1,16 @@
 //! Chimera Pool Algorithm Engine
 //! 
 //! Hot-swappable mining algorithm engine for universal cryptocurrency support.
+//! 
+//! Supported algorithms:
+//! - Blake2S (BlockDAG)
+//! - Scrypt (Litecoin, Dogecoin)
+//! - SHA256d (Bitcoin, Bitcoin Cash)
 
 pub mod hot_swap;
+pub mod algorithms;
+
+pub use algorithms::{ScryptAlgorithm, Sha256dAlgorithm, AlgorithmRegistry};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

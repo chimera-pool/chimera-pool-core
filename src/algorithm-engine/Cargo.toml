@@ -12,6 +12,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 blake2 = { workspace = true }
 sha2 = { workspace = true }
+scrypt = { workspace = true }
 proptest = { workspace = true, optional = true }
 
 [dev-dependencies]

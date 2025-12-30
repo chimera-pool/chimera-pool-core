@@ -105,6 +105,10 @@ func main() {
 		apiGroup.GET("/payout-modes", handleGetPayoutModes())
 		apiGroup.GET("/pool/fees", handleGetPoolFees())
 
+		// Multi-coin public routes
+		apiGroup.GET("/networks", handleGetSupportedNetworks(db))
+		apiGroup.GET("/networks/stats", handleGetAllNetworkPoolStats(db))
+
 		// Protected routes
 		protected := apiGroup.Group("/")
 		protected.Use(authMiddleware(config.JWTSecret))
@@ -127,6 +131,10 @@ func main() {
 			protected.GET("/user/stats/hashrate", handleUserHashrateHistory(db))
 			protected.GET("/user/stats/shares", handleUserSharesHistory(db))
 			protected.GET("/user/stats/earnings", handleUserEarningsHistory(db))
+
+			// Multi-coin user stats
+			protected.GET("/user/networks/stats", handleGetUserNetworkStats(db))
+			protected.GET("/user/networks/aggregated", handleGetUserAggregatedStats(db))
 
 			// Payout settings routes
 			protected.GET("/user/payout-settings", handleGetPayoutSettings(db))
@@ -7496,4 +7504,243 @@ func getPoolFeeForMode(mode string) float64 {
 		return fee
 	}
 	return 1.0
+}
+
+// ============================================================================
+// MULTI-COIN HANDLERS
+// ============================================================================
+
+// handleGetSupportedNetworks returns list of all configured networks (public)
+func handleGetSupportedNetworks(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT id, name, symbol, display_name, is_active, is_default, 
+				   algorithm, stratum_port, COALESCE(explorer_url, ''),
+				   COALESCE(logo_url, ''), min_payout_threshold, pool_fee_percent
+			FROM network_configs
+			ORDER BY is_active DESC, is_default DESC, display_name
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch networks"})
+			return
+		}
+		defer rows.Close()
+
+		var networks []gin.H
+		for rows.Next() {
+			var id, name, symbol, displayName, algorithm, explorerURL, logoURL string
+			var isActive, isDefault bool
+			var stratumPort int
+			var minPayout, poolFee float64
+
+			if err := rows.Scan(&id, &name, &symbol, &displayName, &isActive, &isDefault,
+				&algorithm, &stratumPort, &explorerURL, &logoURL, &minPayout, &poolFee); err != nil {
+				continue
+			}
+
+			networks = append(networks, gin.H{
+				"id":                   id,
+				"name":                 name,
+				"symbol":               symbol,
+				"display_name":         displayName,
+				"is_active":            isActive,
+				"is_default":           isDefault,
+				"algorithm":            algorithm,
+				"stratum_port":         stratumPort,
+				"explorer_url":         explorerURL,
+				"logo_url":             logoURL,
+				"min_payout_threshold": minPayout,
+				"pool_fee_percent":     poolFee,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":  true,
+			"networks": networks,
+			"count":    len(networks),
+		})
+	}
+}
+
+// handleGetAllNetworkPoolStats returns pool stats for all networks (public)
+func handleGetAllNetworkPoolStats(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT 
+				nc.id, nc.name, nc.symbol, nc.display_name, nc.is_active,
+				COALESCE(nps.total_hashrate, 0),
+				COALESCE(nps.active_miners, 0),
+				COALESCE(nps.active_workers, 0),
+				COALESCE(nps.blocks_found_total, 0),
+				COALESCE(nps.network_difficulty, 0),
+				COALESCE(nps.rpc_connected, false)
+			FROM network_configs nc
+			LEFT JOIN network_pool_stats nps ON nc.id = nps.network_id
+			ORDER BY nc.is_active DESC, nc.is_default DESC
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch network stats"})
+			return
+		}
+		defer rows.Close()
+
+		var stats []gin.H
+		for rows.Next() {
+			var id, name, symbol, displayName string
+			var isActive, rpcConnected bool
+			var totalHashrate float64
+			var activeMiners, activeWorkers, blocksFound int
+			var networkDifficulty float64
+
+			if err := rows.Scan(&id, &name, &symbol, &displayName, &isActive,
+				&totalHashrate, &activeMiners, &activeWorkers, &blocksFound,
+				&networkDifficulty, &rpcConnected); err != nil {
+				continue
+			}
+
+			stats = append(stats, gin.H{
+				"network_id":         id,
+				"network_name":       name,
+				"network_symbol":     symbol,
+				"display_name":       displayName,
+				"is_active":          isActive,
+				"total_hashrate":     totalHashrate,
+				"active_miners":      activeMiners,
+				"active_workers":     activeWorkers,
+				"blocks_found":       blocksFound,
+				"network_difficulty": networkDifficulty,
+				"rpc_connected":      rpcConnected,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"stats":   stats,
+		})
+	}
+}
+
+// handleGetUserNetworkStats returns per-network stats for the authenticated user
+func handleGetUserNetworkStats(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		rows, err := db.Query(`
+			SELECT 
+				nc.id, nc.name, nc.symbol, nc.display_name, nc.is_active,
+				COALESCE(uns.total_hashrate, 0),
+				COALESCE(uns.total_shares, 0),
+				COALESCE(uns.valid_shares, 0),
+				COALESCE(uns.blocks_found, 0),
+				COALESCE(uns.total_earned, 0),
+				COALESCE(uns.pending_balance, 0),
+				COALESCE(uns.active_workers, 0),
+				uns.last_active_at,
+				uns.first_connected_at
+			FROM network_configs nc
+			LEFT JOIN user_network_stats uns ON nc.id = uns.network_id AND uns.user_id = $1
+			ORDER BY nc.is_active DESC, uns.last_active_at DESC NULLS LAST
+		`, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch network stats"})
+			return
+		}
+		defer rows.Close()
+
+		var stats []gin.H
+		for rows.Next() {
+			var id, name, symbol, displayName string
+			var isActive bool
+			var totalHashrate float64
+			var totalShares, validShares int64
+			var blocksFound, activeWorkers int
+			var totalEarned, pendingBalance float64
+			var lastActive, firstConnected sql.NullTime
+
+			if err := rows.Scan(&id, &name, &symbol, &displayName, &isActive,
+				&totalHashrate, &totalShares, &validShares, &blocksFound,
+				&totalEarned, &pendingBalance, &activeWorkers,
+				&lastActive, &firstConnected); err != nil {
+				continue
+			}
+
+			stat := gin.H{
+				"network_id":      id,
+				"network_name":    name,
+				"network_symbol":  symbol,
+				"display_name":    displayName,
+				"is_active":       isActive,
+				"total_hashrate":  totalHashrate,
+				"total_shares":    totalShares,
+				"valid_shares":    validShares,
+				"blocks_found":    blocksFound,
+				"total_earned":    totalEarned,
+				"pending_balance": pendingBalance,
+				"active_workers":  activeWorkers,
+			}
+
+			if lastActive.Valid {
+				stat["last_active_at"] = lastActive.Time
+			}
+			if firstConnected.Valid {
+				stat["first_connected_at"] = firstConnected.Time
+			}
+
+			stats = append(stats, stat)
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"user_id": userID,
+			"stats":   stats,
+		})
+	}
+}
+
+// handleGetUserAggregatedStats returns combined stats across all networks for user
+func handleGetUserAggregatedStats(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		var totalNetworks, activeNetworks int
+		var combinedHashrate float64
+		var totalShares int64
+		var totalBlocks int
+		var totalEarned, totalPending float64
+		var totalWorkers int
+
+		err := db.QueryRow(`
+			SELECT 
+				COUNT(DISTINCT uns.network_id),
+				COUNT(DISTINCT CASE WHEN nc.is_active THEN uns.network_id END),
+				COALESCE(SUM(uns.total_hashrate), 0),
+				COALESCE(SUM(uns.total_shares), 0),
+				COALESCE(SUM(uns.blocks_found), 0),
+				COALESCE(SUM(uns.total_earned), 0),
+				COALESCE(SUM(uns.pending_balance), 0),
+				COALESCE(SUM(uns.active_workers), 0)
+			FROM user_network_stats uns
+			JOIN network_configs nc ON nc.id = uns.network_id
+			WHERE uns.user_id = $1
+		`, userID).Scan(&totalNetworks, &activeNetworks, &combinedHashrate,
+			&totalShares, &totalBlocks, &totalEarned, &totalPending, &totalWorkers)
+
+		if err != nil && err != sql.ErrNoRows {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch aggregated stats"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":              true,
+			"user_id":              userID,
+			"total_networks_mined": totalNetworks,
+			"active_networks":      activeNetworks,
+			"combined_hashrate":    combinedHashrate,
+			"total_shares_all":     totalShares,
+			"total_blocks_all":     totalBlocks,
+			"total_earned_all":     totalEarned,
+			"total_pending_all":    totalPending,
+			"total_workers_all":    totalWorkers,
+		})
+	}
 }
