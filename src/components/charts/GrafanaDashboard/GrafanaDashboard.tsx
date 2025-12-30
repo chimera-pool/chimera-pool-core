@@ -6,6 +6,21 @@ import { useGrafanaHealth } from '../hooks/useGrafanaHealth';
 import { useChartPreferences } from '../hooks/useChartPreferences';
 import { ChartCategory } from '../interfaces/IChartPanel';
 
+// Time range options for Grafana
+type GrafanaTimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
+
+const TIME_RANGE_OPTIONS: { value: GrafanaTimeRange; label: string; from: string }[] = [
+  { value: '1h', label: '1H', from: 'now-1h' },
+  { value: '6h', label: '6H', from: 'now-6h' },
+  { value: '24h', label: '24H', from: 'now-24h' },
+  { value: '7d', label: '7D', from: 'now-7d' },
+  { value: '30d', label: '30D', from: 'now-30d' },
+  { value: '3m', label: '3M', from: 'now-90d' },
+  { value: '6m', label: '6M', from: 'now-180d' },
+  { value: '1y', label: '1Y', from: 'now-1y' },
+  { value: 'all', label: 'All', from: 'now-5y' },
+];
+
 /**
  * Props for GrafanaDashboard
  */
@@ -36,6 +51,10 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
   // Default to Grafana charts - native charts are fallback only
   const [useFallback, setUseFallback] = useState(false);
   const { getSlotSelection } = useChartPreferences();
+  
+  // Time range state for Grafana panels
+  const [timeRange, setTimeRange] = useState<GrafanaTimeRange>('24h');
+  const currentTimeOption = TIME_RANGE_OPTIONS.find(t => t.value === timeRange) || TIME_RANGE_OPTIONS[2];
 
   // Get layout configuration for this dashboard
   const layout = DEFAULT_LAYOUTS[dashboardId];
@@ -144,11 +163,44 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
     );
   }
 
+  const timeRangeBtnStyle: React.CSSProperties = {
+    padding: '6px 10px',
+    backgroundColor: 'rgba(31, 20, 40, 0.8)',
+    border: '1px solid #4A2C5A',
+    borderRadius: '6px',
+    color: '#7A7490',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    transition: 'all 0.15s ease',
+  };
+
+  const timeRangeBtnActiveStyle: React.CSSProperties = {
+    ...timeRangeBtnStyle,
+    background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+    color: '#1A0F1E',
+    borderColor: '#D4A84B',
+    boxShadow: '0 0 12px rgba(212, 168, 75, 0.3)',
+  };
+
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>📊 Pool Mining Statistics</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Time Range Selector */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }} data-testid="grafana-time-selector">
+            {TIME_RANGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                style={timeRange === option.value ? timeRangeBtnActiveStyle : timeRangeBtnStyle}
+                onClick={() => setTimeRange(option.value)}
+                data-testid={`time-range-btn-${option.value}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <div style={statusStyle}>
             <span style={{ 
               width: '8px', 
@@ -171,7 +223,7 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
       <div className={gridClassName}>
         {layout?.slots.map((slot, index) => (
           <ChartSlot
-            key={slot.slotId}
+            key={`${slot.slotId}-${timeRange}`}
             slotId={slot.slotId}
             dashboardId={dashboardId}
             initialChartId={slotSelections[slot.slotId] || slot.selectedChartId}
@@ -182,6 +234,8 @@ export const GrafanaDashboard: React.FC<GrafanaDashboardProps> = ({
             showSelector={showSelectors}
             grafanaBaseUrl={GRAFANA_CONFIG.baseUrl}
             grafanaAvailable={grafanaHealth.available}
+            grafanaTimeFrom={currentTimeOption.from}
+            grafanaTimeTo="now"
             height={280}
           />
         ))}

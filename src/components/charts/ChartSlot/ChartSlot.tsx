@@ -22,6 +22,8 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   showSelector = true,
   grafanaBaseUrl,
   grafanaAvailable = true,
+  grafanaTimeFrom,
+  grafanaTimeTo,
   fallbackData,
   height = 280,
   className,
@@ -190,7 +192,11 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
         {isGrafanaAvailable && selectedChart.type === 'grafana' ? (
           <GrafanaEmbed
             baseUrl={grafanaBaseUrl}
-            panel={selectedChart as IGrafanaPanel}
+            panel={{
+              ...(selectedChart as IGrafanaPanel),
+              from: grafanaTimeFrom || (selectedChart as IGrafanaPanel).from,
+              to: grafanaTimeTo || (selectedChart as IGrafanaPanel).to,
+            }}
             style={{ height: '100%' }}
           />
         ) : nativeFallback ? (

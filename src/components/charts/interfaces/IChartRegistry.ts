@@ -113,6 +113,10 @@ export interface IChartSlotProps {
   grafanaBaseUrl: string;
   /** Grafana availability status (passed from parent to avoid multiple health checks) */
   grafanaAvailable?: boolean;
+  /** Grafana time range start (e.g., 'now-24h') */
+  grafanaTimeFrom?: string;
+  /** Grafana time range end (e.g., 'now') */
+  grafanaTimeTo?: string;
   /** Fallback data for native charts */
   fallbackData?: any[];
   /** Height override */
