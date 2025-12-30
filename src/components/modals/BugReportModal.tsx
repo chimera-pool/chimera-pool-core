@@ -223,8 +223,8 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+    <div style={styles.overlay} onClick={onClose} data-testid="bug-report-modal-overlay">
+      <div style={styles.modal} onClick={e => e.stopPropagation()} data-testid="bug-report-modal-container">
         <h2 style={styles.title}>🐛 Report a Bug</h2>
 
         <div style={styles.formGroup}>
@@ -234,6 +234,8 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
             placeholder="Brief description of the issue"
             value={form.title}
             onChange={e => setForm({ ...form, title: e.target.value })}
+            data-testid="bug-report-title-input"
+            aria-label="Bug title"
           />
         </div>
 
@@ -243,6 +245,8 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
             style={styles.select}
             value={form.category}
             onChange={e => setForm({ ...form, category: e.target.value })}
+            data-testid="bug-report-category-select"
+            aria-label="Bug category"
           >
             <option value="ui">🎨 UI/Visual Issue</option>
             <option value="performance">⚡ Performance</option>
@@ -260,6 +264,8 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
             placeholder="Describe the issue in detail..."
             value={form.description}
             onChange={e => setForm({ ...form, description: e.target.value })}
+            data-testid="bug-report-description-input"
+            aria-label="Bug description"
           />
         </div>
 
@@ -318,13 +324,14 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
         </div>
 
         <div style={styles.buttonRow}>
-          <button style={styles.cancelBtn} onClick={onClose}>
+          <button style={styles.cancelBtn} onClick={onClose} data-testid="bug-report-cancel-btn">
             Cancel
           </button>
           <button
             style={{ ...styles.submitBtn, opacity: loading ? 0.7 : 1 }}
             onClick={handleSubmit}
             disabled={loading}
+            data-testid="bug-report-submit-btn"
           >
             {loading ? 'Submitting...' : '🐛 Submit Report'}
           </button>

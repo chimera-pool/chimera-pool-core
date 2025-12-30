@@ -256,14 +256,14 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
 
 
   return (
-    <div style={styles.modalOverlay as React.CSSProperties} onClick={closeModal}>
-      <div style={styles.modal as React.CSSProperties} onClick={(e) => e.stopPropagation()}>
-        <button style={styles.closeBtn as React.CSSProperties} onClick={closeModal}>×</button>
+    <div style={styles.modalOverlay as React.CSSProperties} onClick={closeModal} data-testid="auth-modal-overlay">
+      <div style={styles.modal as React.CSSProperties} onClick={(e) => e.stopPropagation()} data-testid="auth-modal-container">
+        <button style={styles.closeBtn as React.CSSProperties} onClick={closeModal} data-testid="auth-modal-close-btn" aria-label="Close modal">×</button>
         
         {view === 'login' && (
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} data-testid="login-form">
             <h2 style={styles.modalTitle as React.CSSProperties}>Login</h2>
-            {error && <div style={styles.errorMsg as React.CSSProperties}>{error}</div>}
+            {error && <div style={styles.errorMsg as React.CSSProperties} data-testid="login-error-message">{error}</div>}
             <input
               style={styles.input}
               type="email"
@@ -272,6 +272,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('email')}
               required
               autoComplete="email"
+              data-testid="login-email-input"
+              aria-label="Email Address"
             />
             <input
               style={styles.input}
@@ -281,25 +283,27 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('password')}
               required
               autoComplete="current-password"
+              data-testid="login-password-input"
+              aria-label="Password"
             />
-            <button style={styles.submitBtn} type="submit" disabled={loading}>
+            <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="login-submit-btn">
               {loading ? 'Logging in...' : 'Login'}
             </button>
             <div style={styles.authLinks as React.CSSProperties}>
-              <span style={styles.authLink} onClick={() => setView('forgot-password')}>
+              <button type="button" style={{...styles.authLink, background: 'none', border: 'none', padding: 0}} onClick={() => setView('forgot-password')} data-testid="login-forgot-password-link">
                 Forgot Password?
-              </span>
-              <span style={styles.authLink} onClick={() => setView('register')}>
+              </button>
+              <button type="button" style={{...styles.authLink, background: 'none', border: 'none', padding: 0}} onClick={() => setView('register')} data-testid="login-create-account-link">
                 Create Account
-              </span>
+              </button>
             </div>
           </form>
         )}
 
         {view === 'register' && (
-          <form onSubmit={handleRegister}>
+          <form onSubmit={handleRegister} data-testid="register-form">
             <h2 style={styles.modalTitle as React.CSSProperties}>Create Account</h2>
-            {error && <div style={styles.errorMsg as React.CSSProperties}>{error}</div>}
+            {error && <div style={styles.errorMsg as React.CSSProperties} data-testid="register-error-message">{error}</div>}
             <input
               style={styles.input}
               type="text"
@@ -308,6 +312,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('username')}
               required
               autoComplete="username"
+              data-testid="register-username-input"
+              aria-label="Username"
             />
             <input
               style={styles.input}
@@ -317,6 +323,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('email')}
               required
               autoComplete="email"
+              data-testid="register-email-input"
+              aria-label="Email"
             />
             <input
               style={styles.input}
@@ -327,6 +335,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               minLength={8}
               required
               autoComplete="new-password"
+              data-testid="register-password-input"
+              aria-label="Password"
             />
             <input
               style={styles.input}
@@ -336,25 +346,27 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('confirmPassword')}
               required
               autoComplete="new-password"
+              data-testid="register-confirm-password-input"
+              aria-label="Confirm Password"
             />
-            <button style={styles.submitBtn} type="submit" disabled={loading}>
+            <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="register-submit-btn">
               {loading ? 'Creating...' : 'Create Account'}
             </button>
             <div style={styles.authLinks as React.CSSProperties}>
-              <span style={styles.authLink} onClick={() => setView('login')}>
+              <button type="button" style={{...styles.authLink, background: 'none', border: 'none', padding: 0}} onClick={() => setView('login')} data-testid="register-login-link">
                 Already have an account? Login
-              </span>
+              </button>
             </div>
           </form>
         )}
 
         {view === 'forgot-password' && (
-          <form onSubmit={handleForgotPassword}>
+          <form onSubmit={handleForgotPassword} data-testid="forgot-password-form">
             <h2 style={styles.modalTitle as React.CSSProperties}>Reset Password</h2>
             <p style={styles.modalDesc as React.CSSProperties}>
               Enter your email address and we'll send you a link to reset your password.
             </p>
-            {error && <div style={styles.errorMsg as React.CSSProperties}>{error}</div>}
+            {error && <div style={styles.errorMsg as React.CSSProperties} data-testid="forgot-password-error-message">{error}</div>}
             <input
               style={styles.input}
               type="email"
@@ -363,25 +375,27 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('email')}
               required
               autoComplete="email"
+              data-testid="forgot-password-email-input"
+              aria-label="Email Address"
             />
-            <button style={styles.submitBtn} type="submit" disabled={loading}>
+            <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="forgot-password-submit-btn">
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
             <div style={styles.authLinks as React.CSSProperties}>
-              <span style={styles.authLink} onClick={() => setView('login')}>
+              <button type="button" style={{...styles.authLink, background: 'none', border: 'none', padding: 0}} onClick={() => setView('login')} data-testid="forgot-password-back-link">
                 Back to Login
-              </span>
+              </button>
             </div>
           </form>
         )}
 
         {view === 'reset-password' && (
-          <form onSubmit={handleResetPassword}>
+          <form onSubmit={handleResetPassword} data-testid="reset-password-form">
             <h2 style={styles.modalTitle as React.CSSProperties}>Set New Password</h2>
             <p style={styles.modalDesc as React.CSSProperties}>
               Enter your new password below.
             </p>
-            {error && <div style={styles.errorMsg as React.CSSProperties}>{error}</div>}
+            {error && <div style={styles.errorMsg as React.CSSProperties} data-testid="reset-password-error-message">{error}</div>}
             <input
               style={styles.input}
               type="password"
@@ -391,6 +405,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               minLength={8}
               required
               autoComplete="new-password"
+              data-testid="reset-password-new-input"
+              aria-label="New Password"
             />
             <input
               style={styles.input}
@@ -400,8 +416,10 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               onChange={handleInputChange('confirmPassword')}
               required
               autoComplete="new-password"
+              data-testid="reset-password-confirm-input"
+              aria-label="Confirm New Password"
             />
-            <button style={styles.submitBtn} type="submit" disabled={loading}>
+            <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="reset-password-submit-btn">
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </form>

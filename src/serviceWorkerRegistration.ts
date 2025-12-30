@@ -3,6 +3,8 @@
 // PWA support with offline capabilities and caching strategies
 // ============================================================================
 
+import { logger } from './utils/logger';
+
 type Config = {
   onSuccess?: (registration: ServiceWorkerRegistration) => void;
   onUpdate?: (registration: ServiceWorkerRegistration) => void;
@@ -30,7 +32,7 @@ export function register(config?: Config): void {
       if (isLocalhost) {
         checkValidServiceWorker(swUrl, config);
         navigator.serviceWorker.ready.then(() => {
-          console.log('Chimera Pool is being served cache-first by a service worker.');
+          logger.info('Chimera Pool is being served cache-first by a service worker.');
         });
       } else {
         registerValidSW(swUrl, config);
@@ -59,12 +61,12 @@ function registerValidSW(swUrl: string, config?: Config): void {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              console.log('New content is available; please refresh.');
+              logger.info('New content is available; please refresh.');
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
             } else {
-              console.log('Content is cached for offline use.');
+              logger.info('Content is cached for offline use.');
               if (config && config.onSuccess) {
                 config.onSuccess(registration);
               }
@@ -74,7 +76,7 @@ function registerValidSW(swUrl: string, config?: Config): void {
       };
     })
     .catch((error) => {
-      console.error('Error during service worker registration:', error);
+      logger.error('Error during service worker registration', { error: error.message });
     });
 }
 
@@ -98,7 +100,7 @@ function checkValidServiceWorker(swUrl: string, config?: Config): void {
       }
     })
     .catch(() => {
-      console.log('No internet connection found. App is running in offline mode.');
+      logger.info('No internet connection found. App is running in offline mode.');
     });
 }
 
@@ -109,7 +111,7 @@ export function unregister(): void {
         registration.unregister();
       })
       .catch((error) => {
-        console.error(error.message);
+        logger.error('Service worker unregister failed', { error: error.message });
       });
   }
 }

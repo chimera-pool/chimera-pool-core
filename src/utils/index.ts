@@ -7,6 +7,9 @@
 // Formatters
 export * from './formatters';
 
+// Logger utility (use instead of console.log)
+export { logger, debug, info, warn, error } from './logger';
+
 // Accessibility utilities
 export {
   createFocusTrap,

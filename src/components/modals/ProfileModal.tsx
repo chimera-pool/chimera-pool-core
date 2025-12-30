@@ -238,23 +238,27 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+    <div style={styles.overlay} onClick={onClose} data-testid="profile-modal-overlay">
+      <div style={styles.modal} onClick={e => e.stopPropagation()} data-testid="profile-modal-container">
         <div style={styles.header}>
           <h2 style={styles.title}>⚙️ Account Settings</h2>
-          <button style={styles.closeBtn} onClick={onClose}>×</button>
+          <button style={styles.closeBtn} onClick={onClose} data-testid="profile-modal-close-btn" aria-label="Close modal">×</button>
         </div>
 
         <div style={styles.tabs}>
           <button
             style={{ ...styles.tab, ...(activeTab === 'profile' ? styles.tabActive : {}) }}
             onClick={() => setActiveTab('profile')}
+            data-testid="profile-tab-profile-btn"
+            aria-pressed={activeTab === 'profile'}
           >
             👤 Profile
           </button>
           <button
             style={{ ...styles.tab, ...(activeTab === 'security' ? styles.tabActive : {}) }}
             onClick={() => setActiveTab('security')}
+            data-testid="profile-tab-security-btn"
+            aria-pressed={activeTab === 'security'}
           >
             🔒 Security
           </button>
@@ -269,6 +273,8 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 value={profileForm.username}
                 onChange={e => setProfileForm({ ...profileForm, username: e.target.value })}
                 placeholder="Enter username"
+                data-testid="profile-username-input"
+                aria-label="Username"
               />
             </div>
 
@@ -279,10 +285,12 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 value={profileForm.payout_address}
                 onChange={e => setProfileForm({ ...profileForm, payout_address: e.target.value })}
                 placeholder="Your wallet address"
+                data-testid="profile-payout-address-input"
+                aria-label="Payout address"
               />
             </div>
 
-            <button style={styles.saveBtn} onClick={handleSaveProfile}>
+            <button style={styles.saveBtn} onClick={handleSaveProfile} data-testid="profile-save-btn">
               💾 Save Profile
             </button>
           </>
@@ -298,6 +306,8 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 value={passwordForm.current_password}
                 onChange={e => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
                 placeholder="Enter current password"
+                data-testid="security-current-password-input"
+                aria-label="Current password"
               />
             </div>
 
@@ -309,6 +319,8 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 value={passwordForm.new_password}
                 onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
                 placeholder="Enter new password (min 8 characters)"
+                data-testid="security-new-password-input"
+                aria-label="New password"
               />
             </div>
 
@@ -320,6 +332,8 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 value={passwordForm.confirm_password}
                 onChange={e => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
                 placeholder="Confirm new password"
+                data-testid="security-confirm-password-input"
+                aria-label="Confirm new password"
               />
             </div>
 
@@ -327,6 +341,7 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
               style={{ ...styles.saveBtn, opacity: passwordLoading ? 0.7 : 1 }}
               onClick={handleChangePassword}
               disabled={passwordLoading}
+              data-testid="security-change-password-btn"
             >
               {passwordLoading ? 'Changing...' : '🔐 Change Password'}
             </button>
@@ -338,7 +353,7 @@ export function ProfileModal({ isOpen, onClose, token, user, showMessage, onUser
                 ✅ Password reset email sent! Check your inbox.
               </div>
             ) : (
-              <button style={styles.forgotLink} onClick={handleForgotPassword}>
+              <button style={styles.forgotLink} onClick={handleForgotPassword} data-testid="security-forgot-password-link">
                 Forgot your password? Click here to reset via email
               </button>
             )}

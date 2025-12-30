@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { colors } from '../../styles/shared';
+import { logger } from '../../utils/logger';
 
 // ============================================================================
 // ERROR BOUNDARY COMPONENT
@@ -106,8 +107,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       this.props.onError(error, errorInfo);
     }
 
-    // Log to console in development
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error using structured logger
+    logger.logError(error, { component: 'ErrorBoundary', componentStack: errorInfo.componentStack });
   }
 
   handleRetry = (): void => {
@@ -126,7 +127,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       userAgent: navigator.userAgent,
     };
     
-    console.log('Error Report:', errorReport);
+    logger.error('Error Report Generated', errorReport as Record<string, unknown>);
     alert('Error report generated. Check console for details.');
   };
 
@@ -139,9 +140,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // Default fallback UI
       return (
-        <div style={styles.container}>
+        <div style={styles.container} data-testid="error-boundary-container">
           <div style={styles.icon}>⚠️</div>
-          <h2 style={styles.title}>Something went wrong</h2>
+          <h2 style={styles.title} data-testid="error-boundary-title">Something went wrong</h2>
           <p style={styles.message}>
             {this.props.componentName 
               ? `The ${this.props.componentName} component encountered an error.`
@@ -157,10 +158,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           )}
           
           <div style={styles.actions}>
-            <button style={styles.retryBtn} onClick={this.handleRetry}>
+            <button style={styles.retryBtn} onClick={this.handleRetry} data-testid="error-boundary-retry-btn">
               🔄 Try Again
             </button>
-            <button style={styles.reportBtn} onClick={this.handleReport}>
+            <button style={styles.reportBtn} onClick={this.handleReport} data-testid="error-boundary-report-btn">
               🐛 Report Issue
             </button>
           </div>

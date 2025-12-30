@@ -47,6 +47,7 @@ export function ThemeToggle({
             onClick={() => setMode(m)}
             aria-pressed={mode === m}
             aria-label={`Switch to ${m} mode`}
+            data-testid={`theme-mode-${m}-btn`}
             style={{
               padding: styles.padding,
               fontSize: styles.fontSize,
@@ -77,6 +78,7 @@ export function ThemeToggle({
       className={className}
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       aria-pressed={isDark}
+      data-testid="theme-toggle-btn"
       style={{
         padding: styles.padding,
         fontSize: styles.iconSize,
