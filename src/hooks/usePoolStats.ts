@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 export interface PoolStats {
   total_miners: number;
+  active_miners?: number;
   total_hashrate: number;
   blocks_found: number;
   pool_fee: number;

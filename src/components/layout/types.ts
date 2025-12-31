@@ -9,6 +9,7 @@ export type AuthView = 'login' | 'register' | 'forgot-password' | 'reset-passwor
 
 export interface PoolStats {
   total_miners: number;
+  active_miners?: number;
   total_hashrate: number;
   blocks_found: number;
   pool_fee: number;
