@@ -503,14 +503,16 @@ func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.Handler
 		}
 
 		// Cache miss - query database
-		var totalMiners, totalBlocks int64
+		var activeMiners, totalMiners, totalBlocks int64
 		var totalHashrate float64
 
+		// Use time-based check for truly active miners (seen in last 5 minutes)
+		db.QueryRow("SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&activeMiners)
 		db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
 		db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
 
-		// Try to get hashrate from miners table first
-		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE is_active = true").Scan(&totalHashrate)
+		// Get hashrate from recently active miners
+		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
 
 		// If no hashrate from miners table, calculate from recent shares
 		if totalHashrate == 0 {
@@ -531,6 +533,7 @@ func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.Handler
 		}
 
 		response := gin.H{
+			"active_miners":    activeMiners,
 			"total_miners":     totalMiners,
 			"total_hashrate":   totalHashrate,
 			"blocks_found":     totalBlocks,
