@@ -481,6 +481,8 @@ type Miner struct {
 	SharesValid   int64
 	SharesInvalid int64
 	LastShare     time.Time
+	UserAgent     string // Miner software identifier (e.g., "cpuminer/2.5.1")
+	MinerType     string // Detected type: "cpu", "gpu", "asic", "unknown"
 }
 
 // StratumRequest represents an incoming stratum request
@@ -1344,6 +1346,8 @@ func (s *StratumServer) handleMessage(miner *Miner, message string) error {
 	case "mining.configure":
 		// Return empty config - some miners request this
 		return s.sendResponse(miner, req.ID, map[string]interface{}{}, nil)
+	case "mining.suggest_difficulty":
+		return s.handleSuggestDifficulty(miner, req)
 	default:
 		log.Printf("Unknown method from %s: %s", miner.ID, req.Method)
 		return s.sendResponse(miner, req.ID, nil, "Unknown method")
@@ -1352,6 +1356,22 @@ func (s *StratumServer) handleMessage(miner *Miner, message string) error {
 
 // handleSubscribe handles mining.subscribe
 func (s *StratumServer) handleSubscribe(miner *Miner, req StratumRequest) error {
+	// Extract user agent from params if provided (e.g., ["cpuminer/2.5.1", "session_id"])
+	if len(req.Params) > 0 {
+		if ua, ok := req.Params[0].(string); ok {
+			miner.UserAgent = ua
+			miner.MinerType = detectMinerType(ua)
+
+			// Set appropriate initial difficulty based on miner type
+			initialDiff := getInitialDifficultyForMinerType(miner.MinerType)
+			miner.Difficulty = initialDiff
+			s.vardiffManager.SetDifficulty(miner.ID, initialDiff)
+
+			log.Printf("Detected miner type '%s' from user agent '%s', setting initial difficulty to %.6f",
+				miner.MinerType, ua, initialDiff)
+		}
+	}
+
 	// Generate subscription details
 	subscriptionID := fmt.Sprintf("%x", time.Now().UnixNano())
 	extranonce1 := s.getNextExtranonce1()
@@ -1370,7 +1390,7 @@ func (s *StratumServer) handleSubscribe(miner *Miner, req StratumRequest) error 
 		return err
 	}
 
-	// Send initial difficulty
+	// Send initial difficulty (now based on miner type)
 	if err := s.sendNotification(miner, "mining.set_difficulty", []interface{}{miner.Difficulty}); err != nil {
 		return err
 	}
@@ -1642,6 +1662,95 @@ func (s *StratumServer) sendNotification(miner *Miner, method string, params []i
 	}
 	log.Printf("Sent %d bytes for %s to %s", n, method, miner.ID)
 	return nil
+}
+
+// handleSuggestDifficulty handles mining.suggest_difficulty from miners
+// This allows miners to request a specific difficulty (especially useful for CPU/GPU miners)
+func (s *StratumServer) handleSuggestDifficulty(miner *Miner, req StratumRequest) error {
+	if len(req.Params) < 1 {
+		return s.sendResponse(miner, req.ID, true, nil) // Accept but ignore
+	}
+
+	// Parse suggested difficulty
+	var suggestedDiff float64
+	switch v := req.Params[0].(type) {
+	case float64:
+		suggestedDiff = v
+	case int:
+		suggestedDiff = float64(v)
+	case int64:
+		suggestedDiff = float64(v)
+	default:
+		log.Printf("Invalid suggest_difficulty value from %s: %v", miner.ID, req.Params[0])
+		return s.sendResponse(miner, req.ID, true, nil)
+	}
+
+	// Clamp to reasonable bounds (0.001 to 1,000,000)
+	if suggestedDiff < 0.001 {
+		suggestedDiff = 0.001
+	}
+	if suggestedDiff > 1000000 {
+		suggestedDiff = 1000000
+	}
+
+	// Set the suggested difficulty
+	s.vardiffManager.SetDifficulty(miner.ID, suggestedDiff)
+	miner.Difficulty = suggestedDiff
+
+	log.Printf("Miner %s suggested difficulty %.6f, accepted", miner.ID, suggestedDiff)
+
+	// Send updated difficulty to miner
+	if err := s.sendNotification(miner, "mining.set_difficulty", []interface{}{suggestedDiff}); err != nil {
+		log.Printf("Failed to send suggested difficulty to %s: %v", miner.ID, err)
+	}
+
+	return s.sendResponse(miner, req.ID, true, nil)
+}
+
+// detectMinerType analyzes user agent string to detect miner hardware type
+// Returns "cpu", "gpu", "asic", or "unknown"
+func detectMinerType(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+
+	// CPU miners
+	cpuPatterns := []string{"cpuminer", "minerd", "xmrig", "cpu"}
+	for _, p := range cpuPatterns {
+		if strings.Contains(ua, p) {
+			return "cpu"
+		}
+	}
+
+	// GPU miners
+	gpuPatterns := []string{"cgminer", "bfgminer", "sgminer", "claymore", "ethminer", "phoenixminer", "t-rex", "gminer", "lolminer", "nbminer", "gpu"}
+	for _, p := range gpuPatterns {
+		if strings.Contains(ua, p) {
+			return "gpu"
+		}
+	}
+
+	// ASIC miners (including X100)
+	asicPatterns := []string{"antminer", "whatsminer", "avalon", "innosilicon", "goldshell", "bitmain", "x100", "x30", "blockdag", "asic", "luckyminer"}
+	for _, p := range asicPatterns {
+		if strings.Contains(ua, p) {
+			return "asic"
+		}
+	}
+
+	return "unknown"
+}
+
+// getInitialDifficultyForMinerType returns appropriate initial difficulty based on miner type
+func getInitialDifficultyForMinerType(minerType string) float64 {
+	switch minerType {
+	case "cpu":
+		return 0.01 // CPU: ~10 KH/s -> difficulty ~0.01 for 10s shares
+	case "gpu":
+		return 10 // GPU: ~10 MH/s -> difficulty ~10 for 10s shares
+	case "asic":
+		return 35000 // ASIC: ~15 TH/s -> difficulty ~35000 for 10s shares
+	default:
+		return 100 // Unknown: start moderate, vardiff will adjust
+	}
 }
 
 // Shutdown gracefully shuts down the stratum server

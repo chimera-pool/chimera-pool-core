@@ -30,14 +30,16 @@ func X100OptimizedConfig() Config {
 		// ±25% variance allowed - balanced between responsiveness and stability
 		VariancePercent: 25,
 
-		// Minimum difficulty - prevents excessive small shares
-		MinDifficulty: 1000,
+		// Minimum difficulty - lowered to support CPU miners (~10 KH/s)
+		// CPU at 10 KH/s needs difficulty ~0.002 for 10s shares
+		MinDifficulty: 0.001,
 
 		// Maximum difficulty - supports up to 500 TH/s ASICs
 		MaxDifficulty: 10000000,
 
 		// Starting difficulty optimized for X100 on Scrypt (~15 TH/s)
 		// D = 15e12 * 10 / 4.295e9 ≈ 35,000
+		// Note: handleSubscribe now overrides this based on detected miner type
 		InitialDifficulty: 35000,
 
 		// Consider last 30 shares for smoother averaging
