@@ -872,10 +872,7 @@ func (s *StratumServer) HandleConnection(conn net.Conn) {
 	// Reset deadline
 	conn.SetReadDeadline(time.Time{})
 
-	// Only log raw bytes for non-HTTP connections (reduce noise from metrics scrapers)
-	if string(peekBuf[:3]) != "GET" && string(peekBuf[:4]) != "POST" {
-		log.Printf("Raw bytes from %s: %v (ASCII: %q)", minerID, peekBuf[:n], string(peekBuf[:n]))
-	}
+	// Silently detect protocol - no need to log raw bytes
 
 	// Detect protocol based on first bytes
 	switch {
@@ -944,10 +941,10 @@ func (s *StratumServer) handleV1Connection(conn net.Conn, minerID string) {
 		s.minersMutex.Lock()
 		delete(s.miners, minerID)
 		s.minersMutex.Unlock()
-		log.Printf("V1 Miner disconnected: %s", minerID)
+		// Quietly cleanup on disconnect
 	}()
 
-	log.Printf("V1 miner connected: %s", minerID)
+	// Connection logged when miner subscribes/authorizes
 
 	// Configure scanner with larger buffer for high-throughput miners
 	scanner := bufio.NewScanner(conn)
@@ -1329,7 +1326,10 @@ func (s *StratumServer) handleMessage(miner *Miner, message string) error {
 		return fmt.Errorf("invalid JSON: %v", err)
 	}
 
-	log.Printf("Received from %s: %s - %v", miner.ID, req.Method, req.Params)
+	// Only log non-routine messages (skip submit which is very frequent)
+	if req.Method != "mining.submit" && req.Method != "mining.get_transactions" {
+		log.Printf("[%s] %s", miner.ID, req.Method)
+	}
 
 	switch req.Method {
 	case "mining.subscribe":
@@ -1367,8 +1367,8 @@ func (s *StratumServer) handleSubscribe(miner *Miner, req StratumRequest) error 
 			miner.Difficulty = initialDiff
 			s.vardiffManager.SetDifficulty(miner.ID, initialDiff)
 
-			log.Printf("Detected miner type '%s' from user agent '%s', setting initial difficulty to %.6f",
-				miner.MinerType, ua, initialDiff)
+			log.Printf("[%s] Subscribed: type=%s, diff=%.0f, agent=%s",
+				miner.ID, miner.MinerType, initialDiff, ua)
 		}
 	}
 
@@ -1416,7 +1416,7 @@ func (s *StratumServer) handleSubscribe(miner *Miner, req StratumRequest) error 
 		})
 	}
 
-	log.Printf("Sending real Litecoin work to %s: height=%d, bits=%s", miner.ID, job.Height, job.NBits)
+	// Quietly send work - new block logs are sufficient
 	return s.sendNotification(miner, "mining.notify", []interface{}{
 		job.JobID,
 		job.PrevHash,
@@ -1464,7 +1464,7 @@ func (s *StratumServer) handleAuthorize(miner *Miner, req StratumRequest) error 
 	miner.Authorized = true
 	miner.UserID = userID
 	miner.Username = actualUsername
-	log.Printf("Miner %s authorized as %s (user_id: %d, login: %s)", miner.ID, actualUsername, userID, username)
+	log.Printf("[%s] Authorized: %s (id:%d)", miner.ID, actualUsername, userID)
 
 	// Record or update miner in database with correct user_id
 	// First check if miner exists, then insert or update
@@ -1507,9 +1507,7 @@ func (s *StratumServer) handleAuthorize(miner *Miner, req StratumRequest) error 
 	// Geolocate miner IP in background (don't block authorization)
 	go func() {
 		if s.geoService != nil {
-			if err := s.geoService.UpdateMinerLocationByUserAndName(userID, actualUsername, miner.Address); err != nil {
-				log.Printf("⚠️ Failed to geolocate miner %s: %v", miner.ID, err)
-			}
+			s.geoService.UpdateMinerLocationByUserAndName(userID, actualUsername, miner.Address)
 		}
 	}()
 
@@ -1545,12 +1543,8 @@ func (s *StratumServer) handleSubmit(miner *Miner, req StratumRequest) error {
 	newDiff := s.vardiffManager.GetDifficulty(miner.ID)
 	if newDiff != miner.Difficulty {
 		miner.Difficulty = newDiff
-		// Send new difficulty to miner
-		if err := s.sendNotification(miner, "mining.set_difficulty", []interface{}{newDiff}); err != nil {
-			log.Printf("Failed to send difficulty update to %s: %v", miner.ID, err)
-		} else {
-			log.Printf("Adjusted difficulty for %s: %.6f (share time: %v)", miner.ID, newDiff, shareTime)
-		}
+		// Send new difficulty to miner (silently - logged in share summaries)
+		s.sendNotification(miner, "mining.set_difficulty", []interface{}{newDiff})
 	}
 
 	// Get or create miner record for this user
@@ -1617,8 +1611,11 @@ func (s *StratumServer) handleSubmit(miner *Miner, req StratumRequest) error {
 	s.redis.HIncrBy(ctx, fmt.Sprintf("user:%d:shares", miner.UserID), "valid", 1)
 	s.redis.HSet(ctx, fmt.Sprintf("miner:%s", miner.ID), "hashrate", currentHashrate)
 
-	log.Printf("Share accepted from %s (user: %s, user_id: %d, total: %d, hashrate: %s)",
-		miner.ID, miner.Username, miner.UserID, miner.SharesValid, s.hashrateCalc.Format(currentHashrate))
+	// Log share summary every 100 shares to reduce noise
+	if miner.SharesValid%100 == 0 {
+		log.Printf("[%s] %s: %d shares, %s",
+			miner.ID, miner.Username, miner.SharesValid, s.hashrateCalc.Format(currentHashrate))
+	}
 	return s.sendResponse(miner, req.ID, true, nil)
 }
 
@@ -1653,14 +1650,11 @@ func (s *StratumServer) sendNotification(miner *Miner, method string, params []i
 		return err
 	}
 
-	log.Printf("Sending %s to %s: %s", method, miner.ID, string(data))
-
-	n, err := miner.Conn.Write(append(data, '\n'))
+	_, err = miner.Conn.Write(append(data, '\n'))
 	if err != nil {
 		log.Printf("Error sending %s to %s: %v", method, miner.ID, err)
 		return err
 	}
-	log.Printf("Sent %d bytes for %s to %s", n, method, miner.ID)
 	return nil
 }
 
@@ -1697,12 +1691,10 @@ func (s *StratumServer) handleSuggestDifficulty(miner *Miner, req StratumRequest
 	s.vardiffManager.SetDifficulty(miner.ID, suggestedDiff)
 	miner.Difficulty = suggestedDiff
 
-	log.Printf("Miner %s suggested difficulty %.6f, accepted", miner.ID, suggestedDiff)
+	log.Printf("[%s] Suggested diff=%.0f, accepted", miner.ID, suggestedDiff)
 
 	// Send updated difficulty to miner
-	if err := s.sendNotification(miner, "mining.set_difficulty", []interface{}{suggestedDiff}); err != nil {
-		log.Printf("Failed to send suggested difficulty to %s: %v", miner.ID, err)
-	}
+	s.sendNotification(miner, "mining.set_difficulty", []interface{}{suggestedDiff})
 
 	return s.sendResponse(miner, req.ID, true, nil)
 }
