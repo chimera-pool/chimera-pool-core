@@ -32,6 +32,20 @@ interface RoleBadge {
   type: string;
 }
 
+interface MessageReaction {
+  emoji: string;
+  name: string;
+  count: number;
+  hasReacted: boolean;
+}
+
+interface ReactionType {
+  id: number;
+  emoji: string;
+  name: string;
+  category: string;
+}
+
 interface ChatMessage {
   id: number;
   content: string;
@@ -48,6 +62,7 @@ interface ChatMessage {
     badges?: Badge[];
   };
   replyToId?: number;
+  reactions?: MessageReaction[];
 }
 
 interface ForumCategory {
@@ -124,6 +139,10 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
   const [editContent, setEditContent] = useState('');
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [messageMenuOpen, setMessageMenuOpen] = useState<number | null>(null);
+  
+  // Reactions state
+  const [reactionTypes, setReactionTypes] = useState<ReactionType[]>([]);
+  const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
 
   const fetchChannels = async () => {
     try {
@@ -144,6 +163,7 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
   useEffect(() => {
     fetchChannels();
     fetchOnlineUsers();
+    fetchReactionTypes();
     const interval = setInterval(fetchOnlineUsers, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -175,6 +195,40 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
         setOnlineUsers(data.users || []);
       }
     } catch (e) { console.error(e); }
+  };
+
+  const fetchReactionTypes = async () => {
+    try {
+      const res = await fetch('/api/v1/community/reaction-types', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setReactionTypes(data.reactionTypes || []);
+      }
+    } catch (e) { console.error('fetchReactionTypes error:', e); }
+  };
+
+  const toggleReaction = async (messageId: number, emoji: string) => {
+    try {
+      const res = await fetch(`/api/v1/community/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ emoji })
+      });
+      if (res.ok) {
+        // Refresh messages to get updated reactions
+        fetchMessages();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to toggle reaction');
+      }
+    } catch (e) { 
+      console.error('toggleReaction error:', e);
+      showMessage('error', 'Failed to toggle reaction');
+    }
+    setShowReactionPicker(null);
   };
 
   const fetchLeaderboard = async (page = leaderboardPage, pageSize = leaderboardPageSize) => {
@@ -646,6 +700,56 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
                       ) : (
                         <div style={styles.messageContent}>{msg.content}</div>
                       )}
+                      
+                      {/* Reactions display and picker */}
+                      <div style={styles.reactionsContainer}>
+                        {/* Existing reactions */}
+                        {msg.reactions && msg.reactions.length > 0 && (
+                          <div style={styles.reactionsRow}>
+                            {msg.reactions.map((reaction, idx) => (
+                              <button
+                                key={idx}
+                                style={{
+                                  ...styles.reactionBadge,
+                                  ...(reaction.hasReacted ? styles.reactionBadgeActive : {})
+                                }}
+                                onClick={() => toggleReaction(msg.id, reaction.emoji)}
+                                title={reaction.name}
+                              >
+                                <span>{reaction.emoji}</span>
+                                <span style={styles.reactionCount}>{reaction.count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add reaction button */}
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            style={styles.addReactionBtn}
+                            onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
+                            title="Add reaction"
+                          >
+                            😀+
+                          </button>
+                          
+                          {/* Reaction picker dropdown */}
+                          {showReactionPicker === msg.id && (
+                            <div style={styles.reactionPicker}>
+                              {reactionTypes.map(rt => (
+                                <button
+                                  key={rt.id}
+                                  style={styles.reactionPickerItem}
+                                  onClick={() => toggleReaction(msg.id, rt.emoji)}
+                                  title={rt.name}
+                                >
+                                  {rt.emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })
@@ -1025,6 +1129,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   editInput: { flex: 1, padding: '10px 14px', backgroundColor: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(212, 168, 75, 0.4)', borderRadius: '8px', color: '#F0EDF4', fontSize: '0.95rem' },
   editSaveBtn: { padding: '10px 18px', background: 'linear-gradient(135deg, #4ADE80 0%, #22C55E 100%)', border: 'none', borderRadius: '8px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' },
   editCancelBtn: { padding: '10px 18px', backgroundColor: 'transparent', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '8px', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.85rem' },
+  
+  // Reactions styles
+  reactionsContainer: { display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '28px', marginTop: '6px', flexWrap: 'wrap' as const },
+  reactionsRow: { display: 'flex', gap: '4px', flexWrap: 'wrap' as const },
+  reactionBadge: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', background: 'rgba(74, 44, 90, 0.3)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s', color: '#F0EDF4' },
+  reactionBadgeActive: { background: 'rgba(212, 168, 75, 0.2)', borderColor: 'rgba(212, 168, 75, 0.5)' },
+  reactionCount: { fontSize: '0.75rem', color: '#B8B4C8' },
+  addReactionBtn: { background: 'rgba(74, 44, 90, 0.2)', border: '1px solid rgba(74, 44, 90, 0.4)', borderRadius: '12px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem', color: '#B8B4C8', transition: 'all 0.2s' },
+  reactionPicker: { position: 'absolute' as const, bottom: '100%', left: 0, marginBottom: '8px', display: 'flex', flexWrap: 'wrap' as const, gap: '4px', padding: '10px', background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)', maxWidth: '200px', zIndex: 100 },
+  reactionPickerItem: { background: 'none', border: 'none', padding: '6px', cursor: 'pointer', fontSize: '1.2rem', borderRadius: '6px', transition: 'all 0.2s' },
+  
   paginationContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'rgba(45, 31, 61, 0.3)', borderTop: '1px solid rgba(74, 44, 90, 0.4)', marginTop: '10px', borderRadius: '0 0 14px 14px', flexWrap: 'wrap' as const, gap: '10px' },
   paginationInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
   paginationText: { color: '#B8B4C8', fontSize: '0.9rem' },
