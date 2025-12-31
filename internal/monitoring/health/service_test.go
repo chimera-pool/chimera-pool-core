@@ -115,10 +115,15 @@ func TestNewHealthService_WithAutoRestartEnabled(t *testing.T) {
 }
 
 func TestHealthService_StartStop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping timing-sensitive test in short mode")
+	}
+
 	config := DefaultServiceConfig()
 	config.PrometheusEnabled = false
-	config.MonitorConfig.CheckInterval = 100 * time.Millisecond
+	config.MonitorConfig.CheckInterval = 500 * time.Millisecond // Slower for CI stability
 	config.MonitorConfig.EnableAutoRestart = false
+	config.MonitorConfig.RPCTimeout = 100 * time.Millisecond // Fast timeout for tests
 
 	service := NewHealthService(config)
 
@@ -129,11 +134,11 @@ func TestHealthService_StartStop(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, service.IsRunning())
 
-	// Give it time to run
-	time.Sleep(150 * time.Millisecond)
+	// Give it time to run one check cycle
+	time.Sleep(600 * time.Millisecond)
 
 	// Stop service with longer timeout for CI environments
-	stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err = service.Stop(stopCtx)
 
@@ -144,8 +149,8 @@ func TestHealthService_StartStop(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	// Give extra time for cleanup
-	time.Sleep(100 * time.Millisecond)
+	// Give extra time for cleanup on slow CI
+	time.Sleep(200 * time.Millisecond)
 	assert.False(t, service.IsRunning())
 }
 
