@@ -221,6 +221,9 @@ func (s *HealthService) Stop(ctx context.Context) error {
 
 	s.logger.Println("Stopping health monitoring service...")
 
+	// Mark as not running immediately to prevent new operations
+	s.running = false
+
 	// Stop Prometheus exporter
 	if s.exporter != nil {
 		s.exporter.Stop()
@@ -228,10 +231,10 @@ func (s *HealthService) Stop(ctx context.Context) error {
 
 	// Stop health monitor
 	if err := s.monitor.Stop(ctx); err != nil {
+		s.logger.Printf("Warning: Monitor stop returned error: %v", err)
 		return err
 	}
 
-	s.running = false
 	s.logger.Println("Health monitoring service stopped")
 
 	return nil
