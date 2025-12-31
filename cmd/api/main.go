@@ -283,12 +283,20 @@ func main() {
 		}
 	}()
 
+	// Start database maintenance scheduler
+	maintenanceStop := make(chan struct{})
+	go startDatabaseMaintenanceScheduler(db, maintenanceStop)
+
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("🛑 Shutting down server...")
+
+	// Stop maintenance scheduler
+	close(maintenanceStop)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -297,6 +305,60 @@ func main() {
 	}
 
 	log.Println("✅ Server exited gracefully")
+}
+
+// startDatabaseMaintenanceScheduler runs periodic database maintenance tasks
+func startDatabaseMaintenanceScheduler(db *sql.DB, stop chan struct{}) {
+	log.Println("🔧 Starting database maintenance scheduler...")
+
+	// Record activity metrics every minute
+	activityTicker := time.NewTicker(1 * time.Minute)
+	defer activityTicker.Stop()
+
+	// Run maintenance check every 15 minutes
+	maintenanceTicker := time.NewTicker(15 * time.Minute)
+	defer maintenanceTicker.Stop()
+
+	// Archive old shares daily at 3 AM UTC
+	archiveTicker := time.NewTicker(1 * time.Hour)
+	defer archiveTicker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			log.Println("🔧 Stopping database maintenance scheduler...")
+			return
+
+		case <-activityTicker.C:
+			// Record current activity metrics
+			_, err := db.Exec("SELECT record_activity_metrics()")
+			if err != nil {
+				log.Printf("Warning: Failed to record activity metrics: %v", err)
+			}
+
+		case <-maintenanceTicker.C:
+			// Run smart maintenance (vacuum analyze if needed)
+			_, err := db.Exec("SELECT perform_smart_maintenance()")
+			if err != nil {
+				log.Printf("Warning: Failed to run smart maintenance: %v", err)
+			} else {
+				log.Println("🔧 Database maintenance check completed")
+			}
+
+		case <-archiveTicker.C:
+			// Check if it's 3 AM UTC for archiving
+			now := time.Now().UTC()
+			if now.Hour() == 3 {
+				var archivedCount int
+				err := db.QueryRow("SELECT archive_old_shares()").Scan(&archivedCount)
+				if err != nil {
+					log.Printf("Warning: Failed to archive old shares: %v", err)
+				} else if archivedCount > 0 {
+					log.Printf("🔧 Archived %d old shares", archivedCount)
+				}
+			}
+		}
+	}
 }
 
 type Config struct {
