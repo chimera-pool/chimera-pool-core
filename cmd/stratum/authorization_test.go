@@ -91,9 +91,9 @@ func TestAuthorizeUserLookup(t *testing.T) {
 			WithArgs(int64(34), "picaxe").
 			WillReturnError(sql.ErrNoRows)
 
-		// Mock miner insert - address is now IP only (port stripped)
+		// Mock miner insert - address is now IP only (port stripped), includes network_id
 		mock.ExpectExec("INSERT INTO miners").
-			WithArgs(int64(34), "picaxe", "192.168.1.100").
+			WithArgs(int64(34), "picaxe", "192.168.1.100", sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		req := StratumRequest{
