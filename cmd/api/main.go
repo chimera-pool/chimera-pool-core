@@ -555,9 +555,10 @@ func handlePublicStats(db *sql.DB) gin.HandlerFunc {
 		var totalMiners, totalBlocks int64
 		var totalHashrate float64
 
-		db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
+		// Use time-based check for truly active miners (seen in last 5 minutes)
+		db.QueryRow("SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalMiners)
 		db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
-		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE is_active = true").Scan(&totalHashrate)
+		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
 
 		c.JSON(http.StatusOK, gin.H{
 			"activeMiners":  totalMiners,
@@ -1268,11 +1269,12 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 				COALESCE((SELECT COUNT(*) FROM shares WHERE user_id = u.id), 0) as total_shares,
 				COALESCE(up.forum_post_count, 0) as forum_posts,
 				COALESCE(up.reputation, 0) as reputation,
-				-- Engagement/Clout score calculation
+				-- Engagement/Clout score calculation (includes mining + community)
 				(
+					COALESCE((SELECT COUNT(*) FROM shares WHERE user_id = u.id), 0) / 1000 +
+					COALESCE((SELECT COUNT(*) FROM blocks WHERE finder_id = u.id), 0) * 500 +
 					COALESCE(up.forum_post_count, 0) * 10 +
 					COALESCE(up.reputation, 0) +
-					COALESCE((SELECT COUNT(*) FROM blocks WHERE finder_id = u.id), 0) * 100 +
 					COALESCE((SELECT COUNT(*) FROM channel_messages WHERE user_id = u.id AND is_deleted = false), 0) * 2
 				) as engagement_score,
 				COALESCE(pb.icon, '🌱') as primary_badge_icon,
@@ -4823,10 +4825,16 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 						SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id
 					) as total_shares,
 					(
-						COALESCE(up.forum_post_count, 0) * 10 +
-						COALESCE(up.reputation, 0) +
-						(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 100 +
-						(SELECT COUNT(*) FROM channel_messages cm WHERE cm.user_id = u.id AND cm.is_deleted = false) * 2
+						-- Mining activity (core engagement)
+						COALESCE((SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id), 0) / 1000 +  -- 1 point per 1000 shares
+						COALESCE(NULLIF(SUM(m.hashrate), 0) / 1000000000000, 0)::bigint +  -- 1 point per TH/s
+						(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 500 +  -- 500 points per block found
+						-- Community engagement
+						COALESCE(up.forum_post_count, 0) * 10 +  -- 10 points per forum post
+						COALESCE(up.reputation, 0) +  -- Direct reputation points
+						(SELECT COUNT(*) FROM channel_messages cm WHERE cm.user_id = u.id AND cm.is_deleted = false) * 2 +  -- 2 points per chat message
+						-- Referral bonus (future: add referral_count * 50)
+						0
 					) as engagement_score
 				FROM users u
 				LEFT JOIN miners m ON u.id = m.user_id AND m.is_active = true
@@ -4971,9 +4979,11 @@ func handleGetLeaderboard(db *sql.DB) gin.HandlerFunc {
 						(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) as blocks_found,
 						(SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id) as total_shares,
 						(
+							COALESCE((SELECT COUNT(*) FROM shares s WHERE s.user_id = u.id), 0) / 1000 +
+							COALESCE(NULLIF(SUM(m.hashrate), 0) / 1000000000000, 0)::bigint +
+							(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 500 +
 							COALESCE(up.forum_post_count, 0) * 10 +
 							COALESCE(up.reputation, 0) +
-							(SELECT COUNT(*) FROM blocks b WHERE b.finder_id = u.id) * 100 +
 							(SELECT COUNT(*) FROM channel_messages cm WHERE cm.user_id = u.id AND cm.is_deleted = false) * 2
 						) as engagement_score
 					FROM users u

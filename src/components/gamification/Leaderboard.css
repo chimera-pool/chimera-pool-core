@@ -137,13 +137,16 @@
 }
 
 .cyber-leaderboard-entry__stats {
-  display: flex;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  min-width: 400px;
 }
 
 .cyber-stat {
-  text-align: center;
-  min-width: 80px;
+  text-align: right;
+  min-width: 90px;
+  padding: 0 8px;
 }
 
 .cyber-stat__label {
@@ -152,12 +155,17 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
+  white-space: nowrap;
 }
 
 .cyber-stat__value {
   font-size: 14px;
   font-weight: 700;
   color: var(--cyber-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cyber-blocks-count {
