@@ -22,11 +22,16 @@ var (
 		"secp256k1_pedersen_commit_sum",
 	}
 
-	// IBD errors indicate node is still syncing.
+	// IBD errors indicate node is still syncing or loading.
 	IBDErrorPatterns = []string{
 		"initial sync",
 		"initialblockdownload",
 		"Loading block index",
+		"Rewinding blocks",
+		"Verifying blocks",
+		"Loading banlist",
+		"Loading wallet",
+		"Rescanning",
 	}
 
 	ErrMWEBFailure       = errors.New("MWEB block validation failure detected")
@@ -213,6 +218,7 @@ func (c *LitecoinHealthChecker) RunDiagnostics(ctx context.Context) (*NodeDiagno
 		}
 		if errors.Is(err, ErrNodeInIBD) {
 			diag.ChainSpecificErrors = append(diag.ChainSpecificErrors, "NODE_IN_IBD")
+			diag.IsIBD = true // Mark as IBD to prevent unnecessary restarts during loading
 		}
 	}
 
