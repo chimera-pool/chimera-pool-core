@@ -202,7 +202,7 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
       const res = await fetch('/api/v1/community/reaction-types', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        setReactionTypes(data.reactionTypes || []);
+        setReactionTypes(data.reactions || data.reactionTypes || []);
       }
     } catch (e) { console.error('fetchReactionTypes error:', e); }
   };
@@ -1092,17 +1092,17 @@ const styles: { [key: string]: React.CSSProperties } = {
   leaderboardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: '#D4A84B' },
   leaderboardSelect: { padding: '10px 16px', backgroundColor: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '8px', color: '#F0EDF4' },
   leaderboardList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  leaderboardEntry: { display: 'flex', alignItems: 'center', gap: '12px', padding: '18px 22px', background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', borderRadius: '14px', border: '1px solid rgba(74, 44, 90, 0.4)', flexWrap: 'wrap', transition: 'all 0.2s' },
-  leaderboardRankBadge: { minWidth: '45px', textAlign: 'center' },
+  leaderboardEntry: { display: 'grid', gridTemplateColumns: '50px 100px 150px 1fr', alignItems: 'center', gap: '16px', padding: '18px 22px', background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', borderRadius: '14px', border: '1px solid rgba(74, 44, 90, 0.4)', transition: 'all 0.2s' },
+  leaderboardRankBadge: { textAlign: 'center', fontVariantNumeric: 'tabular-nums' },
   rankNumber: { fontWeight: 700, fontSize: '1.1rem' },
-  badgeStack: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '1.2rem', minWidth: '80px' },
+  badgeStack: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '1.2rem' },
   roleBadge: { fontSize: '1.3rem' },
   moreBadges: { fontSize: '0.7rem', color: '#B8B4C8', backgroundColor: 'rgba(74, 44, 90, 0.5)', padding: '2px 6px', borderRadius: '10px' },
-  userInfo: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '120px', flex: '1' },
-  leaderboardName: { fontWeight: 600, fontSize: '1rem' },
+  userInfo: { display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' },
+  leaderboardName: { fontWeight: 600, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   roleTag: { fontSize: '0.7rem', color: '#7B5EA7', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px', marginLeft: 'auto' },
-  statItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '60px' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, minmax(55px, 1fr))', gap: '8px', justifyItems: 'center' },
+  statItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' },
   statLabel: { fontSize: '0.65rem', color: '#B8B4C8', textTransform: 'uppercase', letterSpacing: '0.5px' },
   statValue: { fontSize: '0.9rem', fontWeight: 600, color: '#F0EDF4' },
   leaderboardValue: { color: '#D4A84B', fontWeight: 600 },
