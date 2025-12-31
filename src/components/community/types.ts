@@ -34,6 +34,20 @@ export interface RoleBadge {
   type: string;
 }
 
+export interface MessageReaction {
+  emoji: string;
+  name: string;
+  count: number;
+  hasReacted: boolean;
+}
+
+export interface ReactionType {
+  id: number;
+  emoji: string;
+  name: string;
+  category: string;
+}
+
 export interface ChatMessage {
   id: number;
   content: string;
@@ -50,6 +64,7 @@ export interface ChatMessage {
     badges?: Badge[];
   };
   replyToId?: number;
+  reactions?: MessageReaction[];
 }
 
 export interface ForumCategory {
@@ -116,6 +131,29 @@ export interface CommunityPageProps {
 
 export type CommunityView = 'chat' | 'forums' | 'leaderboard';
 export type LeaderboardType = 'hashrate' | 'shares' | 'blocks' | 'engagement' | 'forum';
+
+// Referral System Types
+export interface ReferralInfo {
+  code: string;
+  description: string;
+  referrer_discount: number;
+  referee_discount: number;
+  times_used: number;
+  max_uses: number | null;
+  total_referrals: number;
+  my_discount: number;
+  effective_fee: number;
+}
+
+export interface Referral {
+  username: string;
+  status: 'pending' | 'confirmed' | 'expired' | 'cancelled';
+  created_at: string;
+  confirmed_at: string | null;
+  total_shares: number;
+  total_hashrate: number;
+  clout_bonus: number;
+}
 
 export interface ChannelForm {
   name: string;
