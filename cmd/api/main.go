@@ -136,6 +136,10 @@ func main() {
 			protected.GET("/user/networks/stats", handleGetUserNetworkStats(db))
 			protected.GET("/user/networks/aggregated", handleGetUserAggregatedStats(db))
 
+			// Referral system routes
+			protected.GET("/user/referral", handleGetUserReferral(db))
+			protected.GET("/user/referrals", handleGetUserReferrals(db))
+
 			// Payout settings routes
 			protected.GET("/user/payout-settings", handleGetPayoutSettings(db))
 			protected.PUT("/user/payout-settings", handleUpdatePayoutSettings(db))
@@ -148,6 +152,7 @@ func main() {
 			protected.POST("/community/channels/:id/messages", handleSendMessage(db))
 			protected.PUT("/community/messages/:id", handleEditMessage(db))
 			protected.DELETE("/community/messages/:id", handleDeleteMessage(db))
+			protected.GET("/community/reaction-types", handleGetReactionTypes(db))
 			protected.POST("/community/messages/:id/reactions", handleAddReaction(db))
 			protected.DELETE("/community/messages/:id/reactions/:emoji", handleRemoveReaction(db))
 
@@ -4131,18 +4136,16 @@ func handleAddReaction(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		_, err := db.Exec(`
-			INSERT INTO message_reactions (message_id, user_id, emoji)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (message_id, user_id, emoji) DO NOTHING
-		`, messageID, userID, req.Emoji)
-
+		// Use the toggle function which adds or removes the reaction
+		var action string
+		var count int
+		err := db.QueryRow(`SELECT * FROM toggle_message_reaction($1, $2, $3)`, messageID, userID, req.Emoji).Scan(&action, &count)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add reaction"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle reaction"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"success": true})
+		c.JSON(http.StatusOK, gin.H{"success": true, "action": action, "count": count})
 	}
 }
 
@@ -4152,10 +4155,49 @@ func handleRemoveReaction(db *sql.DB) gin.HandlerFunc {
 		messageID := c.Param("id")
 		emoji := c.Param("emoji")
 
-		db.Exec(`DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
-			messageID, userID, emoji)
+		// Get reaction type id
+		var reactionTypeID int
+		err := db.QueryRow(`SELECT id FROM reaction_types WHERE emoji = $1`, emoji).Scan(&reactionTypeID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reaction emoji"})
+			return
+		}
+
+		db.Exec(`DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND reaction_type_id = $3`,
+			messageID, userID, reactionTypeID)
 
 		c.JSON(http.StatusOK, gin.H{"success": true})
+	}
+}
+
+func handleGetReactionTypes(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT id, emoji, name, category 
+			FROM reaction_types 
+			WHERE is_active = true 
+			ORDER BY sort_order
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reaction types"})
+			return
+		}
+		defer rows.Close()
+
+		reactions := []gin.H{}
+		for rows.Next() {
+			var id int
+			var emoji, name, category string
+			rows.Scan(&id, &emoji, &name, &category)
+			reactions = append(reactions, gin.H{
+				"id":       id,
+				"emoji":    emoji,
+				"name":     name,
+				"category": category,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"reactions": reactions})
 	}
 }
 
@@ -7752,5 +7794,132 @@ func handleGetUserAggregatedStats(db *sql.DB) gin.HandlerFunc {
 			"total_pending_all":    totalPending,
 			"total_workers_all":    totalWorkers,
 		})
+	}
+}
+
+// Referral System Handlers
+
+func handleGetUserReferral(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		// Get user's referral code and stats
+		var code, description sql.NullString
+		var referrerDiscount, refereeDiscount float64
+		var timesUsed, maxUses sql.NullInt64
+		var totalReferrals int
+		var myDiscount float64
+
+		err := db.QueryRow(`
+			SELECT 
+				rc.code, rc.description, rc.referrer_discount_percent, 
+				rc.referee_discount_percent, rc.times_used, rc.max_uses,
+				COALESCE(u.total_referrals, 0),
+				COALESCE(u.referrer_discount_percent, 0)
+			FROM referral_codes rc
+			JOIN users u ON rc.user_id = u.id
+			WHERE rc.user_id = $1 AND rc.is_active = true
+			LIMIT 1
+		`, userID).Scan(&code, &description, &referrerDiscount, &refereeDiscount,
+			&timesUsed, &maxUses, &totalReferrals, &myDiscount)
+
+		if err == sql.ErrNoRows {
+			// Create a referral code for the user if they don't have one
+			var username string
+			db.QueryRow("SELECT username FROM users WHERE id = $1", userID).Scan(&username)
+
+			var newCode string
+			err = db.QueryRow(`
+				INSERT INTO referral_codes (user_id, code, description)
+				VALUES ($1, generate_referral_code($2), 'Personal referral code')
+				RETURNING code
+			`, userID, username).Scan(&newCode)
+
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create referral code"})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"code":              newCode,
+				"description":       "Personal referral code",
+				"referrer_discount": 10.0,
+				"referee_discount":  5.0,
+				"times_used":        0,
+				"max_uses":          nil,
+				"total_referrals":   0,
+				"my_discount":       0.0,
+				"effective_fee":     1.0,
+			})
+			return
+		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral info"})
+			return
+		}
+
+		// Calculate effective pool fee
+		var effectiveFee float64
+		db.QueryRow("SELECT get_effective_pool_fee($1)", userID).Scan(&effectiveFee)
+
+		c.JSON(http.StatusOK, gin.H{
+			"code":              code.String,
+			"description":       description.String,
+			"referrer_discount": referrerDiscount,
+			"referee_discount":  refereeDiscount,
+			"times_used":        timesUsed.Int64,
+			"max_uses":          maxUses.Int64,
+			"total_referrals":   totalReferrals,
+			"my_discount":       myDiscount,
+			"effective_fee":     effectiveFee,
+		})
+	}
+}
+
+func handleGetUserReferrals(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		rows, err := db.Query(`
+			SELECT 
+				u.username, r.status, r.created_at, r.confirmed_at,
+				r.referee_total_shares, r.referee_total_hashrate, r.clout_bonus_awarded
+			FROM referrals r
+			JOIN users u ON r.referee_id = u.id
+			WHERE r.referrer_id = $1
+			ORDER BY r.created_at DESC
+			LIMIT 50
+		`, userID)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referrals"})
+			return
+		}
+		defer rows.Close()
+
+		referrals := []gin.H{}
+		for rows.Next() {
+			var username, status string
+			var createdAt time.Time
+			var confirmedAt sql.NullTime
+			var totalShares int64
+			var totalHashrate float64
+			var cloutBonus int
+
+			rows.Scan(&username, &status, &createdAt, &confirmedAt, &totalShares, &totalHashrate, &cloutBonus)
+
+			referrals = append(referrals, gin.H{
+				"username":       username,
+				"status":         status,
+				"created_at":     createdAt,
+				"confirmed_at":   confirmedAt.Time,
+				"total_shares":   totalShares,
+				"total_hashrate": totalHashrate,
+				"clout_bonus":    cloutBonus,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"referrals": referrals})
 	}
 }
