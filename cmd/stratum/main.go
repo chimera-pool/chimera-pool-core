@@ -1712,27 +1712,37 @@ func (s *StratumServer) handleSuggestDifficulty(miner *Miner, req StratumRequest
 func detectMinerType(userAgent string) string {
 	ua := strings.ToLower(userAgent)
 
-	// CPU miners
-	cpuPatterns := []string{"cpuminer", "minerd", "xmrig", "cpu"}
+	// CPU miners - very specific patterns
+	cpuPatterns := []string{"cpuminer", "minerd", "xmrig"}
 	for _, p := range cpuPatterns {
 		if strings.Contains(ua, p) {
 			return "cpu"
 		}
 	}
 
-	// GPU miners
-	gpuPatterns := []string{"cgminer", "bfgminer", "sgminer", "claymore", "ethminer", "phoenixminer", "t-rex", "gminer", "lolminer", "nbminer", "gpu"}
-	for _, p := range gpuPatterns {
+	// ASIC miners (check BEFORE GPU since some software like bfgminer/cgminer work with both)
+	// These are definite ASIC indicators
+	asicPatterns := []string{"antminer", "whatsminer", "avalon", "innosilicon", "goldshell", "bitmain", "x100", "x30", "blockdag", "asic", "luckyminer"}
+	for _, p := range asicPatterns {
+		if strings.Contains(ua, p) {
+			return "asic"
+		}
+	}
+
+	// GPU-only miners (NOT cgminer/bfgminer/sgminer which can be used with ASICs)
+	gpuOnlyPatterns := []string{"claymore", "ethminer", "phoenixminer", "t-rex", "gminer", "lolminer", "nbminer"}
+	for _, p := range gpuOnlyPatterns {
 		if strings.Contains(ua, p) {
 			return "gpu"
 		}
 	}
 
-	// ASIC miners (including X100)
-	asicPatterns := []string{"antminer", "whatsminer", "avalon", "innosilicon", "goldshell", "bitmain", "x100", "x30", "blockdag", "asic", "luckyminer"}
-	for _, p := range asicPatterns {
+	// cgminer, bfgminer, sgminer can be used with GPUs OR ASICs
+	// Default to higher difficulty (asic-like) to be safe - vardiff will adjust down if needed
+	multipurposePatterns := []string{"cgminer", "bfgminer", "sgminer"}
+	for _, p := range multipurposePatterns {
 		if strings.Contains(ua, p) {
-			return "asic"
+			return "multipurpose" // Could be GPU or ASIC, start high
 		}
 	}
 
@@ -1748,6 +1758,8 @@ func getInitialDifficultyForMinerType(minerType string) float64 {
 		return 10 // GPU: ~10 MH/s -> difficulty ~10 for 10s shares
 	case "asic":
 		return 35000 // ASIC: ~15 TH/s -> difficulty ~35000 for 10s shares
+	case "multipurpose":
+		return 1000 // cgminer/bfgminer/sgminer - start moderate, vardiff will adjust
 	default:
 		return 100 // Unknown: start moderate, vardiff will adjust
 	}
