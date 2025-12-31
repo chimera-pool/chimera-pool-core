@@ -1754,14 +1754,15 @@ func getInitialDifficultyForMinerType(minerType string) float64 {
 	switch minerType {
 	case "cpu":
 		return 0.01 // CPU: ~10 KH/s -> difficulty ~0.01 for 10s shares
-	case "gpu":
-		return 10 // GPU: ~10 MH/s -> difficulty ~10 for 10s shares
+	case "gpu", "multipurpose":
+		// bfgminer/cgminer can be GPU or ASIC - start at 1000, vardiff adjusts quickly
+		// At 1000 diff, 15 TH/s ASIC submits ~3.5 shares/sec (manageable)
+		// At 1000 diff, 10 MH/s GPU submits ~1 share/430sec (vardiff will lower)
+		return 1000
 	case "asic":
 		return 35000 // ASIC: ~15 TH/s -> difficulty ~35000 for 10s shares
-	case "multipurpose":
-		return 1000 // cgminer/bfgminer/sgminer - start moderate, vardiff will adjust
 	default:
-		return 100 // Unknown: start moderate, vardiff will adjust
+		return 1000 // Unknown: start moderate, vardiff will adjust
 	}
 }
 
