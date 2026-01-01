@@ -262,6 +262,9 @@ func main() {
 			admin.GET("/monitoring/miners/:id", handleAdminGetMinerDetail(db))
 			admin.GET("/monitoring/miners/:id/shares", handleAdminGetMinerShares(db))
 			admin.GET("/monitoring/users/:id/miners", handleAdminGetUserMiners(db))
+
+			// Role management
+			admin.GET("/roles", handleAdminGetRoles(db))
 		}
 
 		// Public network info route
@@ -1691,6 +1694,74 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 			"total_count": totalCount,
 			"page":        page,
 			"page_size":   pageSize,
+		})
+	}
+}
+
+// handleAdminGetRoles returns all users with admin, moderator, or super_admin roles
+func handleAdminGetRoles(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var admins []gin.H
+		var moderators []gin.H
+
+		// Get admins and super_admins
+		adminRows, err := db.Query(`
+			SELECT id, username, email, role, created_at 
+			FROM users 
+			WHERE role IN ('admin', 'super_admin', 'superadmin') 
+			ORDER BY role DESC, username
+		`)
+		if err == nil {
+			defer adminRows.Close()
+			for adminRows.Next() {
+				var id int64
+				var username, email, role string
+				var createdAt time.Time
+				adminRows.Scan(&id, &username, &email, &role, &createdAt)
+				admins = append(admins, gin.H{
+					"id":         id,
+					"username":   username,
+					"email":      email,
+					"role":       role,
+					"created_at": createdAt,
+				})
+			}
+		}
+
+		// Get moderators
+		modRows, err := db.Query(`
+			SELECT id, username, email, role, created_at 
+			FROM users 
+			WHERE role = 'moderator' 
+			ORDER BY username
+		`)
+		if err == nil {
+			defer modRows.Close()
+			for modRows.Next() {
+				var id int64
+				var username, email, role string
+				var createdAt time.Time
+				modRows.Scan(&id, &username, &email, &role, &createdAt)
+				moderators = append(moderators, gin.H{
+					"id":         id,
+					"username":   username,
+					"email":      email,
+					"role":       role,
+					"created_at": createdAt,
+				})
+			}
+		}
+
+		if admins == nil {
+			admins = []gin.H{}
+		}
+		if moderators == nil {
+			moderators = []gin.H{}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"admins":     admins,
+			"moderators": moderators,
 		})
 	}
 }
@@ -4307,6 +4378,52 @@ func handleGetChannelMessages(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
+		// Fetch reactions for all messages
+		currentUserID := c.GetInt64("user_id")
+		if len(messages) > 0 {
+			messageIDs := make([]int64, len(messages))
+			for i, msg := range messages {
+				messageIDs[i] = msg["id"].(int64)
+			}
+
+			reactionQuery := `
+				SELECT mr.message_id, rt.emoji, rt.name, COUNT(*) as count,
+					   EXISTS(SELECT 1 FROM message_reactions mr2 WHERE mr2.message_id = mr.message_id AND mr2.reaction_type_id = mr.reaction_type_id AND mr2.user_id = $2) as has_reacted
+				FROM message_reactions mr
+				JOIN reaction_types rt ON mr.reaction_type_id = rt.id
+				WHERE mr.message_id = ANY($1)
+				GROUP BY mr.message_id, rt.id, rt.emoji, rt.name
+				ORDER BY count DESC
+			`
+			reactionRows, err := db.Query(reactionQuery, pq.Array(messageIDs), currentUserID)
+			if err == nil {
+				defer reactionRows.Close()
+				messageReactions := make(map[int64][]gin.H)
+				for reactionRows.Next() {
+					var msgID int64
+					var emoji, name string
+					var count int
+					var hasReacted bool
+					reactionRows.Scan(&msgID, &emoji, &name, &count, &hasReacted)
+					messageReactions[msgID] = append(messageReactions[msgID], gin.H{
+						"emoji":      emoji,
+						"name":       name,
+						"count":      count,
+						"hasReacted": hasReacted,
+					})
+				}
+				// Assign reactions to messages
+				for i, msg := range messages {
+					msgID := msg["id"].(int64)
+					if reactions, ok := messageReactions[msgID]; ok {
+						messages[i]["reactions"] = reactions
+					} else {
+						messages[i]["reactions"] = []gin.H{}
+					}
+				}
+			}
+		}
+
 		// Reverse to chronological order
 		for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 			messages[i], messages[j] = messages[j], messages[i]
@@ -4323,7 +4440,7 @@ func handleSendMessage(db *sql.DB) gin.HandlerFunc {
 
 		var req struct {
 			Content   string `json:"content" binding:"required"`
-			ReplyToID *int64 `json:"replyToId"`
+			ReplyToID *int64 `json:"reply_to_id"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

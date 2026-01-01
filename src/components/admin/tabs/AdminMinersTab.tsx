@@ -69,7 +69,7 @@ export function AdminMinersTab({ token, isActive, showMessage }: AdminMinersTabP
         ...(minerSearch && { search: minerSearch }),
         ...(activeMinersOnly && { active_only: 'true' })
       });
-      const response = await fetch(`/api/v1/admin/miners?${params}`, {
+      const response = await fetch(`/api/v1/admin/monitoring/miners?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -86,7 +86,7 @@ export function AdminMinersTab({ token, isActive, showMessage }: AdminMinersTabP
 
   const fetchMinerDetail = async (minerId: number) => {
     try {
-      const response = await fetch(`/api/v1/admin/miners/${minerId}`, {
+      const response = await fetch(`/api/v1/admin/monitoring/miners/${minerId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
