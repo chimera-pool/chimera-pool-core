@@ -248,6 +248,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   walletActions: {
     display: 'flex',
     gap: '8px',
+    alignItems: 'center',
   },
   editBtn: {
     background: 'none',
@@ -262,6 +263,54 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontSize: '1.1rem',
     padding: '6px',
+  },
+  toggleSwitch: {
+    position: 'relative' as const,
+    width: '50px',
+    height: '26px',
+    backgroundColor: '#4a1a1a',
+    borderRadius: '13px',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s',
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#1a4a2a',
+  },
+  toggleKnob: {
+    position: 'absolute' as const,
+    top: '3px',
+    left: '3px',
+    width: '20px',
+    height: '20px',
+    backgroundColor: '#fff',
+    borderRadius: '50%',
+    transition: 'transform 0.3s',
+  },
+  toggleKnobActive: {
+    transform: 'translateX(24px)',
+  },
+  allocationSlider: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginTop: '10px',
+    padding: '10px',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: '8px',
+  },
+  slider: {
+    flex: 1,
+    height: '6px',
+    appearance: 'none' as const,
+    backgroundColor: 'rgba(74, 44, 90, 0.5)',
+    borderRadius: '3px',
+    cursor: 'pointer',
+  },
+  sliderValue: {
+    minWidth: '60px',
+    textAlign: 'right' as const,
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   editForm: {
     display: 'flex',
@@ -439,6 +488,57 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
       }
     } catch (error) {
       showMessage('error', 'Network error. Please try again.');
+    }
+  };
+
+  // Toggle wallet active/inactive with auto-rebalancing
+  const handleToggleActive = async (walletId: number, newActiveState: boolean) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/user/wallets/${walletId}/toggle`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: newActiveState })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        showMessage('success', newActiveState ? 'Wallet activated - allocations auto-balanced' : 'Wallet deactivated - allocations redistributed');
+        fetchWallets(); // Refresh to get new allocations
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to toggle wallet');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Update allocation with auto-rebalancing
+  const handleAllocationChange = async (walletId: number, newPercentage: number) => {
+    if (newPercentage < 0 || newPercentage > 100) return;
+    
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/user/wallets/${walletId}/allocation`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ percentage: newPercentage })
+      });
+      
+      if (res.ok) {
+        showMessage('success', 'Allocation updated - other wallets auto-balanced');
+        fetchWallets(); // Refresh to get new allocations
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to update allocation');
+      }
+    } catch (error) {
+      showMessage('error', 'Network error. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -620,36 +720,87 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
                   </button>
                 </div>
               ) : (
-                <>
-                  <div style={styles.walletMain}>
-                    <div style={styles.walletInfo}>
-                      <div style={styles.walletHeader}>
-                        <span style={styles.walletLabel}>{wallet.label || 'Wallet'}</span>
-                        {wallet.is_primary && (
-                          <span style={styles.primaryBadge}>⭐ Primary</span>
-                        )}
-                        {!wallet.is_active && (
-                          <span style={styles.inactiveBadge}>Inactive</span>
-                        )}
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={styles.walletMain}>
+                      <div style={styles.walletInfo}>
+                        <div style={styles.walletHeader}>
+                          <span style={styles.walletLabel}>{wallet.label || 'Wallet'}</span>
+                          {wallet.is_primary && (
+                            <span style={styles.primaryBadge}>⭐ Primary</span>
+                          )}
+                          {!wallet.is_active && (
+                            <span style={styles.inactiveBadge}>Inactive</span>
+                          )}
+                        </div>
+                        <code style={styles.addressCode}>
+                          {wallet.address.slice(0, 12)}...{wallet.address.slice(-10)}
+                        </code>
                       </div>
-                      <code style={styles.addressCode}>
-                        {wallet.address.slice(0, 12)}...{wallet.address.slice(-10)}
-                      </code>
+                      <div style={styles.walletPercentage}>
+                        <span style={styles.percentageValue}>{wallet.percentage.toFixed(1)}%</span>
+                        <span style={styles.percentageLabel}>of payouts</span>
+                      </div>
                     </div>
-                    <div style={styles.walletPercentage}>
-                      <span style={styles.percentageValue}>{wallet.percentage.toFixed(1)}%</span>
-                      <span style={styles.percentageLabel}>of payouts</span>
+                    <div style={styles.walletActions}>
+                      {/* Active/Inactive Toggle */}
+                      <div 
+                        data-testid={`wallet-toggle-${wallet.id}`}
+                        style={{
+                          ...styles.toggleSwitch,
+                          ...(wallet.is_active ? styles.toggleSwitchActive : {})
+                        }}
+                        onClick={() => !saving && handleToggleActive(wallet.id, !wallet.is_active)}
+                        title={wallet.is_active ? 'Click to deactivate' : 'Click to activate'}
+                      >
+                        <div style={{
+                          ...styles.toggleKnob,
+                          ...(wallet.is_active ? styles.toggleKnobActive : {})
+                        }} />
+                      </div>
+                      <button 
+                        style={styles.editBtn} 
+                        onClick={() => setEditingWallet({ ...wallet })}
+                        data-testid={`wallet-edit-${wallet.id}`}
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        style={styles.deleteBtn} 
+                        onClick={() => handleDeleteWallet(wallet.id)}
+                        data-testid={`wallet-delete-${wallet.id}`}
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
-                  <div style={styles.walletActions}>
-                    <button style={styles.editBtn} onClick={() => setEditingWallet({ ...wallet })}>
-                      ✏️
-                    </button>
-                    <button style={styles.deleteBtn} onClick={() => handleDeleteWallet(wallet.id)}>
-                      🗑️
-                    </button>
-                  </div>
-                </>
+                  
+                  {/* Allocation Slider - only show for active wallets with multiple wallets */}
+                  {wallet.is_active && wallets.filter(w => w.is_active).length > 1 && (
+                    <div style={styles.allocationSlider}>
+                      <span style={{ color: '#888', fontSize: '0.8rem' }}>Allocation:</span>
+                      <input
+                        type="range"
+                        min="1"
+                        max="99"
+                        value={wallet.percentage}
+                        onChange={(e) => {
+                          const newVal = parseFloat(e.target.value);
+                          // Optimistic UI update
+                          setWallets(prev => prev.map(w => 
+                            w.id === wallet.id ? { ...w, percentage: newVal } : w
+                          ));
+                        }}
+                        onMouseUp={(e) => handleAllocationChange(wallet.id, parseFloat((e.target as HTMLInputElement).value))}
+                        onTouchEnd={(e) => handleAllocationChange(wallet.id, parseFloat((e.target as HTMLInputElement).value))}
+                        style={styles.slider}
+                        disabled={saving}
+                        data-testid={`wallet-slider-${wallet.id}`}
+                      />
+                      <span style={styles.sliderValue}>{wallet.percentage.toFixed(1)}%</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ))}
