@@ -102,7 +102,7 @@ services:
       JOB_NEGOTIATION_ENABLED: "true"
       STRATUM_V2_ENABLED: "true"
       HEALTH_MONITOR_ENABLED: "true"
-      HEALTH_AUTO_RESTART: "true"
+      HEALTH_AUTO_RESTART: "false"
     depends_on:
       postgres:
         condition: service_healthy
