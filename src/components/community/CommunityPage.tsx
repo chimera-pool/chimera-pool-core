@@ -208,6 +208,47 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
   };
 
   const toggleReaction = async (messageId: number, emoji: string) => {
+    // Optimistic update - immediately update UI
+    setMessages(prevMessages => prevMessages.map(msg => {
+      if (msg.id !== messageId) return msg;
+      
+      const existingReactions = msg.reactions || [];
+      const existingReaction = existingReactions.find(r => r.emoji === emoji);
+      
+      let newReactions: MessageReaction[];
+      if (existingReaction?.hasReacted) {
+        // User is removing their reaction
+        if (existingReaction.count === 1) {
+          // Remove the reaction entirely
+          newReactions = existingReactions.filter(r => r.emoji !== emoji);
+        } else {
+          // Decrement count
+          newReactions = existingReactions.map(r => 
+            r.emoji === emoji ? { ...r, count: r.count - 1, hasReacted: false } : r
+          );
+        }
+      } else if (existingReaction) {
+        // User is adding to existing reaction
+        newReactions = existingReactions.map(r => 
+          r.emoji === emoji ? { ...r, count: r.count + 1, hasReacted: true } : r
+        );
+      } else {
+        // New reaction
+        const reactionType = reactionTypes.find(rt => rt.emoji === emoji);
+        newReactions = [...existingReactions, { 
+          emoji, 
+          name: reactionType?.name || emoji, 
+          count: 1, 
+          hasReacted: true 
+        }];
+      }
+      
+      return { ...msg, reactions: newReactions };
+    }));
+    
+    setShowReactionPicker(null);
+    
+    // Send to server
     try {
       const res = await fetch(`/api/v1/community/messages/${messageId}/reactions`, {
         method: 'POST',
@@ -217,18 +258,17 @@ function CommunityPage({ token, user, showMessage }: CommunityPageProps) {
         },
         body: JSON.stringify({ emoji })
       });
-      if (res.ok) {
-        // Refresh messages to get updated reactions
+      if (!res.ok) {
+        // Revert on error - refetch messages
         fetchMessages();
-      } else {
         const data = await res.json();
         showMessage('error', data.error || 'Failed to toggle reaction');
       }
     } catch (e) { 
       console.error('toggleReaction error:', e);
+      fetchMessages(); // Revert on error
       showMessage('error', 'Failed to toggle reaction');
     }
-    setShowReactionPicker(null);
   };
 
   const fetchLeaderboard = async (page = leaderboardPage, pageSize = leaderboardPageSize) => {
