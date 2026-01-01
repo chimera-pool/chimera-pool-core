@@ -1,1 +1,1 @@
-UPDATE users SET password_hash = '$2a$10$vZ0WUhl6k/mL0M6SKpMTd.IfZ/qRLBR8Wbv31u15zxmh7LTjtBbgi' WHERE email = 'reid@blockdaginvestors.com';
+UPDATE users SET password_hash = '$2a$10$cSxdNvmGCrSLICf.ZQ/5beoc/qAWl4BUo6ZcbrJ.3KnraNJfz396S' WHERE email = 'reid@blockdaginvestors.com';

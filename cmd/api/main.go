@@ -1205,8 +1205,7 @@ func handleUserEquipment(db *sql.DB) gin.HandlerFunc {
 		// Get all miners with stats using only existing columns
 		rows, err := db.Query(`
 			SELECT 
-				m.id, m.name, COALESCE(m.address, '') as address, m.hashrate, m.is_active, m.last_seen,
-				COALESCE(m.difficulty, 0) as difficulty, m.created_at,
+				m.id, m.name, COALESCE(m.address::text, '') as address, m.hashrate, m.is_active, m.last_seen, m.created_at,
 				EXTRACT(EPOCH FROM (NOW() - m.created_at))::bigint as total_connection_time
 			FROM miners m
 			WHERE m.user_id = $1
@@ -1222,13 +1221,12 @@ func handleUserEquipment(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var id int64
 			var name, address string
-			var hashrate, difficulty float64
+			var hashrate float64
 			var isActive bool
 			var lastSeen, createdAt time.Time
 			var totalConnectionTime int64
 
-			err := rows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen,
-				&difficulty, &createdAt, &totalConnectionTime)
+			err := rows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen, &createdAt, &totalConnectionTime)
 			if err != nil {
 				log.Printf("Error scanning equipment row: %v", err)
 				continue
@@ -1280,7 +1278,7 @@ func handleUserEquipment(db *sql.DB) gin.HandlerFunc {
 				"total_connection_time": totalConnectionTime,
 				"total_downtime":        0,
 				"downtime_incidents":    0,
-				"difficulty":            difficulty,
+				"difficulty":            0.0,
 				"address":               address,
 				"is_active":             isActive,
 			})
@@ -1740,8 +1738,7 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 		// Get user's miners with comprehensive equipment data
 		minerRows, _ := db.Query(`
 			SELECT 
-				m.id, m.name, m.address, m.hashrate, m.is_active, m.last_seen, m.created_at,
-				COALESCE(m.difficulty, 0) as difficulty,
+				m.id, m.name, COALESCE(m.address::text, '') as address, m.hashrate, m.is_active, m.last_seen, m.created_at,
 				EXTRACT(EPOCH FROM (NOW() - m.created_at))::bigint as total_connection_time
 			FROM miners m
 			WHERE m.user_id = $1 ORDER BY m.last_seen DESC
@@ -1755,13 +1752,12 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 			var id int64
 			var name string
 			var address sql.NullString
-			var hashrate, difficulty float64
+			var hashrate float64
 			var isActive bool
 			var lastSeen, createdAt time.Time
 			var totalConnectionTime int64
 
-			minerRows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen, &createdAt,
-				&difficulty, &totalConnectionTime)
+			minerRows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen, &createdAt, &totalConnectionTime)
 
 			// Determine status
 			status := "offline"
@@ -1796,7 +1792,7 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 				"type":                  eqType,
 				"worker_name":           name,
 				"model":                 getModelFromHashrate(hashrate),
-				"difficulty":            difficulty,
+				"difficulty":            0.0,
 				"total_connection_time": totalConnectionTime,
 				"uptime_percent":        calculateUptimePercent(totalConnectionTime, 0),
 			})
