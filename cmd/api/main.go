@@ -549,7 +549,7 @@ func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 // handlePoolStatsWithCache returns pool stats with optional Redis caching
 func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.HandlerFunc {
 	const cacheKey = "chimera:pool:stats"
-	const cacheTTL = 10 * time.Second
+	const cacheTTL = 60 * time.Second // Increased to 60 seconds to reduce DB load
 
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
@@ -564,35 +564,20 @@ func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.Handler
 			}
 		}
 
-		// Cache miss - query database
+		// Cache miss - query database with timeout
+		queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
 		var activeMiners, totalMiners, totalBlocks int64
 		var totalHashrate float64
 
 		// Use time-based check for truly active miners (seen in last 5 minutes)
-		db.QueryRow("SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&activeMiners)
-		db.QueryRow("SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
-		db.QueryRow("SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
+		db.QueryRowContext(queryCtx, "SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&activeMiners)
+		db.QueryRowContext(queryCtx, "SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
+		db.QueryRowContext(queryCtx, "SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
 
-		// Get hashrate from recently active miners
-		db.QueryRow("SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
-
-		// If no hashrate from miners table, calculate from recent shares
-		if totalHashrate == 0 {
-			var shareCount int64
-			var totalDifficulty float64
-			// Get shares from last 5 minutes for hashrate calculation
-			db.QueryRow(`
-				SELECT COUNT(*), COALESCE(SUM(difficulty), 0) 
-				FROM shares 
-				WHERE timestamp > NOW() - INTERVAL '5 minutes' AND is_valid = true
-			`).Scan(&shareCount, &totalDifficulty)
-
-			if shareCount > 0 {
-				// Hashrate = (total_difficulty * 2^32) / time_window_seconds
-				// 2^32 = 4294967296
-				totalHashrate = (totalDifficulty * 4294967296.0) / 300.0 // 5 minutes = 300 seconds
-			}
-		}
+		// Get hashrate directly from miners table (fast query with index)
+		db.QueryRowContext(queryCtx, "SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
 
 		response := gin.H{
 			"active_miners":    activeMiners,
