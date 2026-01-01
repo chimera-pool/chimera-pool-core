@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -713,19 +714,57 @@ func handlePoolMiners(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// Cache for chart data to prevent database overload
+var chartCache = struct {
+	sync.RWMutex
+	data     map[string]interface{}
+	expiry   map[string]time.Time
+	cacheTTL time.Duration
+}{
+	data:     make(map[string]interface{}),
+	expiry:   make(map[string]time.Time),
+	cacheTTL: 5 * time.Minute, // Cache chart data for 5 minutes
+}
+
+func getCachedChartData(key string) (interface{}, bool) {
+	chartCache.RLock()
+	defer chartCache.RUnlock()
+	if exp, ok := chartCache.expiry[key]; ok && time.Now().Before(exp) {
+		return chartCache.data[key], true
+	}
+	return nil, false
+}
+
+func setCachedChartData(key string, data interface{}) {
+	chartCache.Lock()
+	defer chartCache.Unlock()
+	chartCache.data[key] = data
+	chartCache.expiry[key] = time.Now().Add(chartCache.cacheTTL)
+}
+
 // handlePublicPoolHashrateHistory returns pool hashrate history calculated from shares
 func handlePublicPoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 	timeService := stats.NewTimeRangeService()
 
 	return func(c *gin.Context) {
 		rangeStr := c.DefaultQuery("range", "24h")
+		cacheKey := "hashrate_history_" + rangeStr
+
+		// Check cache first
+		if cached, ok := getCachedChartData(cacheKey); ok {
+			c.Header("X-Cache", "HIT")
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+
 		pgInterval := timeService.GetPostgresInterval(rangeStr)
 		dateTrunc := timeService.GetDateTrunc(rangeStr)
-
-		// Calculate seconds per bucket for hashrate calculation
 		secondsPerBucket := getSecondsPerBucket(dateTrunc)
 
-		// Calculate hashrate from shares table grouped by time buckets
+		// Use query timeout to prevent blocking
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+		defer cancel()
+
 		query := fmt.Sprintf(`
 			SELECT 
 				date_trunc('%s', timestamp) as time_bucket,
@@ -736,9 +775,9 @@ func handlePublicPoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 			ORDER BY time_bucket ASC
 		`, dateTrunc, secondsPerBucket, pgInterval)
 
-		rows, err := db.Query(query)
+		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr, "error": err.Error()})
+			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr, "error": "Query timeout - data cached soon"})
 			return
 		}
 		defer rows.Close()
@@ -756,7 +795,10 @@ func handlePublicPoolHashrateHistory(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+		response := gin.H{"data": data, "range": rangeStr}
+		setCachedChartData(cacheKey, response)
+		c.Header("X-Cache", "MISS")
+		c.JSON(http.StatusOK, response)
 	}
 }
 
@@ -766,8 +808,20 @@ func handlePublicPoolSharesHistory(db *sql.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		rangeStr := c.DefaultQuery("range", "24h")
+		cacheKey := "shares_history_" + rangeStr
+
+		// Check cache first
+		if cached, ok := getCachedChartData(cacheKey); ok {
+			c.Header("X-Cache", "HIT")
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+
 		pgInterval := timeService.GetPostgresInterval(rangeStr)
 		dateTrunc := timeService.GetDateTrunc(rangeStr)
+
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+		defer cancel()
 
 		query := fmt.Sprintf(`
 			SELECT 
@@ -780,9 +834,9 @@ func handlePublicPoolSharesHistory(db *sql.DB) gin.HandlerFunc {
 			ORDER BY time_bucket ASC
 		`, dateTrunc, pgInterval)
 
-		rows, err := db.Query(query)
+		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr})
+			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr, "error": "Query timeout"})
 			return
 		}
 		defer rows.Close()
@@ -801,7 +855,10 @@ func handlePublicPoolSharesHistory(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+		response := gin.H{"data": data, "range": rangeStr}
+		setCachedChartData(cacheKey, response)
+		c.Header("X-Cache", "MISS")
+		c.JSON(http.StatusOK, response)
 	}
 }
 
@@ -811,8 +868,20 @@ func handlePublicPoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		rangeStr := c.DefaultQuery("range", "24h")
+		cacheKey := "miners_history_" + rangeStr
+
+		// Check cache first
+		if cached, ok := getCachedChartData(cacheKey); ok {
+			c.Header("X-Cache", "HIT")
+			c.JSON(http.StatusOK, cached)
+			return
+		}
+
 		pgInterval := timeService.GetPostgresInterval(rangeStr)
 		dateTrunc := timeService.GetDateTrunc(rangeStr)
+
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+		defer cancel()
 
 		// Query to get unique active miners per time bucket
 		query := fmt.Sprintf(`
@@ -826,7 +895,7 @@ func handlePublicPoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 			ORDER BY time_bucket ASC
 		`, dateTrunc, pgInterval)
 
-		rows, err := db.Query(query)
+		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"data": []gin.H{}, "range": rangeStr})
 			return
@@ -848,7 +917,10 @@ func handlePublicPoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 			})
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": data, "range": rangeStr})
+		response := gin.H{"data": data, "range": rangeStr}
+		setCachedChartData(cacheKey, response)
+		c.Header("X-Cache", "MISS")
+		c.JSON(http.StatusOK, response)
 	}
 }
 
