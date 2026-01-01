@@ -167,10 +167,10 @@ func initHealthMonitor(config *Config) *health.HealthService {
 	healthConfig := &health.ServiceConfig{
 		MonitorConfig: &health.HealthMonitorConfig{
 			CheckInterval:                    30 * time.Second,
-			MaxRestartsPerHour:               10, // Increased from 3 - allows recovery from transient issues
-			RestartCooldown:                  60 * time.Second,
-			ConsecutiveFailuresBeforeRestart: 3,
-			RPCTimeout:                       10 * time.Second,
+			MaxRestartsPerHour:               5,                 // Reduced - avoid restart loops
+			RestartCooldown:                  120 * time.Second, // Increased cooldown
+			ConsecutiveFailuresBeforeRestart: 6,                 // Increased - more tolerant of transient issues
+			RPCTimeout:                       15 * time.Second,  // Increased timeout
 			EnableAutoRestart:                getEnv("HEALTH_AUTO_RESTART", "true") == "true",
 			EnableAlerts:                     true,
 			AlertWebhookURL:                  getEnv("HEALTH_ALERT_WEBHOOK", ""),
