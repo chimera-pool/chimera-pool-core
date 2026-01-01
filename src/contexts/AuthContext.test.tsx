@@ -17,7 +17,7 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 // Test component that uses the auth context
 const TestConsumer: React.FC = () => {
-  const { user, token, isAuthenticated, login, logout, updateProfile, register, loading, error } = useAuth();
+  const { user, token, isAuthenticated, login, logout, updateProfile, register, isLoading, error } = useAuth();
   
   return (
     <div>
@@ -25,12 +25,12 @@ const TestConsumer: React.FC = () => {
       <div data-testid="user-email">{user?.email || 'no-user'}</div>
       <div data-testid="user-username">{user?.username || 'no-username'}</div>
       <div data-testid="token">{token || 'no-token'}</div>
-      <div data-testid="loading">{loading ? 'loading' : 'not-loading'}</div>
+      <div data-testid="loading">{isLoading ? 'loading' : 'not-loading'}</div>
       <div data-testid="error">{error || 'no-error'}</div>
       <button onClick={() => login('test@example.com', 'password123')}>Login</button>
       <button onClick={logout}>Logout</button>
       <button onClick={() => updateProfile({ username: 'newname' })}>Update Profile</button>
-      <button onClick={() => register('newuser', 'new@example.com', 'password123')}>Register</button>
+      <button onClick={() => register('new@example.com', 'password123', 'newuser')}>Register</button>
     </div>
   );
 };
