@@ -25,6 +25,7 @@ import AdminMinersTab from './tabs/AdminMinersTab';
 import AdminNetworkTab from './tabs/AdminNetworkTab';
 import AdminRolesTab from './tabs/AdminRolesTab';
 import AdminAlgorithmTab from './tabs/AdminAlgorithmTab';
+import AdminBroadcastsTab from './AdminBroadcastsTab';
 import AdminUsersTab from './tabs/AdminUsersTab';
 
 type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
@@ -67,7 +68,7 @@ interface AdminPanelProps {
 }
 
 function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'network' | 'roles' | 'bugs' | 'miners'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'algorithm' | 'network' | 'roles' | 'bugs' | 'miners' | 'broadcasts'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -849,6 +850,13 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
           >
             ⛏️ Miners
           </button>
+          <button 
+            style={{...adminStyles.tab, ...(activeTab === 'broadcasts' ? adminStyles.tabActive : {})}} 
+            className="admin-tab"
+            onClick={() => setActiveTab('broadcasts')}
+          >
+            📢 Broadcasts
+          </button>
         </div>
 
         {/* User Management Tab */}
@@ -882,6 +890,9 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
 
         {/* Miners Management Tab */}
         <AdminMinersTab token={token} isActive={activeTab === 'miners'} showMessage={showMessage} />
+
+        {/* Broadcasts Tab */}
+        <AdminBroadcastsTab token={token} isActive={activeTab === 'broadcasts'} showMessage={showMessage} />
       </div>
     </div>
   );
