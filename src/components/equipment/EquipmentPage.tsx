@@ -97,9 +97,33 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 
       if (eqRes.ok) {
         const data = await eqRes.json();
-        setEquipment(data.equipment || generateMockEquipment());
+        // Map API response to Equipment interface
+        const mappedEquipment = (data.equipment || []).map((eq: any) => ({
+          id: eq.id,
+          name: eq.name,
+          type: eq.type,
+          status: eq.status,
+          worker_name: eq.worker_name,
+          model: eq.model || getModelFromType(eq.type),
+          current_hashrate: eq.current_hashrate,
+          average_hashrate: eq.average_hashrate,
+          temperature: eq.temperature || 0,
+          power_usage: eq.power_usage || 0,
+          latency: eq.latency || 0,
+          shares_accepted: eq.shares_accepted,
+          shares_rejected: eq.shares_rejected,
+          uptime: eq.uptime,
+          last_seen: eq.last_seen,
+          total_earnings: eq.total_earnings,
+          payout_splits: [{ id: 's1', wallet_address: user?.payout_address || '', percentage: 100, label: 'Primary', is_active: true }],
+          connected_at: eq.connected_at,
+          total_connection_time: eq.total_connection_time,
+          total_downtime: eq.total_downtime || 0,
+          downtime_incidents: eq.downtime_incidents || 0,
+        }));
+        setEquipment(mappedEquipment.length > 0 ? mappedEquipment : []);
       } else {
-        setEquipment(generateMockEquipment());
+        setEquipment([]);
       }
 
       if (walletRes.ok) {
@@ -108,9 +132,20 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
       }
     } catch (error) {
       console.error('Failed to fetch equipment data:', error);
-      setEquipment(generateMockEquipment());
+      setEquipment([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper to determine model name from equipment type
+  const getModelFromType = (type: string): string => {
+    switch (type) {
+      case 'blockdag_x100': return 'BlockDAG X100';
+      case 'blockdag_x30': return 'BlockDAG X30';
+      case 'asic': return 'ASIC Miner';
+      case 'gpu': return 'GPU Rig';
+      default: return 'Mining Equipment';
     }
   };
 

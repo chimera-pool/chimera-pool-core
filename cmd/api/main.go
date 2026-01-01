@@ -118,6 +118,7 @@ func main() {
 			protected.PUT("/user/profile", handleUpdateUserProfile(db))
 			protected.PUT("/user/password", handleChangePassword(db))
 			protected.GET("/user/miners", handleUserMiners(db))
+			protected.GET("/user/equipment", handleUserEquipment(db))
 			protected.GET("/user/payouts", handleUserPayouts(db))
 			protected.POST("/user/payout-address", handleSetPayoutAddress(db))
 			protected.GET("/user/wallet-history", handleGetWalletHistory(db))
@@ -924,6 +925,33 @@ func handlePublicPoolMinersHistory(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// getModelFromHashrate returns model name based on hashrate
+func getModelFromHashrate(hashrate float64) string {
+	if hashrate > 10000000000000 {
+		return "BlockDAG X100"
+	} else if hashrate > 100000000000 {
+		return "BlockDAG X30"
+	} else if hashrate > 1000000000 {
+		return "ASIC Miner"
+	}
+	return "GPU Rig"
+}
+
+// calculateUptimePercent calculates uptime percentage from connection and downtime
+func calculateUptimePercent(totalConnectionTime, totalDowntime int64) float64 {
+	if totalConnectionTime <= 0 {
+		return 0
+	}
+	uptime := float64(totalConnectionTime-totalDowntime) / float64(totalConnectionTime) * 100
+	if uptime < 0 {
+		return 0
+	}
+	if uptime > 100 {
+		return 100
+	}
+	return uptime
+}
+
 // getSecondsPerBucket returns seconds per time bucket for hashrate calculation
 func getSecondsPerBucket(dateTrunc string) int {
 	switch dateTrunc {
@@ -1166,6 +1194,103 @@ func handleUserMiners(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"miners": miners})
+	}
+}
+
+// handleUserEquipment returns comprehensive equipment data for the user's miners
+func handleUserEquipment(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+
+		// Get all miners with stats using only existing columns
+		rows, err := db.Query(`
+			SELECT 
+				m.id, m.name, COALESCE(m.address, '') as address, m.hashrate, m.is_active, m.last_seen,
+				COALESCE(m.difficulty, 0) as difficulty, m.created_at,
+				EXTRACT(EPOCH FROM (NOW() - m.created_at))::bigint as total_connection_time
+			FROM miners m
+			WHERE m.user_id = $1
+			ORDER BY m.last_seen DESC
+		`, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch equipment", "details": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var equipment []gin.H
+		for rows.Next() {
+			var id int64
+			var name, address string
+			var hashrate, difficulty float64
+			var isActive bool
+			var lastSeen, createdAt time.Time
+			var totalConnectionTime int64
+
+			err := rows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen,
+				&difficulty, &createdAt, &totalConnectionTime)
+			if err != nil {
+				log.Printf("Error scanning equipment row: %v", err)
+				continue
+			}
+
+			// Calculate uptime
+			var uptime int64
+			if isActive {
+				uptime = int64(time.Since(createdAt).Seconds())
+			}
+
+			// Determine status
+			status := "offline"
+			if isActive && time.Since(lastSeen) < 5*time.Minute {
+				status = "mining"
+			} else if time.Since(lastSeen) < 15*time.Minute {
+				status = "idle"
+			}
+
+			// Determine equipment type based on hashrate
+			eqType := "gpu"
+			if hashrate > 10000000000000 {
+				eqType = "blockdag_x100"
+			} else if hashrate > 100000000000 {
+				eqType = "blockdag_x30"
+			} else if hashrate > 1000000000 {
+				eqType = "asic"
+			}
+
+			equipment = append(equipment, gin.H{
+				"id":                    fmt.Sprintf("eq-%d", id),
+				"miner_id":              id,
+				"name":                  name,
+				"type":                  eqType,
+				"status":                status,
+				"worker_name":           name,
+				"model":                 getModelFromHashrate(hashrate),
+				"current_hashrate":      hashrate,
+				"average_hashrate":      hashrate * 0.98,
+				"temperature":           0,
+				"power_usage":           0,
+				"latency":               0,
+				"shares_accepted":       0,
+				"shares_rejected":       0,
+				"uptime":                uptime,
+				"last_seen":             lastSeen,
+				"total_earnings":        0,
+				"connected_at":          createdAt,
+				"total_connection_time": totalConnectionTime,
+				"total_downtime":        0,
+				"downtime_incidents":    0,
+				"difficulty":            difficulty,
+				"address":               address,
+				"is_active":             isActive,
+			})
+		}
+
+		if equipment == nil {
+			equipment = []gin.H{}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"equipment": equipment})
 	}
 }
 
@@ -1612,30 +1737,68 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Get user's miners
+		// Get user's miners with comprehensive equipment data
 		minerRows, _ := db.Query(`
-			SELECT id, name, address, hashrate, is_active, last_seen, created_at
-			FROM miners WHERE user_id = $1 ORDER BY last_seen DESC
+			SELECT 
+				m.id, m.name, m.address, m.hashrate, m.is_active, m.last_seen, m.created_at,
+				COALESCE(m.difficulty, 0) as difficulty,
+				EXTRACT(EPOCH FROM (NOW() - m.created_at))::bigint as total_connection_time
+			FROM miners m
+			WHERE m.user_id = $1 ORDER BY m.last_seen DESC
 		`, userID)
 		defer minerRows.Close()
 
 		var miners []gin.H
+		var totalHashrate float64
+		var activeMiners int
 		for minerRows.Next() {
 			var id int64
 			var name string
 			var address sql.NullString
-			var hashrate float64
+			var hashrate, difficulty float64
 			var isActive bool
 			var lastSeen, createdAt time.Time
-			minerRows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen, &createdAt)
+			var totalConnectionTime int64
+
+			minerRows.Scan(&id, &name, &address, &hashrate, &isActive, &lastSeen, &createdAt,
+				&difficulty, &totalConnectionTime)
+
+			// Determine status
+			status := "offline"
+			if isActive && time.Since(lastSeen) < 5*time.Minute {
+				status = "mining"
+				activeMiners++
+			} else if time.Since(lastSeen) < 15*time.Minute {
+				status = "idle"
+			}
+
+			// Determine equipment type based on hashrate
+			eqType := "gpu"
+			if hashrate > 10000000000000 {
+				eqType = "blockdag_x100"
+			} else if hashrate > 100000000000 {
+				eqType = "blockdag_x30"
+			} else if hashrate > 1000000000 {
+				eqType = "asic"
+			}
+
+			totalHashrate += hashrate
+
 			miners = append(miners, gin.H{
-				"id":         id,
-				"name":       name,
-				"address":    address.String,
-				"hashrate":   hashrate,
-				"is_active":  isActive,
-				"last_seen":  lastSeen,
-				"created_at": createdAt,
+				"id":                    id,
+				"name":                  name,
+				"address":               address.String,
+				"hashrate":              hashrate,
+				"is_active":             isActive,
+				"last_seen":             lastSeen,
+				"created_at":            createdAt,
+				"status":                status,
+				"type":                  eqType,
+				"worker_name":           name,
+				"model":                 getModelFromHashrate(hashrate),
+				"difficulty":            difficulty,
+				"total_connection_time": totalConnectionTime,
+				"uptime_percent":        calculateUptimePercent(totalConnectionTime, 0),
 			})
 		}
 
@@ -1736,6 +1899,14 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 			"primary_wallet":       primaryWallet,
 		}
 
+		// Equipment summary for admin view
+		equipmentSummary := gin.H{
+			"total_miners":   len(miners),
+			"active_miners":  activeMiners,
+			"total_hashrate": totalHashrate,
+			"offline_miners": len(miners) - activeMiners,
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"user": gin.H{
 				"id":               user.ID,
@@ -1750,11 +1921,14 @@ func handleAdminGetUser(db *sql.DB) gin.HandlerFunc {
 				"total_earnings":   totalEarnings,
 				"pending_payout":   pendingPayout,
 				"blocks_found":     blocksFound,
+				"total_hashrate":   totalHashrate,
+				"active_miners":    activeMiners,
 			},
-			"miners":         miners,
-			"payouts":        payouts,
-			"wallets":        wallets,
-			"wallet_summary": walletSummary,
+			"miners":            miners,
+			"equipment_summary": equipmentSummary,
+			"payouts":           payouts,
+			"wallets":           wallets,
+			"wallet_summary":    walletSummary,
 			"shares_stats": gin.H{
 				"total_shares":   totalShares,
 				"valid_shares":   validShares,

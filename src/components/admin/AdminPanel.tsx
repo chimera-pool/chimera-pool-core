@@ -873,6 +873,15 @@ function AdminPanel({ token, onClose, showMessage }: AdminPanelProps) {
         {/* Legacy Algorithm code removed - now using AdminAlgorithmTab component */}
         {/* Network Configuration Tab */}
         <AdminNetworkTab token={token} isActive={activeTab === 'network'} showMessage={showMessage} />
+
+        {/* Roles Management Tab */}
+        <AdminRolesTab token={token} isActive={activeTab === 'roles'} showMessage={showMessage} />
+
+        {/* Bug Reports Tab */}
+        <AdminBugsTab token={token} isActive={activeTab === 'bugs'} showMessage={showMessage} />
+
+        {/* Miners Management Tab */}
+        <AdminMinersTab token={token} isActive={activeTab === 'miners'} showMessage={showMessage} />
       </div>
     </div>
   );
