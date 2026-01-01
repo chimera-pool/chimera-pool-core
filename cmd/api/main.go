@@ -87,8 +87,11 @@ func main() {
 		{
 			authGroup.POST("/register", handleRegister(db, config.JWTSecret))
 			authGroup.POST("/login", handleLogin(db, config.JWTSecret))
-			authGroup.POST("/forgot-password", handleForgotPassword(db, config))
-			authGroup.POST("/reset-password", handleResetPassword(db))
+			// SECURITY: Password reset disabled until email service is properly configured
+			// authGroup.POST("/forgot-password", handleForgotPassword(db, config))
+			// authGroup.POST("/reset-password", handleResetPassword(db))
+			authGroup.POST("/forgot-password", handlePasswordResetDisabled())
+			authGroup.POST("/reset-password", handlePasswordResetDisabled())
 		}
 
 		// Public routes (no rate limiting needed) - with Redis caching
@@ -463,6 +466,54 @@ func runMigrations(db *sql.DB) error {
 }
 
 // Handler functions
+// validatePasswordStrength enforces strong password policy
+func validatePasswordStrength(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters long")
+	}
+	if len(password) > 128 {
+		return fmt.Errorf("password must be less than 128 characters")
+	}
+
+	var hasUpper, hasLower, hasNumber, hasSpecial bool
+	for _, c := range password {
+		switch {
+		case c >= 'A' && c <= 'Z':
+			hasUpper = true
+		case c >= 'a' && c <= 'z':
+			hasLower = true
+		case c >= '0' && c <= '9':
+			hasNumber = true
+		case c == '!' || c == '@' || c == '#' || c == '$' || c == '%' || c == '^' || c == '&' || c == '*' || c == '(' || c == ')' || c == '-' || c == '_' || c == '=' || c == '+' || c == '[' || c == ']' || c == '{' || c == '}' || c == '|' || c == ';' || c == ':' || c == '\'' || c == '"' || c == ',' || c == '.' || c == '<' || c == '>' || c == '/' || c == '?' || c == '`' || c == '~':
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper {
+		return fmt.Errorf("password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("password must contain at least one lowercase letter")
+	}
+	if !hasNumber {
+		return fmt.Errorf("password must contain at least one number")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character (!@#$%%^&*)")
+	}
+
+	// Check for common weak passwords
+	weakPasswords := []string{"password", "12345678", "qwerty12", "letmein1", "welcome1", "admin123", "password1", "Password1"}
+	lowerPassword := strings.ToLower(password)
+	for _, weak := range weakPasswords {
+		if strings.Contains(lowerPassword, weak) {
+			return fmt.Errorf("password is too common, please choose a stronger password")
+		}
+	}
+
+	return nil
+}
+
 func handleRegister(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
@@ -472,6 +523,12 @@ func handleRegister(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// SECURITY: Enforce strong password policy
+		if err := validatePasswordStrength(req.Password); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -2313,6 +2370,16 @@ func validateJWT(tokenString, secret string) (int64, string, error) {
 	}
 
 	return 0, "", fmt.Errorf("invalid token")
+}
+
+// handlePasswordResetDisabled returns a message that password reset is temporarily disabled
+func handlePasswordResetDisabled() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "Password reset is temporarily disabled",
+			"message": "Email service is being configured. Please contact support at support@chimeriapool.com to reset your password.",
+		})
+	}
 }
 
 // Password Reset Handlers
@@ -6038,6 +6105,37 @@ func handleGetUserWallets(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// validateLitecoinAddress validates a Litecoin address format
+func validateLitecoinAddress(address string) error {
+	if len(address) < 26 || len(address) > 35 {
+		return fmt.Errorf("invalid address length")
+	}
+
+	// Litecoin addresses start with L, M, or ltc1 (bech32)
+	if !strings.HasPrefix(address, "L") &&
+		!strings.HasPrefix(address, "M") &&
+		!strings.HasPrefix(address, "ltc1") {
+		return fmt.Errorf("invalid Litecoin address prefix (must start with L, M, or ltc1)")
+	}
+
+	// Check for valid base58 characters (for legacy addresses)
+	if !strings.HasPrefix(address, "ltc1") {
+		validChars := "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+		for _, c := range address {
+			if !strings.ContainsRune(validChars, c) {
+				return fmt.Errorf("invalid character in address")
+			}
+		}
+	}
+
+	// Reject obvious SQL injection attempts
+	if strings.ContainsAny(address, "';\"--/*") {
+		return fmt.Errorf("invalid characters in address")
+	}
+
+	return nil
+}
+
 func handleCreateUserWallet(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetInt64("user_id")
@@ -6050,6 +6148,12 @@ func handleCreateUserWallet(db *sql.DB) gin.HandlerFunc {
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+			return
+		}
+
+		// SECURITY: Validate wallet address format
+		if err := validateLitecoinAddress(req.Address); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet address: " + err.Error()})
 			return
 		}
 
