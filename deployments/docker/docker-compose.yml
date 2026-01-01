@@ -82,21 +82,23 @@ services:
     build:
       context: ../..
       dockerfile: deployments/docker/Dockerfile.stratum
-    # Use host networking to capture real miner IPs for geolocation
-    # This allows the stratum server to see actual client IPs instead of Docker NAT IPs
-    # Ports 3333, 3335, 9091 are exposed directly on host
-    network_mode: "host"
+    # Use port mapping for Windows Docker Desktop compatibility
+    # Note: network_mode: "host" doesn't work on Windows/Mac Docker Desktop
+    ports:
+      - "3333:3333"   # Stratum port
+      - "3335:3335"   # Job negotiation port
+      - "9091:9091"   # Prometheus metrics
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for health monitor restarts (rw required)
     environment:
-      # With host networking, use localhost for services
-      DATABASE_URL: postgres://chimera:${POSTGRES_PASSWORD:-Champions$1956}@127.0.0.1:5432/chimera_pool?sslmode=disable
-      REDIS_URL: redis://127.0.0.1:6379/0
+      # Use Docker network hostnames for services
+      DATABASE_URL: postgres://chimera:${POSTGRES_PASSWORD:-Champions$1956}@postgres:5432/chimera_pool?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
       STRATUM_PORT: "3333"
       JOB_NEGOTIATION_PORT: "3335"
       BLOCKDAG_RPC_URL: ${BLOCKDAG_RPC_URL:-https://rpc.awakening.bdagscan.com}
       BLOCKDAG_WALLET_ADDRESS: ${BLOCKDAG_WALLET_ADDRESS:-0xD393798C098FFe3d64d4Ca531158D3562D00b66e}
-      LITECOIN_RPC_URL: http://127.0.0.1:9332
+      LITECOIN_RPC_URL: http://litecoind:9332
       LITECOIN_RPC_USER: chimera
       LITECOIN_RPC_PASSWORD: ChimeraLTC2024!
       JOB_NEGOTIATION_ENABLED: "true"
