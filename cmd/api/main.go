@@ -16,6 +16,7 @@ import (
 	"net/smtp"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -179,6 +180,8 @@ func main() {
 
 			protected.GET("/community/notifications", handleGetNotifications(db))
 			protected.PUT("/community/notifications/read", handleMarkNotificationsRead(db))
+
+			protected.GET("/community/users/search", handleSearchUsers(db))
 
 			protected.GET("/community/dm", handleGetDMList(db))
 			protected.GET("/community/dm/:userId", handleGetDMConversation(db))
@@ -4678,6 +4681,21 @@ func handleSendMessage(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Parse @mentions and create mention records
+		mentionRegex := regexp.MustCompile(`@(\w+)`)
+		matches := mentionRegex.FindAllStringSubmatch(req.Content, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				username := match[1]
+				// Find user by username and create mention (trigger will create notification)
+				var mentionedUserID int64
+				err := db.QueryRow("SELECT id FROM users WHERE LOWER(username) = LOWER($1) AND id != $2", username, userID).Scan(&mentionedUserID)
+				if err == nil {
+					db.Exec("INSERT INTO message_mentions (message_id, mentioned_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", id, mentionedUserID)
+				}
+			}
+		}
+
 		c.JSON(http.StatusOK, gin.H{"id": id, "createdAt": createdAt})
 	}
 }
@@ -5780,6 +5798,40 @@ func handleMarkNotificationsRead(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"success": true})
+	}
+}
+
+// handleSearchUsers searches for users by username for @mention autocomplete
+func handleSearchUsers(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		query := c.Query("q")
+		if len(query) < 1 {
+			c.JSON(http.StatusOK, gin.H{"users": []gin.H{}})
+			return
+		}
+
+		rows, err := db.Query(`
+			SELECT id, username 
+			FROM users 
+			WHERE LOWER(username) LIKE LOWER($1 || '%')
+			ORDER BY username
+			LIMIT 10
+		`, query)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
+			return
+		}
+		defer rows.Close()
+
+		users := []gin.H{}
+		for rows.Next() {
+			var id int64
+			var username string
+			rows.Scan(&id, &username)
+			users = append(users, gin.H{"id": id, "username": username})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"users": users})
 	}
 }
 
