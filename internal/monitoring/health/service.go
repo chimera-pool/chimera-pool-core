@@ -245,6 +245,16 @@ func (s *HealthService) GetMonitor() *HealthMonitor {
 	return s.monitor
 }
 
+// ResetRestartCounters resets restart counters for all monitored nodes.
+func (s *HealthService) ResetRestartCounters() {
+	s.monitor.ResetRestartCounters()
+}
+
+// ResetNodeRestartCounter resets the restart counter for a specific node.
+func (s *HealthService) ResetNodeRestartCounter(nodeName string) error {
+	return s.monitor.ResetNodeRestartCounter(nodeName)
+}
+
 // GetHealthStatus returns the current health status of all nodes.
 func (s *HealthService) GetHealthStatus(ctx context.Context) (map[string]*NodeHealth, error) {
 	return s.monitor.GetHealthStatus(ctx)

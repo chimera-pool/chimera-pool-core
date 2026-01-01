@@ -415,6 +415,39 @@ func (m *HealthMonitor) ForceCheck(ctx context.Context, nodeName string) (*NodeD
 	return diag, nil
 }
 
+// ResetRestartCounters resets restart counters for all nodes.
+// This is useful after network restoration or manual intervention.
+func (m *HealthMonitor) ResetRestartCounters() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now()
+	for name, node := range m.nodes {
+		node.health.RestartsThisHour = 0
+		node.health.ConsecutiveFails = 0
+		m.hourlyResets[name] = now
+		m.logger.Printf("[HealthMonitor] Reset restart counter for %s", name)
+	}
+	m.logger.Printf("[HealthMonitor] ✅ All restart counters reset")
+}
+
+// ResetNodeRestartCounter resets the restart counter for a specific node.
+func (m *HealthMonitor) ResetNodeRestartCounter(nodeName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	node, exists := m.nodes[nodeName]
+	if !exists {
+		return fmt.Errorf("%w: %s", ErrNodeNotFound, nodeName)
+	}
+
+	node.health.RestartsThisHour = 0
+	node.health.ConsecutiveFails = 0
+	m.hourlyResets[nodeName] = time.Now()
+	m.logger.Printf("[HealthMonitor] Reset restart counter for %s", nodeName)
+	return nil
+}
+
 // Ensure HealthMonitor implements HealthMonitorService.
 var _ HealthMonitorService = (*HealthMonitor)(nil)
 

@@ -1137,7 +1137,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   reactionBadgeActive: { background: 'rgba(212, 168, 75, 0.2)', borderColor: 'rgba(212, 168, 75, 0.5)' },
   reactionCount: { fontSize: '0.75rem', color: '#B8B4C8' },
   addReactionBtn: { background: 'rgba(74, 44, 90, 0.2)', border: '1px solid rgba(74, 44, 90, 0.4)', borderRadius: '12px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.8rem', color: '#B8B4C8', transition: 'all 0.2s' },
-  reactionPicker: { position: 'absolute' as const, bottom: '100%', left: 0, marginBottom: '8px', display: 'flex', flexWrap: 'wrap' as const, gap: '4px', padding: '10px', background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)', maxWidth: '200px', zIndex: 100 },
+  reactionPicker: { position: 'absolute' as const, top: '100%', right: 0, marginTop: '8px', display: 'flex', flexWrap: 'wrap' as const, gap: '4px', padding: '10px', background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)', maxWidth: '200px', zIndex: 1000 },
   reactionPickerItem: { background: 'none', border: 'none', padding: '6px', cursor: 'pointer', fontSize: '1.2rem', borderRadius: '6px', transition: 'all 0.2s' },
   
   paginationContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'rgba(45, 31, 61, 0.3)', borderTop: '1px solid rgba(74, 44, 90, 0.4)', marginTop: '10px', borderRadius: '0 0 14px 14px', flexWrap: 'wrap' as const, gap: '10px' },

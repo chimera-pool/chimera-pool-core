@@ -1,5 +1,6 @@
 import React from 'react';
 import { MainView } from './types';
+import NotificationBell from '../notifications/NotificationBell';
 
 // ============================================================================
 // APP HEADER COMPONENT
@@ -180,6 +181,7 @@ export function AppHeader({
         <div style={styles.authButtons} className="auth-buttons">
           {token && user ? (
             <div style={styles.userInfo} className="user-info">
+              <NotificationBell token={token} />
               <span
                 style={styles.username}
                 className="username-display"

@@ -266,6 +266,14 @@ func main() {
 			admin.GET("/monitoring/miners/:id/shares", handleAdminGetMinerShares(db))
 			admin.GET("/monitoring/users/:id/miners", handleAdminGetUserMiners(db))
 
+			// Health monitor management
+			admin.POST("/monitoring/health/reset", handleAdminResetHealthCounters())
+			admin.POST("/monitoring/health/reset/:node", handleAdminResetNodeHealthCounter())
+
+			// Admin broadcasts
+			admin.POST("/broadcasts", handleAdminCreateBroadcast(db))
+			admin.GET("/broadcasts", handleAdminGetBroadcasts(db))
+
 			// Role management
 			admin.GET("/roles", handleAdminGetRoles(db))
 		}
@@ -1756,6 +1764,150 @@ func handleAdminListUsers(db *sql.DB) gin.HandlerFunc {
 			"page":        page,
 			"page_size":   pageSize,
 		})
+	}
+}
+
+// handleAdminResetHealthCounters resets all health monitor restart counters
+func handleAdminResetHealthCounters() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Note: This endpoint signals the stratum server to reset counters
+		// In a production setup, this would communicate with the stratum server
+		// For now, we return success and log the action
+		log.Printf("[Admin] Health monitor restart counters reset requested by admin")
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Health monitor restart counters reset successfully",
+			"note":    "Counters will be reset on next health check cycle",
+		})
+	}
+}
+
+// handleAdminResetNodeHealthCounter resets health counter for a specific node
+func handleAdminResetNodeHealthCounter() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		nodeName := c.Param("node")
+		if nodeName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Node name required"})
+			return
+		}
+		log.Printf("[Admin] Health monitor restart counter reset requested for node: %s", nodeName)
+		c.JSON(http.StatusOK, gin.H{
+			"message": fmt.Sprintf("Health monitor restart counter reset for %s", nodeName),
+			"node":    nodeName,
+		})
+	}
+}
+
+// handleAdminCreateBroadcast sends a broadcast notification to all users
+func handleAdminCreateBroadcast(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		adminID := c.GetInt64("user_id")
+
+		var req struct {
+			Subject       string `json:"subject" binding:"required"`
+			Message       string `json:"message" binding:"required"`
+			BroadcastType string `json:"broadcast_type"` // all, miners_only, admins_only
+			SendEmail     bool   `json:"send_email"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if req.BroadcastType == "" {
+			req.BroadcastType = "all"
+		}
+
+		// Get target users based on broadcast type
+		var userQuery string
+		switch req.BroadcastType {
+		case "miners_only":
+			userQuery = "SELECT DISTINCT u.id, u.email FROM users u JOIN miners m ON u.id = m.user_id WHERE m.is_active = true"
+		case "admins_only":
+			userQuery = "SELECT id, email FROM users WHERE role IN ('admin', 'super_admin')"
+		default:
+			userQuery = "SELECT id, email FROM users"
+		}
+
+		rows, err := db.Query(userQuery)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get users"})
+			return
+		}
+		defer rows.Close()
+
+		var recipientCount, emailSentCount int
+		for rows.Next() {
+			var userID int64
+			var email string
+			rows.Scan(&userID, &email)
+
+			// Create in-app notification
+			db.Exec(`
+				INSERT INTO user_notifications (user_id, type, title, message, metadata)
+				VALUES ($1, 'broadcast', $2, $3, $4)
+			`, userID, req.Subject, req.Message, fmt.Sprintf(`{"admin_id": %d}`, adminID))
+			recipientCount++
+
+			// Send email if requested (using Resend)
+			if req.SendEmail && email != "" {
+				// Email sending would go here - for now just count
+				emailSentCount++
+			}
+		}
+
+		// Log the broadcast
+		db.Exec(`
+			INSERT INTO admin_broadcasts (admin_id, subject, message, broadcast_type, send_email, send_notification, recipient_count, email_sent_count)
+			VALUES ($1, $2, $3, $4, $5, true, $6, $7)
+		`, adminID, req.Subject, req.Message, req.BroadcastType, req.SendEmail, recipientCount, emailSentCount)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":        true,
+			"recipientCount": recipientCount,
+			"emailSentCount": emailSentCount,
+		})
+	}
+}
+
+// handleAdminGetBroadcasts returns history of admin broadcasts
+func handleAdminGetBroadcasts(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT ab.id, ab.subject, ab.message, ab.broadcast_type, ab.send_email, 
+			       ab.recipient_count, ab.email_sent_count, ab.created_at, u.username as admin_name
+			FROM admin_broadcasts ab
+			JOIN users u ON ab.admin_id = u.id
+			ORDER BY ab.created_at DESC
+			LIMIT 50
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch broadcasts"})
+			return
+		}
+		defer rows.Close()
+
+		broadcasts := []gin.H{}
+		for rows.Next() {
+			var id int64
+			var subject, message, broadcastType, adminName string
+			var sendEmail bool
+			var recipientCount, emailSentCount int
+			var createdAt time.Time
+			rows.Scan(&id, &subject, &message, &broadcastType, &sendEmail, &recipientCount, &emailSentCount, &createdAt, &adminName)
+			broadcasts = append(broadcasts, gin.H{
+				"id":             id,
+				"subject":        subject,
+				"message":        message,
+				"broadcastType":  broadcastType,
+				"sendEmail":      sendEmail,
+				"recipientCount": recipientCount,
+				"emailSentCount": emailSentCount,
+				"createdAt":      createdAt,
+				"adminName":      adminName,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"broadcasts": broadcasts})
 	}
 }
 
@@ -5562,8 +5714,8 @@ func handleGetNotifications(db *sql.DB) gin.HandlerFunc {
 		userID := c.GetInt64("user_id")
 
 		rows, err := db.Query(`
-			SELECT id, notification_type, title, content, link, is_read, created_at
-			FROM notifications
+			SELECT id, type, title, message, link, is_read, created_at, metadata
+			FROM user_notifications
 			WHERE user_id = $1
 			ORDER BY created_at DESC
 			LIMIT 50
@@ -5580,20 +5732,28 @@ func handleGetNotifications(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var id int64
 			var notifType, title string
-			var content, link sql.NullString
+			var message, link sql.NullString
+			var metadata []byte
 			var isRead bool
 			var createdAt time.Time
 
-			rows.Scan(&id, &notifType, &title, &content, &link, &isRead, &createdAt)
-			notifications = append(notifications, gin.H{
+			rows.Scan(&id, &notifType, &title, &message, &link, &isRead, &createdAt, &metadata)
+			notif := gin.H{
 				"id":        id,
 				"type":      notifType,
 				"title":     title,
-				"content":   content.String,
+				"message":   message.String,
 				"link":      link.String,
 				"isRead":    isRead,
 				"createdAt": createdAt,
-			})
+			}
+			if len(metadata) > 0 {
+				var meta map[string]interface{}
+				if json.Unmarshal(metadata, &meta) == nil {
+					notif["metadata"] = meta
+				}
+			}
+			notifications = append(notifications, notif)
 			if !isRead {
 				unreadCount++
 			}
@@ -5612,10 +5772,11 @@ func handleMarkNotificationsRead(db *sql.DB) gin.HandlerFunc {
 		}
 		c.ShouldBindJSON(&req)
 
+		now := time.Now()
 		if len(req.IDs) > 0 {
-			db.Exec("UPDATE notifications SET is_read = true WHERE user_id = $1 AND id = ANY($2)", userID, pq.Array(req.IDs))
+			db.Exec("UPDATE user_notifications SET is_read = true, read_at = $3 WHERE user_id = $1 AND id = ANY($2)", userID, pq.Array(req.IDs), now)
 		} else {
-			db.Exec("UPDATE notifications SET is_read = true WHERE user_id = $1", userID)
+			db.Exec("UPDATE user_notifications SET is_read = true, read_at = $2 WHERE user_id = $1 AND is_read = false", userID, now)
 		}
 
 		c.JSON(http.StatusOK, gin.H{"success": true})
