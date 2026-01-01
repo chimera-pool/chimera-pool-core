@@ -51,10 +51,12 @@ services:
       BLOCKDAG_RPC_URL: ${BLOCKDAG_RPC_URL:-https://rpc.awakening.bdagscan.com}
       BLOCKDAG_WALLET_ADDRESS: ${BLOCKDAG_WALLET_ADDRESS:-0xD393798C098FFe3d64d4Ca531158D3562D00b66e}
       SMTP_HOST: ${SMTP_HOST:-smtpout.secureserver.net}
-      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-reid@blockdaginvestors.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-Champions$1956}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM:-reid@blockdaginvestors.com}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-Chimera Pool <onboarding@resend.dev>}
       FRONTEND_URL: ${FRONTEND_URL:-https://206.162.80.230}
       # Litecoin Wallet Configuration for Payouts
       LTC_RPC_URL: http://litecoind:9332

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
@@ -9,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/smtp"
@@ -87,11 +89,9 @@ func main() {
 		{
 			authGroup.POST("/register", handleRegister(db, config.JWTSecret))
 			authGroup.POST("/login", handleLogin(db, config.JWTSecret))
-			// SECURITY: Password reset disabled until email service is properly configured
-			// authGroup.POST("/forgot-password", handleForgotPassword(db, config))
-			// authGroup.POST("/reset-password", handleResetPassword(db))
-			authGroup.POST("/forgot-password", handlePasswordResetDisabled())
-			authGroup.POST("/reset-password", handlePasswordResetDisabled())
+			// Email service configured - password reset enabled
+			authGroup.POST("/forgot-password", handleForgotPassword(db, config))
+			authGroup.POST("/reset-password", handleResetPassword(db))
 		}
 
 		// Public routes (no rate limiting needed) - with Redis caching
@@ -381,6 +381,8 @@ type Config struct {
 	SMTPPassword string
 	SMTPFrom     string
 	FrontendURL  string
+	ResendAPIKey string
+	EmailFrom    string
 }
 
 func loadConfig() *Config {
@@ -396,6 +398,8 @@ func loadConfig() *Config {
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:     getEnv("SMTP_FROM", "noreply@chimerapool.com"),
 		FrontendURL:  getEnv("FRONTEND_URL", "http://localhost:3000"),
+		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
+		EmailFrom:    getEnv("EMAIL_FROM", "Chimera Pool <noreply@chimeriapool.com>"),
 	}
 }
 
@@ -2503,96 +2507,83 @@ func handleResetPassword(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// Email sending function with TLS support for GoDaddy (port 465)
+// sendPasswordResetEmail sends password reset email via Resend API
 func sendPasswordResetEmail(config *Config, toEmail, username, resetLink string) error {
 	subject := "Chimera Pool - Password Reset Request"
-	body := fmt.Sprintf(`Hello %s,
-
-You have requested to reset your password for your Chimera Pool account.
-
-Click the link below to reset your password:
-%s
-
-This link will expire in 1 hour.
-
-If you did not request this password reset, please ignore this email. Your password will remain unchanged.
-
-Best regards,
-Chimera Pool Team
-
----
-This is an automated message. Please do not reply to this email.
+	htmlBody := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Password Reset</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); padding: 30px; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; text-align: center;">Chimera Pool</h1>
+    </div>
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
+        <h2 style="color: #333;">Hello %s,</h2>
+        <p>You have requested to reset your password for your Chimera Pool account.</p>
+        <p>Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="%s" style="background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
+        <p style="color: #666; font-size: 14px;">If you did not request this password reset, please ignore this email. Your password will remain unchanged.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">
+            Best regards,<br>Chimera Pool Team<br><br>
+            This is an automated message. Please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
 `, username, resetLink)
 
-	// Compose email
-	msg := fmt.Sprintf("From: %s\r\n"+
-		"To: %s\r\n"+
-		"Subject: %s\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/plain; charset=UTF-8\r\n"+
-		"\r\n"+
-		"%s", config.SMTPFrom, toEmail, subject, body)
+	return sendEmailViaResend(config, toEmail, subject, htmlBody)
+}
 
-	// Use TLS for port 465 (GoDaddy), STARTTLS for port 587
-	addr := fmt.Sprintf("%s:%s", config.SMTPHost, config.SMTPPort)
-
-	if config.SMTPPort == "465" {
-		// Direct TLS connection for port 465
-		tlsConfig := &tls.Config{
-			ServerName: config.SMTPHost,
-		}
-
-		conn, err := tls.Dial("tcp", addr, tlsConfig)
-		if err != nil {
-			return fmt.Errorf("failed to connect to SMTP server: %v", err)
-		}
-		defer conn.Close()
-
-		client, err := smtp.NewClient(conn, config.SMTPHost)
-		if err != nil {
-			return fmt.Errorf("failed to create SMTP client: %v", err)
-		}
-		defer client.Close()
-
-		// Authenticate
-		auth := smtp.PlainAuth("", config.SMTPUser, config.SMTPPassword, config.SMTPHost)
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication failed: %v", err)
-		}
-
-		// Set sender and recipient
-		if err := client.Mail(config.SMTPFrom); err != nil {
-			return fmt.Errorf("failed to set sender: %v", err)
-		}
-		if err := client.Rcpt(toEmail); err != nil {
-			return fmt.Errorf("failed to set recipient: %v", err)
-		}
-
-		// Send message body
-		w, err := client.Data()
-		if err != nil {
-			return fmt.Errorf("failed to get data writer: %v", err)
-		}
-		_, err = w.Write([]byte(msg))
-		if err != nil {
-			return fmt.Errorf("failed to write message: %v", err)
-		}
-		err = w.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close data writer: %v", err)
-		}
-
-		client.Quit()
-	} else {
-		// Standard STARTTLS for port 587
-		auth := smtp.PlainAuth("", config.SMTPUser, config.SMTPPassword, config.SMTPHost)
-		err := smtp.SendMail(addr, auth, config.SMTPFrom, []string{toEmail}, []byte(msg))
-		if err != nil {
-			return fmt.Errorf("failed to send email: %v", err)
-		}
+// sendEmailViaResend sends email using Resend API
+func sendEmailViaResend(config *Config, toEmail, subject, htmlBody string) error {
+	if config.ResendAPIKey == "" {
+		return fmt.Errorf("Resend API key not configured")
 	}
 
-	log.Printf("Password reset email sent to %s", toEmail)
+	// Resend API payload
+	payload := map[string]interface{}{
+		"from":    config.EmailFrom,
+		"to":      []string{toEmail},
+		"subject": subject,
+		"html":    htmlBody,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal email payload: %v", err)
+	}
+
+	// Create HTTP request to Resend API
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+config.ResendAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Resend API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("Email sent successfully to %s via Resend", toEmail)
 	return nil
 }
 
