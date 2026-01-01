@@ -8195,7 +8195,7 @@ func handleAdminGetAllMiners(db *sql.DB) gin.HandlerFunc {
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 		search := c.Query("search")
-		activeOnly := c.Query("active") == "true"
+		activeOnly := c.Query("active") == "true" || c.Query("active_only") == "true"
 
 		miners, total, err := service.GetAllMinersForAdmin(page, limit, search, activeOnly)
 		if err != nil {
