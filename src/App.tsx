@@ -252,7 +252,7 @@ function DashboardView({ loading, stats, token, user, equipmentStatus, showMessa
         <div style={styles.statsGrid} className="stats-grid">
           <StatCard label="Network" value={stats.network} />
           <StatCard label="Currency" value={stats.currency} />
-          <StatCard label="Active Miners" value={stats.active_miners || stats.total_miners} />
+          <StatCard label="Active Miners" value={stats.active_miners ?? 0} />
           <StatCard label="Pool Hashrate" value={formatHashrate(stats.total_hashrate)} />
           <StatCard label="Blocks Found" value={stats.blocks_found} />
           <StatCard label="Min Payout" value={`${stats.minimum_payout} ${stats.currency}`} />
