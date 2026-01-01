@@ -7,6 +7,13 @@ interface BugReportModalProps {
   showMessage: (type: 'success' | 'error', text: string) => void;
 }
 
+interface AttachmentFile {
+  name: string;
+  type: string;
+  size: number;
+  data: string;
+}
+
 interface BugReportForm {
   title: string;
   description: string;
@@ -15,6 +22,7 @@ interface BugReportForm {
   actual_behavior: string;
   category: string;
   screenshot: string;
+  attachments: AttachmentFile[];
 }
 
 const styles = {
@@ -149,6 +157,7 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
     actual_behavior: '',
     category: 'other',
     screenshot: '',
+    attachments: [],
   });
   const [loading, setLoading] = useState(false);
 
@@ -161,6 +170,7 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
       actual_behavior: '',
       category: 'other',
       screenshot: '',
+      attachments: [],
     });
   };
 
@@ -186,6 +196,7 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
           actual_behavior: form.actual_behavior,
           category: form.category,
           screenshot: form.screenshot || undefined,
+          attachments: form.attachments.length > 0 ? form.attachments : undefined,
         }),
       });
 
@@ -218,6 +229,77 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const maxFileSize = 25 * 1024 * 1024; // 25MB per file
+    const maxTotalSize = 50 * 1024 * 1024; // 50MB total
+    const allowedTypes = [
+      'application/pdf',
+      'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+      'text/plain', 'text/csv', 'text/markdown',
+      'application/json',
+      'application/zip', 'application/x-zip-compressed',
+      'video/mp4', 'video/webm',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/msword',
+      'application/vnd.ms-excel',
+    ];
+
+    const newAttachments: AttachmentFile[] = [];
+    let totalSize = form.attachments.reduce((sum, a) => sum + a.size, 0);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      if (file.size > maxFileSize) {
+        showMessage('error', `${file.name} exceeds 25MB limit`);
+        continue;
+      }
+
+      if (totalSize + file.size > maxTotalSize) {
+        showMessage('error', 'Total attachments exceed 50MB limit');
+        break;
+      }
+
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|png|jpg|jpeg|gif|txt|csv|md|json|zip|mp4|webm|docx|xlsx|doc|xls|log)$/i)) {
+        showMessage('error', `${file.name}: File type not supported`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+
+      newAttachments.push({
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        data: base64,
+      });
+      totalSize += file.size;
+    }
+
+    if (newAttachments.length > 0) {
+      setForm({ ...form, attachments: [...form.attachments, ...newAttachments] });
+    }
+    e.target.value = ''; // Reset input
+  };
+
+  const removeAttachment = (index: number) => {
+    setForm({ ...form, attachments: form.attachments.filter((_, i) => i !== index) });
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   if (!isOpen) return null;
@@ -319,6 +401,57 @@ export function BugReportModal({ isOpen, onClose, token, showMessage }: BugRepor
               >
                 ✕
               </button>
+            )}
+          </div>
+        </div>
+
+        <div style={styles.formGroup}>
+          <label style={styles.label}>📎 Additional Attachments (PDF, logs, videos, docs - up to 50MB total)</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ ...styles.uploadLabel, padding: '20px' }}>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.json,.zip,.mp4,.webm,.docx,.xlsx,.doc,.xls,.log"
+                style={{ display: 'none' }}
+                onChange={handleAttachmentChange}
+                data-testid="bug-report-attachments-input"
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '2rem' }}>📁</span>
+                <span>Drop files here or click to upload</span>
+                <span style={{ fontSize: '0.8rem', color: '#7A7490' }}>PDF, Images, Videos, Documents, Logs, ZIP</span>
+              </div>
+            </label>
+            
+            {form.attachments.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {form.attachments.map((file, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'rgba(26, 15, 30, 0.6)', borderRadius: '8px', border: '1px solid rgba(74, 44, 90, 0.4)' }}>
+                    <span style={{ fontSize: '1.2rem' }}>
+                      {file.type.includes('pdf') ? '📄' : 
+                       file.type.includes('image') ? '🖼️' : 
+                       file.type.includes('video') ? '🎬' : 
+                       file.type.includes('zip') ? '📦' : 
+                       file.type.includes('text') || file.name.endsWith('.log') ? '📝' : '📎'}
+                    </span>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ color: '#F0EDF4', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
+                      <div style={{ color: '#7A7490', fontSize: '0.75rem' }}>{formatFileSize(file.size)}</div>
+                    </div>
+                    <button
+                      style={{ ...styles.removeBtn, padding: '6px 10px', fontSize: '0.8rem' }}
+                      onClick={() => removeAttachment(idx)}
+                      data-testid={`remove-attachment-${idx}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <div style={{ color: '#7A7490', fontSize: '0.8rem', textAlign: 'right' }}>
+                  Total: {formatFileSize(form.attachments.reduce((sum, a) => sum + a.size, 0))} / 50 MB
+                </div>
+              </div>
             )}
           </div>
         </div>

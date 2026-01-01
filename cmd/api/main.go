@@ -5978,18 +5978,25 @@ func handleCreateBugReport(db *sql.DB, config *Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetInt64("user_id")
 
+		type AttachmentData struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+			Size int64  `json:"size"`
+			Data string `json:"data"` // Base64 encoded
+		}
 		var req struct {
-			Title            string `json:"title" binding:"required,min=5,max=255"`
-			Description      string `json:"description" binding:"required,min=10"`
-			StepsToReproduce string `json:"steps_to_reproduce"`
-			ExpectedBehavior string `json:"expected_behavior"`
-			ActualBehavior   string `json:"actual_behavior"`
-			Category         string `json:"category"`
-			BrowserInfo      string `json:"browser_info"`
-			OSInfo           string `json:"os_info"`
-			PageURL          string `json:"page_url"`
-			ConsoleErrors    string `json:"console_errors"`
-			Screenshot       string `json:"screenshot"` // Base64 encoded screenshot
+			Title            string           `json:"title" binding:"required,min=5,max=255"`
+			Description      string           `json:"description" binding:"required,min=10"`
+			StepsToReproduce string           `json:"steps_to_reproduce"`
+			ExpectedBehavior string           `json:"expected_behavior"`
+			ActualBehavior   string           `json:"actual_behavior"`
+			Category         string           `json:"category"`
+			BrowserInfo      string           `json:"browser_info"`
+			OSInfo           string           `json:"os_info"`
+			PageURL          string           `json:"page_url"`
+			ConsoleErrors    string           `json:"console_errors"`
+			Screenshot       string           `json:"screenshot"`  // Base64 encoded screenshot
+			Attachments      []AttachmentData `json:"attachments"` // Additional file attachments
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -6037,6 +6044,23 @@ func handleCreateBugReport(db *sql.DB, config *Config) gin.HandlerFunc {
 					VALUES ($1, $2, $3, $4, $5, $6, true)
 				`, bugID, filename, "screenshot.png", "image/png", len(screenshotData), screenshotData)
 			}
+		}
+
+		// Handle additional attachments
+		for i, attachment := range req.Attachments {
+			if attachment.Data == "" || attachment.Size > 25*1024*1024 { // Max 25MB per file
+				continue
+			}
+			fileData, err := base64.StdEncoding.DecodeString(attachment.Data)
+			if err != nil {
+				log.Printf("Failed to decode attachment %d: %v", i, err)
+				continue
+			}
+			filename := fmt.Sprintf("attachment_%s_%d_%d", reportNumber, time.Now().Unix(), i)
+			db.Exec(`
+				INSERT INTO bug_attachments (bug_report_id, filename, original_filename, file_type, file_size, file_data, is_screenshot)
+				VALUES ($1, $2, $3, $4, $5, $6, false)
+			`, bugID, filename, attachment.Name, attachment.Type, len(fileData), fileData)
 		}
 
 		// Get user email for notification
