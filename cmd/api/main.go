@@ -136,6 +136,10 @@ func main() {
 			protected.PUT("/user/wallets/:id", handleUpdateUserWallet(db))
 			protected.DELETE("/user/wallets/:id", handleDeleteUserWallet(db))
 			protected.GET("/user/wallets/preview", handleWalletPayoutPreview(db))
+			protected.PUT("/user/wallets/:id/toggle", handleToggleWalletActive(db))
+			protected.PUT("/user/wallets/:id/allocation", handleUpdateWalletAllocation(db))
+			protected.GET("/user/miners/:id/wallets", handleGetMinerWalletAssignments(db))
+			protected.PUT("/user/miners/:id/wallets", handleSetMinerWalletAssignment(db))
 			protected.GET("/user/stats", handleUserStats(db))
 			protected.GET("/user/stats/hashrate", handleUserHashrateHistory(db))
 			protected.GET("/user/stats/shares", handleUserSharesHistory(db))
@@ -6707,6 +6711,219 @@ func handleWalletPayoutPreview(db *sql.DB) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"total_amount": amount,
 			"splits":       splits,
+		})
+	}
+}
+
+// ==================== WALLET TOGGLE & ALLOCATION HANDLERS ====================
+
+// handleToggleWalletActive toggles a wallet's active status with auto-rebalancing
+func handleToggleWalletActive(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		walletID := c.Param("id")
+
+		// Verify ownership
+		var ownerID int64
+		err := db.QueryRow("SELECT user_id FROM user_wallets WHERE id = $1", walletID).Scan(&ownerID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
+			return
+		}
+		if ownerID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized"})
+			return
+		}
+
+		var req struct {
+			IsActive bool `json:"is_active"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// Use the database function for auto-rebalancing
+		rows, err := db.Query("SELECT * FROM toggle_wallet_active($1, $2)", walletID, req.IsActive)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle wallet: " + err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		wallets := []gin.H{}
+		for rows.Next() {
+			var wid int64
+			var isActive bool
+			var percentage float64
+			rows.Scan(&wid, &isActive, &percentage)
+			wallets = append(wallets, gin.H{
+				"id":         wid,
+				"is_active":  isActive,
+				"percentage": percentage,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Wallet status updated",
+			"wallets": wallets,
+		})
+	}
+}
+
+// handleUpdateWalletAllocation updates a wallet's allocation with auto-rebalancing
+func handleUpdateWalletAllocation(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		walletID := c.Param("id")
+
+		// Verify ownership
+		var ownerID int64
+		err := db.QueryRow("SELECT user_id FROM user_wallets WHERE id = $1", walletID).Scan(&ownerID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
+			return
+		}
+		if ownerID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized"})
+			return
+		}
+
+		var req struct {
+			Percentage float64 `json:"percentage" binding:"required,gte=0,lte=100"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: percentage must be between 0 and 100"})
+			return
+		}
+
+		// Use the database function for auto-rebalancing
+		rows, err := db.Query("SELECT * FROM update_wallet_percentage($1, $2)", walletID, req.Percentage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update allocation: " + err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		wallets := []gin.H{}
+		for rows.Next() {
+			var wid int64
+			var percentage float64
+			rows.Scan(&wid, &percentage)
+			wallets = append(wallets, gin.H{
+				"id":         wid,
+				"percentage": percentage,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Wallet allocation updated - other wallets auto-balanced",
+			"wallets": wallets,
+		})
+	}
+}
+
+// handleGetMinerWalletAssignments gets wallet assignments for a specific miner
+func handleGetMinerWalletAssignments(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		minerID := c.Param("id")
+
+		// Verify miner ownership
+		var ownerID int64
+		err := db.QueryRow("SELECT user_id FROM miners WHERE id = $1", minerID).Scan(&ownerID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Miner not found"})
+			return
+		}
+		if ownerID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized"})
+			return
+		}
+
+		rows, err := db.Query(`
+			SELECT mwa.id, mwa.wallet_id, uw.address, COALESCE(uw.label, ''), mwa.allocation_percent, mwa.is_active
+			FROM miner_wallet_assignments mwa
+			JOIN user_wallets uw ON mwa.wallet_id = uw.id
+			WHERE mwa.miner_id = $1
+			ORDER BY mwa.allocation_percent DESC
+		`, minerID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assignments"})
+			return
+		}
+		defer rows.Close()
+
+		assignments := []gin.H{}
+		for rows.Next() {
+			var id, walletID int64
+			var address, label string
+			var allocationPercent float64
+			var isActive bool
+			rows.Scan(&id, &walletID, &address, &label, &allocationPercent, &isActive)
+			assignments = append(assignments, gin.H{
+				"id":                 id,
+				"wallet_id":          walletID,
+				"address":            address,
+				"label":              label,
+				"allocation_percent": allocationPercent,
+				"is_active":          isActive,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"miner_id":    minerID,
+			"assignments": assignments,
+		})
+	}
+}
+
+// handleSetMinerWalletAssignment assigns a wallet to a specific miner
+func handleSetMinerWalletAssignment(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		minerID := c.Param("id")
+
+		// Verify miner ownership
+		var ownerID int64
+		err := db.QueryRow("SELECT user_id FROM miners WHERE id = $1", minerID).Scan(&ownerID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Miner not found"})
+			return
+		}
+		if ownerID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized"})
+			return
+		}
+
+		var req struct {
+			WalletID          int64   `json:"wallet_id" binding:"required"`
+			AllocationPercent float64 `json:"allocation_percent" binding:"required,gt=0,lte=100"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// Verify wallet ownership
+		err = db.QueryRow("SELECT user_id FROM user_wallets WHERE id = $1", req.WalletID).Scan(&ownerID)
+		if err != nil || ownerID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Wallet not found or not authorized"})
+			return
+		}
+
+		// Use the database function
+		_, err = db.Exec("SELECT assign_miner_wallet($1, $2, $3)", minerID, req.WalletID, req.AllocationPercent)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign wallet: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":            "Wallet assigned to miner",
+			"miner_id":           minerID,
+			"wallet_id":          req.WalletID,
+			"allocation_percent": req.AllocationPercent,
 		})
 	}
 }
