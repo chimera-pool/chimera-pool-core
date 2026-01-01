@@ -81,8 +81,8 @@ func main() {
 		log.Println("✅ Pool metrics provider connected to Prometheus exporter")
 	}
 
-	// Start listening
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", config.Port))
+	// Start listening on all interfaces (IPv4 and IPv6)
+	listener, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%s", config.Port))
 	if err != nil {
 		log.Fatalf("Failed to start stratum server: %v", err)
 	}
