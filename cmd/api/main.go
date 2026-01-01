@@ -68,6 +68,9 @@ func main() {
 
 	router := gin.Default()
 
+	// SECURITY: Add security headers middleware
+	router.Use(securityHeadersMiddleware())
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -529,6 +532,96 @@ func validatePasswordStrength(password string) error {
 	return nil
 }
 
+// validateLitecoinAddress validates Litecoin address format (mainnet)
+func validateLitecoinAddress(address string) bool {
+	if len(address) < 26 || len(address) > 90 {
+		return false
+	}
+
+	// P2PKH (starts with L) - Legacy
+	if strings.HasPrefix(address, "L") && len(address) >= 26 && len(address) <= 34 {
+		return isBase58(address)
+	}
+	// P2SH (starts with M) - Legacy SegWit
+	if strings.HasPrefix(address, "M") && len(address) >= 26 && len(address) <= 34 {
+		return isBase58(address)
+	}
+	// Bech32 (starts with ltc1) - Native SegWit
+	if strings.HasPrefix(address, "ltc1") && len(address) >= 42 && len(address) <= 90 {
+		return isBech32(address)
+	}
+
+	return false
+}
+
+// isBase58 checks if string contains only valid Base58 characters
+func isBase58(s string) bool {
+	base58Chars := "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+	for _, c := range s {
+		if !strings.ContainsRune(base58Chars, c) {
+			return false
+		}
+	}
+	return true
+}
+
+// isBech32 checks if string contains only valid Bech32 characters
+func isBech32(s string) bool {
+	// Bech32 uses lowercase alphanumeric excluding 1, b, i, o
+	bech32Chars := "023456789acdefghjklmnpqrstuvwxyz"
+	lower := strings.ToLower(s)
+	// Skip the "ltc1" prefix
+	if len(lower) > 4 {
+		for _, c := range lower[4:] {
+			if !strings.ContainsRune(bech32Chars, c) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// containsSQLInjection checks for common SQL injection patterns
+func containsSQLInjection(input string) bool {
+	lower := strings.ToLower(input)
+	patterns := []string{
+		"'", "\"", ";", "--", "/*", "*/", "xp_", "sp_",
+		"select ", "insert ", "update ", "delete ", "drop ",
+		"union ", "exec ", "execute ", "script", "<", ">",
+		"0x", "\\x", "char(", "nchar(", "varchar(", "nvarchar(",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// securityHeadersMiddleware adds security headers to all responses
+func securityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Prevent clickjacking
+		c.Header("X-Frame-Options", "DENY")
+		// Prevent MIME type sniffing
+		c.Header("X-Content-Type-Options", "nosniff")
+		// Enable XSS filter
+		c.Header("X-XSS-Protection", "1; mode=block")
+		// Referrer policy
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		// Content Security Policy
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: ws:;")
+		// Permissions Policy (formerly Feature-Policy)
+		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		// Cache control for sensitive data
+		if strings.Contains(c.Request.URL.Path, "/api/v1/user") || strings.Contains(c.Request.URL.Path, "/api/v1/admin") {
+			c.Header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+			c.Header("Pragma", "no-cache")
+		}
+		c.Next()
+	}
+}
+
 func handleRegister(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
@@ -586,6 +679,23 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
+		clientIP := c.ClientIP()
+		userAgent := c.GetHeader("User-Agent")
+
+		// SECURITY: Check if account is locked
+		var isLocked bool
+		db.QueryRow("SELECT is_account_locked($1)", req.Email).Scan(&isLocked)
+		if isLocked {
+			var lockedUntil time.Time
+			db.QueryRow("SELECT locked_until FROM account_lockouts WHERE email = $1", req.Email).Scan(&lockedUntil)
+			log.Printf("[SECURITY] Login attempt on locked account: %s from IP %s", req.Email, clientIP)
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":        "Account temporarily locked due to too many failed attempts",
+				"locked_until": lockedUntil,
+			})
+			return
+		}
+
 		// Get user by email
 		var userID int64
 		var username, passwordHash string
@@ -595,15 +705,54 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 		).Scan(&userID, &username, &passwordHash)
 
 		if err != nil {
+			// SECURITY: Record failed login attempt
+			var lockResult struct {
+				IsLocked          bool
+				LockedUntil       sql.NullTime
+				AttemptsRemaining int
+			}
+			db.QueryRow("SELECT * FROM record_failed_login($1, $2, $3, $4)",
+				req.Email, clientIP, userAgent, "user_not_found").Scan(
+				&lockResult.IsLocked, &lockResult.LockedUntil, &lockResult.AttemptsRemaining)
+
+			if lockResult.IsLocked {
+				log.Printf("[SECURITY] Account locked after failed attempts: %s from IP %s", req.Email, clientIP)
+				c.JSON(http.StatusTooManyRequests, gin.H{
+					"error":        "Account temporarily locked due to too many failed attempts",
+					"locked_until": lockResult.LockedUntil.Time,
+				})
+				return
+			}
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
 		// Verify password
 		if !verifyPassword(req.Password, passwordHash) {
+			// SECURITY: Record failed login attempt
+			var lockResult struct {
+				IsLocked          bool
+				LockedUntil       sql.NullTime
+				AttemptsRemaining int
+			}
+			db.QueryRow("SELECT * FROM record_failed_login($1, $2, $3, $4)",
+				req.Email, clientIP, userAgent, "wrong_password").Scan(
+				&lockResult.IsLocked, &lockResult.LockedUntil, &lockResult.AttemptsRemaining)
+
+			if lockResult.IsLocked {
+				log.Printf("[SECURITY] Account locked after failed attempts: %s from IP %s", req.Email, clientIP)
+				c.JSON(http.StatusTooManyRequests, gin.H{
+					"error":        "Account temporarily locked due to too many failed attempts",
+					"locked_until": lockResult.LockedUntil.Time,
+				})
+				return
+			}
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
+
+		// SECURITY: Record successful login (clears lockout)
+		db.Exec("SELECT record_successful_login($1, $2, $3)", req.Email, clientIP, userAgent)
 
 		// Generate JWT
 		token, err := generateJWT(userID, username, jwtSecret)
@@ -612,6 +761,7 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("[AUTH] Successful login: user_id=%d, email=%s, ip=%s", userID, req.Email, clientIP)
 		c.JSON(http.StatusOK, gin.H{
 			"token":   token,
 			"user_id": userID,
@@ -1412,6 +1562,19 @@ func handleSetPayoutAddress(db *sql.DB) gin.HandlerFunc {
 
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// SECURITY: Validate Litecoin address format
+		if !validateLitecoinAddress(req.Address) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Litecoin address format"})
+			return
+		}
+
+		// SECURITY: Sanitize input - prevent SQL injection
+		if containsSQLInjection(req.Address) {
+			log.Printf("[SECURITY] SQL injection attempt detected for user %d: %s", userID, req.Address)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address format"})
 			return
 		}
 
@@ -6309,34 +6472,11 @@ func handleGetUserWallets(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// validateLitecoinAddress validates a Litecoin address format
-func validateLitecoinAddress(address string) error {
-	if len(address) < 26 || len(address) > 35 {
-		return fmt.Errorf("invalid address length")
+// validateLitecoinAddressWithError validates a Litecoin address format and returns error
+func validateLitecoinAddressWithError(address string) error {
+	if !validateLitecoinAddress(address) {
+		return fmt.Errorf("invalid Litecoin address format")
 	}
-
-	// Litecoin addresses start with L, M, or ltc1 (bech32)
-	if !strings.HasPrefix(address, "L") &&
-		!strings.HasPrefix(address, "M") &&
-		!strings.HasPrefix(address, "ltc1") {
-		return fmt.Errorf("invalid Litecoin address prefix (must start with L, M, or ltc1)")
-	}
-
-	// Check for valid base58 characters (for legacy addresses)
-	if !strings.HasPrefix(address, "ltc1") {
-		validChars := "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-		for _, c := range address {
-			if !strings.ContainsRune(validChars, c) {
-				return fmt.Errorf("invalid character in address")
-			}
-		}
-	}
-
-	// Reject obvious SQL injection attempts
-	if strings.ContainsAny(address, "';\"--/*") {
-		return fmt.Errorf("invalid characters in address")
-	}
-
 	return nil
 }
 
@@ -6356,7 +6496,7 @@ func handleCreateUserWallet(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// SECURITY: Validate wallet address format
-		if err := validateLitecoinAddress(req.Address); err != nil {
+		if err := validateLitecoinAddressWithError(req.Address); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet address: " + err.Error()})
 			return
 		}
