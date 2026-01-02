@@ -552,8 +552,8 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
   }
 
   return (
-    <section style={styles.section}>
-      <div style={styles.header}>
+    <section style={styles.section} data-testid="wallet-manager-section">
+      <div style={styles.header} data-testid="wallet-manager-header">
         <h2 style={{ ...styles.sectionTitle, margin: 0 }}>💰 Multi-Wallet Payout Settings</h2>
         <button 
           style={styles.addBtn} 
@@ -562,6 +562,8 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
             setNewWallet({ ...newWallet, percentage: summary?.remaining_percentage || 100 }); 
           }}
           disabled={summary?.remaining_percentage === 0}
+          data-testid="wallet-add-btn"
+          aria-label="Add new wallet"
         >
           + Add Wallet
         </button>
@@ -569,8 +571,8 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
 
       {/* Summary Bar */}
       {summary && (
-        <div style={styles.summaryBar}>
-          <div style={styles.summaryItem}>
+        <div style={styles.summaryBar} data-testid="wallet-summary-bar">
+          <div style={styles.summaryItem} data-testid="wallet-summary-active">
             <span style={styles.summaryLabel}>Active Wallets</span>
             <span style={styles.summaryValue}>{summary.active_wallets}</span>
           </div>
@@ -595,9 +597,9 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
 
       {/* Add Wallet Form */}
       {showAddForm && (
-        <div style={styles.formContainer}>
+        <div style={styles.formContainer} data-testid="wallet-add-form-container">
           <h3 style={styles.formTitle}>Add New Wallet</h3>
-          <form onSubmit={handleAddWallet} style={styles.form}>
+          <form onSubmit={handleAddWallet} style={styles.form} data-testid="wallet-add-form">
             <div style={styles.formRow}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Wallet Address *</label>
@@ -608,6 +610,8 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
                   onChange={(e) => setNewWallet({ ...newWallet, address: e.target.value })}
                   placeholder="0x..."
                   required
+                  data-testid="wallet-address-input"
+                  aria-label="Wallet address"
                 />
               </div>
               <div style={styles.formGroup}>
@@ -618,6 +622,8 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
                   value={newWallet.label}
                   onChange={(e) => setNewWallet({ ...newWallet, label: e.target.value })}
                   placeholder="e.g., Main, Hardware, Exchange"
+                  data-testid="wallet-label-input"
+                  aria-label="Wallet label"
                 />
               </div>
             </div>
@@ -651,10 +657,10 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
               </div>
             </div>
             <div style={styles.formActions}>
-              <button type="button" style={styles.cancelBtn} onClick={() => setShowAddForm(false)}>
+              <button type="button" style={styles.cancelBtn} onClick={() => setShowAddForm(false)} data-testid="wallet-cancel-btn">
                 Cancel
               </button>
-              <button type="submit" style={styles.saveBtn} disabled={saving}>
+              <button type="submit" style={styles.saveBtn} disabled={saving} data-testid="wallet-submit-btn">
                 {saving ? 'Adding...' : 'Add Wallet'}
               </button>
             </div>
@@ -664,18 +670,19 @@ export function WalletManager({ token, showMessage }: WalletManagerProps) {
 
       {/* Wallets List */}
       {wallets.length === 0 ? (
-        <div style={styles.emptyState}>
+        <div style={styles.emptyState} data-testid="wallet-empty-state">
           <p>No wallets configured yet.</p>
           <p style={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
             Add a wallet to receive mining payouts.
           </p>
         </div>
       ) : (
-        <div style={styles.walletsList}>
+        <div style={styles.walletsList} data-testid="wallet-list">
           {wallets.map((wallet) => (
             <div 
               key={wallet.id} 
               style={{ ...styles.walletCard, opacity: wallet.is_active ? 1 : 0.6 }}
+              data-testid={`wallet-card-${wallet.id}`}
             >
               {editingWallet?.id === wallet.id ? (
                 <div style={styles.editForm}>
