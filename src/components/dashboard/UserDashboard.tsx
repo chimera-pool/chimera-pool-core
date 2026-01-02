@@ -42,15 +42,18 @@ export interface UserDashboardProps {
 const styles: { [key: string]: React.CSSProperties } = {
   section: {
     background: gradients.card,
-    borderRadius: '12px',
-    padding: '24px',
+    borderRadius: '16px',
+    padding: '28px',
     border: `1px solid ${colors.border}`,
     marginBottom: '30px',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)',
   },
   sectionTitle: {
-    fontSize: '1.3rem',
+    fontSize: '1.4rem',
     color: colors.primary,
     margin: '0 0 16px',
+    fontWeight: 700,
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
   },
   loading: {
     textAlign: 'center',
@@ -60,15 +63,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   statsRow: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '15px',
+    gap: '16px',
     marginBottom: '25px',
   },
   statBox: {
-    backgroundColor: colors.bgInput,
-    padding: '20px',
-    borderRadius: '8px',
+    background: 'linear-gradient(180deg, rgba(31, 20, 40, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)',
+    padding: '22px',
+    borderRadius: '12px',
     textAlign: 'center',
-    border: `1px solid ${colors.border}`,
+    border: '1px solid rgba(74, 44, 90, 0.4)',
+    transition: 'all 0.25s ease',
+  },
+  statBoxHover: {
+    borderColor: 'rgba(212, 168, 75, 0.5)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
   },
   statLabel: {
     display: 'block',
@@ -90,11 +99,43 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '15px',
   },
   emptyState: {
-    backgroundColor: colors.bgInput,
-    padding: '30px',
-    borderRadius: '8px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.4) 0%, rgba(26, 15, 30, 0.6) 100%)',
+    padding: '48px 32px',
+    borderRadius: '16px',
     textAlign: 'center',
     color: colors.textSecondary,
+    border: '1px dashed rgba(212, 168, 75, 0.3)',
+  },
+  emptyStateIcon: {
+    fontSize: '3rem',
+    marginBottom: '16px',
+    display: 'block',
+  },
+  emptyStateTitle: {
+    fontSize: '1.2rem',
+    color: colors.textPrimary,
+    marginBottom: '12px',
+    fontWeight: 600,
+  },
+  emptyStateText: {
+    fontSize: '0.95rem',
+    color: colors.textSecondary,
+    marginBottom: '20px',
+    lineHeight: 1.6,
+  },
+  emptyStateButton: {
+    display: 'inline-block',
+    padding: '12px 24px',
+    background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
+    color: '#1A0F1E',
+    borderRadius: '8px',
+    fontWeight: 600,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: 'none',
+    fontSize: '0.95rem',
+    boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)',
+    transition: 'all 0.2s ease',
   },
   tableWrapper: {
     overflowX: 'auto' as const,
@@ -191,9 +232,12 @@ export function UserDashboard({ token }: UserDashboardProps) {
 
   if (loading) {
     return (
-      <section style={styles.section}>
+      <section style={styles.section} data-testid="user-dashboard-loading">
         <h2 style={styles.sectionTitle}>📈 Your Mining Dashboard</h2>
-        <div style={styles.loading}>Loading your mining stats...</div>
+        <div style={styles.loading}>
+          <div style={{ marginBottom: '12px', fontSize: '1.5rem' }}>⛏️</div>
+          Loading your mining stats...
+        </div>
       </section>
     );
   }
@@ -203,27 +247,27 @@ export function UserDashboard({ token }: UserDashboardProps) {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '24px' }} data-testid="user-dashboard">
       {/* Grafana Charts Section */}
       <MinerGrafanaSection token={token} />
 
       {/* Summary Stats */}
-      <div style={styles.statsRow}>
-        <div style={styles.statBox}>
+      <div style={styles.statsRow} data-testid="user-stats-row">
+        <div style={styles.statBox} data-testid="stat-total-hashrate">
           <span style={styles.statLabel}>Total Hashrate</span>
           <span style={styles.statValue}>{formatHashrate(stats.total_hashrate)}</span>
         </div>
-        <div style={styles.statBox}>
+        <div style={styles.statBox} data-testid="stat-active-miners">
           <span style={styles.statLabel}>Active Miners</span>
           <span style={styles.statValue}>
             {stats.miners.filter(m => m.is_active).length} / {stats.miners.length}
           </span>
         </div>
-        <div style={styles.statBox}>
+        <div style={styles.statBox} data-testid="stat-total-shares">
           <span style={styles.statLabel}>Total Shares</span>
           <span style={styles.statValue}>{stats.total_shares.toLocaleString()}</span>
         </div>
-        <div style={styles.statBox}>
+        <div style={styles.statBox} data-testid="stat-success-rate">
           <span style={styles.statLabel}>Success Rate</span>
           <span style={{ ...styles.statValue, color: getSuccessRateColor(stats.success_rate) }}>
             {stats.success_rate.toFixed(2)}%
@@ -232,10 +276,23 @@ export function UserDashboard({ token }: UserDashboardProps) {
       </div>
 
       {/* Miners Table */}
-      <h3 style={styles.subTitle}>⛏️ Your Miners ({stats.miners.length})</h3>
+      <h3 style={styles.subTitle} data-testid="miners-section-title">⛏️ Your Miners ({stats.miners.length})</h3>
       {stats.miners.length === 0 ? (
-        <div style={styles.emptyState}>
-          <p>No miners connected yet. Connect your miner using the stratum URL below!</p>
+        <div style={styles.emptyState} data-testid="miners-empty-state">
+          <span style={styles.emptyStateIcon}>⛏️</span>
+          <div style={styles.emptyStateTitle}>No Miners Connected Yet</div>
+          <p style={styles.emptyStateText}>
+            Start earning by connecting your mining hardware to Chimera Pool.<br />
+            Follow the setup guide below to get started in minutes!
+          </p>
+          <button 
+            style={styles.emptyStateButton}
+            onClick={() => document.getElementById('mining-instructions')?.scrollIntoView({ behavior: 'smooth' })}
+            data-testid="connect-miner-btn"
+            aria-label="Scroll to mining instructions"
+          >
+            🚀 Connect Your Miner
+          </button>
         </div>
       ) : (
         <div style={styles.tableWrapper}>
