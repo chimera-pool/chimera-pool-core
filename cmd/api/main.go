@@ -795,8 +795,8 @@ func handlePoolStatsWithCache(db *sql.DB, redisClient *redis.Client) gin.Handler
 			}
 		}
 
-		// Cache miss - query database with timeout
-		queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		// Cache miss - query database with timeout (increased to handle slow queries)
+		queryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		var activeMiners, totalMiners, totalBlocks int64
