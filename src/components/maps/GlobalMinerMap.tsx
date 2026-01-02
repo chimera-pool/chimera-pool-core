@@ -149,55 +149,88 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   sidebarSection: {
     background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
-    borderRadius: '12px',
-    padding: '16px',
-    border: '1px solid rgba(74, 44, 90, 0.4)',
+    borderRadius: '14px',
+    padding: '18px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
   },
   sidebarTitle: {
     color: '#D4A84B',
-    fontSize: '0.95rem',
-    margin: '0 0 12px 0',
-    fontWeight: 600,
+    fontSize: '1rem',
+    margin: '0 0 14px 0',
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
   },
   countryRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    padding: '6px 0',
-    borderBottom: `1px solid ${colors.bgCard}`,
+    padding: '8px 10px',
+    borderBottom: `1px solid rgba(74, 44, 90, 0.3)`,
+    borderRadius: '6px',
+    transition: 'all 0.2s ease',
+    cursor: 'default',
+  },
+  countryRowHover: {
+    background: 'rgba(212, 168, 75, 0.1)',
+    borderColor: 'rgba(212, 168, 75, 0.3)',
   },
   countryRank: {
-    color: colors.textSecondary,
-    fontSize: '0.8rem',
-    width: '25px',
+    color: '#D4A84B',
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    width: '28px',
+    textAlign: 'center' as const,
+  },
+  countryFlag: {
+    fontSize: '1.1rem',
   },
   countryName: {
     flex: 1,
     color: colors.textPrimary,
     fontSize: '0.9rem',
+    fontWeight: 500,
   },
   countryMiners: {
     color: colors.primary,
-    fontWeight: 'bold',
+    fontWeight: 700,
+    fontSize: '0.95rem',
   },
   continentRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '6px 0',
+    gap: '12px',
+    padding: '10px 12px',
+    borderRadius: '8px',
+    marginBottom: '6px',
+    transition: 'all 0.2s ease',
+    cursor: 'default',
+  },
+  continentRowHover: {
+    background: 'rgba(212, 168, 75, 0.08)',
   },
   continentDot: {
-    width: '10px',
-    height: '10px',
+    width: '12px',
+    height: '12px',
     borderRadius: '50%',
+    boxShadow: '0 0 8px currentColor',
   },
   continentName: {
     flex: 1,
     color: colors.textPrimary,
     fontSize: '0.9rem',
+    fontWeight: 500,
   },
   continentMiners: {
+    color: '#D4A84B',
+    fontWeight: 600,
+  },
+  continentHashrate: {
     color: colors.textSecondary,
+    fontSize: '0.75rem',
   },
 };
 
@@ -360,27 +393,53 @@ export function GlobalMinerMap() {
           </div>
 
           <div style={styles.sidebar}>
-            <div style={styles.sidebarSection}>
+            <div style={styles.sidebarSection} data-testid="top-countries-section">
               <h4 style={styles.sidebarTitle}>🏆 Top Countries</h4>
               {stats?.topCountries?.slice(0, 5).map((country, idx) => (
-                <div key={idx} style={styles.countryRow}>
+                <div 
+                  key={idx} 
+                  style={styles.countryRow}
+                  data-testid={`country-row-${idx}`}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(212, 168, 75, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(212, 168, 75, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.borderColor = 'rgba(74, 44, 90, 0.3)';
+                  }}
+                >
                   <span style={styles.countryRank}>#{idx + 1}</span>
                   <span style={styles.countryName}>{country.country}</span>
-                  <span style={styles.countryMiners}>{country.minerCount}</span>
+                  <span style={styles.countryMiners}>{country.minerCount} ⛏️</span>
                 </div>
               ))}
             </div>
 
-            <div style={styles.sidebarSection}>
+            <div style={styles.sidebarSection} data-testid="continent-breakdown-section">
               <h4 style={styles.sidebarTitle}>🌐 By Continent</h4>
               {stats?.continentBreakdown?.map((cont, idx) => (
-                <div key={idx} style={styles.continentRow}>
+                <div 
+                  key={idx} 
+                  style={styles.continentRow}
+                  data-testid={`continent-row-${idx}`}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(212, 168, 75, 0.08)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
                   <span style={{ 
                     ...styles.continentDot, 
-                    backgroundColor: CONTINENT_COLORS[cont.continent] || colors.textSecondary 
+                    backgroundColor: CONTINENT_COLORS[cont.continent] || colors.textSecondary,
+                    color: CONTINENT_COLORS[cont.continent] || colors.textSecondary
                   }}></span>
                   <span style={styles.continentName}>{cont.continent}</span>
-                  <span style={styles.continentMiners}>{cont.minerCount}</span>
+                  <div style={{ textAlign: 'right' as const }}>
+                    <span style={styles.continentMiners}>{cont.minerCount} ⛏️</span>
+                    <div style={styles.continentHashrate}>{formatHashrate(cont.hashrate)}</div>
+                  </div>
                 </div>
               ))}
             </div>
