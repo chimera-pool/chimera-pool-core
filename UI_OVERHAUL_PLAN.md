@@ -70,10 +70,10 @@ This plan outlines the comprehensive UI overhaul for Chimera Pool mining softwar
 - [x] Add progress visualization for allocation
 - [x] Improve "+ Add Wallet" button prominence
 
-### 2.5 Global Miner Network Map
-- [ ] Enhance map styling with brand colors
-- [ ] Add animated connection lines
-- [ ] Style country/continent stats cards
+### 2.5 ✅ Global Miner Network Map (Completed Jan 2, 2026)
+- [x] Enhance map styling with brand colors
+- [x] Add animated connection lines
+- [x] Style country/continent stats cards with hover effects
 
 ### 2.6 ✅ Connect Your Miner Section (Completed Jan 1, 2026)
 - [x] Redesign step indicators with brand styling
