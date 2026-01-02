@@ -363,9 +363,33 @@ export function AdminBugsTab({ token, isActive, showMessage }: AdminBugsTabProps
                 <div style={{ backgroundColor: '#0a0a15', borderRadius: '8px', padding: '20px' }}>
                   <h4 style={{ color: '#e0e0e0', margin: '0 0 15px' }}>📎 Attachments ({selectedAdminBug.attachments.length})</h4>
                   {selectedAdminBug.attachments.map((att: any) => (
-                    <div key={att.id} style={{ backgroundColor: '#1a1a2e', padding: '10px', borderRadius: '6px', marginBottom: '8px' }}>
-                      <span style={{ color: '#00d4ff' }}>{att.is_screenshot ? '📸' : '📄'} {att.original_filename}</span>
-                      <span style={{ color: '#666', fontSize: '0.8rem', marginLeft: '10px' }}>({(att.file_size / 1024).toFixed(1)} KB)</span>
+                    <div key={att.id} style={{ backgroundColor: '#1a1a2e', padding: '10px', borderRadius: '6px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ color: '#00d4ff' }}>{att.is_screenshot ? '📸' : '📄'} {att.original_filename}</span>
+                        <span style={{ color: '#666', fontSize: '0.8rem', marginLeft: '10px' }}>({(att.file_size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          fetch(`/api/v1/bugs/${selectedAdminBug.bug.id}/attachments/${att.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          })
+                          .then(res => res.blob())
+                          .then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = att.original_filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            a.remove();
+                          })
+                          .catch(() => showMessage('error', 'Failed to download attachment'));
+                        }}
+                        style={{ padding: '6px 12px', backgroundColor: '#00d4ff', border: 'none', borderRadius: '4px', color: '#0a0a0f', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        ⬇️ Download
+                      </button>
                     </div>
                   ))}
                 </div>

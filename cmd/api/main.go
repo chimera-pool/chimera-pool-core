@@ -84,6 +84,11 @@ func main() {
 	authRateLimiter := api.NewRateLimiter(api.AuthRateLimiterConfig())
 	defer authRateLimiter.Stop()
 
+	// Start pool stats cache refresher (auto-updates cache every 30s to prevent stale data)
+	cacheRefresherStop := make(chan struct{})
+	startPoolStatsCacheRefresher(db, redisClient, cacheRefresherStop)
+	defer close(cacheRefresherStop)
+
 	// API routes
 	apiGroup := router.Group("/api/v1")
 	{
@@ -203,6 +208,7 @@ func main() {
 			protected.GET("/bugs/:id", handleGetBugReport(db))
 			protected.POST("/bugs/:id/comments", handleAddBugComment(db, config))
 			protected.POST("/bugs/:id/attachments", handleUploadBugAttachment(db))
+			protected.GET("/bugs/:id/attachments/:attachmentId", handleDownloadBugAttachment(db))
 			protected.POST("/bugs/:id/subscribe", handleSubscribeToBug(db))
 			protected.DELETE("/bugs/:id/subscribe", handleUnsubscribeFromBug(db))
 		}
@@ -775,6 +781,68 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 
 func handlePoolStats(db *sql.DB) gin.HandlerFunc {
 	return handlePoolStatsWithCache(db, nil) // No cache - direct DB queries
+}
+
+// startPoolStatsCacheRefresher starts a background goroutine that periodically refreshes the pool stats cache
+// This prevents stale cache issues by proactively updating the cache before it expires
+func startPoolStatsCacheRefresher(db *sql.DB, redisClient *redis.Client, stopChan <-chan struct{}) {
+	const cacheKey = "chimera:pool:stats"
+	const cacheTTL = 60 * time.Second
+	const refreshInterval = 30 * time.Second // Refresh every 30 seconds (before 60s TTL expires)
+
+	go func() {
+		ticker := time.NewTicker(refreshInterval)
+		defer ticker.Stop()
+
+		log.Println("🔄 Pool stats cache refresher started (interval: 30s)")
+
+		for {
+			select {
+			case <-stopChan:
+				log.Println("🛑 Pool stats cache refresher stopped")
+				return
+			case <-ticker.C:
+				refreshPoolStatsCache(db, redisClient, cacheKey, cacheTTL)
+			}
+		}
+	}()
+}
+
+// refreshPoolStatsCache updates the pool stats cache with fresh data from the database
+func refreshPoolStatsCache(db *sql.DB, redisClient *redis.Client, cacheKey string, cacheTTL time.Duration) {
+	if redisClient == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var activeMiners, totalMiners, totalBlocks int64
+	var totalHashrate float64
+
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&activeMiners)
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM miners WHERE is_active = true").Scan(&totalMiners)
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM blocks").Scan(&totalBlocks)
+	db.QueryRowContext(ctx, "SELECT COALESCE(SUM(hashrate), 0) FROM miners WHERE last_seen > NOW() - INTERVAL '5 minutes'").Scan(&totalHashrate)
+
+	response := map[string]interface{}{
+		"active_miners":    activeMiners,
+		"total_miners":     totalMiners,
+		"total_hashrate":   totalHashrate,
+		"blocks_found":     totalBlocks,
+		"pool_fee":         1.0,
+		"minimum_payout":   0.01,
+		"payment_interval": "1 hour",
+		"network":          "Litecoin",
+		"currency":         "LTC",
+		"algorithm":        "Scrypt",
+	}
+
+	if jsonData, err := json.Marshal(response); err == nil {
+		if err := redisClient.Set(ctx, cacheKey, jsonData, cacheTTL).Err(); err != nil {
+			log.Printf("⚠️ Failed to refresh pool stats cache: %v", err)
+		}
+	}
 }
 
 // handlePoolStatsWithCache returns pool stats with optional Redis caching
@@ -7374,6 +7442,52 @@ func handleUploadBugAttachment(db *sql.DB) gin.HandlerFunc {
 			"message": "Attachment uploaded successfully",
 			"id":      attachmentID,
 		})
+	}
+}
+
+// handleDownloadBugAttachment downloads a bug attachment
+func handleDownloadBugAttachment(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt64("user_id")
+		bugID := c.Param("id")
+		attachmentID := c.Param("attachmentId")
+
+		// Verify user owns the bug report or is admin
+		var reportUserID int64
+		err := db.QueryRow("SELECT user_id FROM bug_reports WHERE id = $1", bugID).Scan(&reportUserID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bug report not found"})
+			return
+		}
+
+		// Check if user is admin
+		var isAdmin bool
+		db.QueryRow("SELECT is_admin FROM users WHERE id = $1", userID).Scan(&isAdmin)
+
+		if reportUserID != userID && !isAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+			return
+		}
+
+		// Get attachment data
+		var filename, originalFilename, fileType string
+		var fileData []byte
+		err = db.QueryRow(`
+			SELECT filename, original_filename, file_type, file_data 
+			FROM bug_attachments 
+			WHERE id = $1 AND bug_report_id = $2
+		`, attachmentID, bugID).Scan(&filename, &originalFilename, &fileType, &fileData)
+
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+			return
+		}
+
+		// Set headers for file download
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", originalFilename))
+		c.Header("Content-Type", fileType)
+		c.Header("Content-Length", fmt.Sprintf("%d", len(fileData)))
+		c.Data(http.StatusOK, fileType, fileData)
 	}
 }
 
