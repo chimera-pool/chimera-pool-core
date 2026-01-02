@@ -73,12 +73,19 @@
 
 ### 2.3 JWT in localStorage
 - **Severity:** HIGH (CVSS 7.5)
-- **Status:** [ ] PENDING
+- **Status:** [x] FIXED (Jan 2, 2026) - HTTP-only cookies implemented
 - **Issue:** Tokens stored in localStorage, accessible to XSS
 - **Fix:** Migrate to HTTP-only cookies
-- **Files to modify:**
-  - `cmd/api/main.go` - Auth handlers
-  - Frontend auth logic
+- **Implementation:**
+  - Added HTTP-only cookie `auth_token` on login with SameSite=Strict
+  - Updated authMiddleware to check cookie first, then Authorization header
+  - Added `/api/v1/auth/logout` endpoint to clear cookie
+  - Updated frontend to use `credentials: 'include'` on all fetch requests
+  - Maintained backward compatibility with localStorage during migration
+- **Files modified:**
+  - `cmd/api/main.go` - handleLogin, handleLogout, authMiddleware
+  - `src/contexts/AuthContext.tsx` - All fetch calls
+  - `src/components/auth/AuthModal.tsx` - Login/register fetch calls
 
 ### 2.4 User Enumeration via API
 - **Severity:** MEDIUM (CVSS 5.3)
@@ -104,11 +111,17 @@
 
 ### 3.2 Frontend Performance
 - **Severity:** LOW (CVSS 3.1)
-- **Status:** [ ] PENDING
+- **Status:** [x] IMPROVED (Jan 2, 2026) - Added React.memo optimizations
 - **Issue:** INP 312ms (should be <200ms), browser slowdown
 - **Fix:** Optimize React rendering, reduce polling, code splitting
-- **Files to modify:**
-  - Frontend components with heavy rendering
+- **Implementation:**
+  - Added React.memo to StatCard component (rendered 4+ times on dashboard)
+  - Added React.memo to AppHeader component (rendered on every page)
+  - Polling intervals already optimized at 30 seconds
+  - Lazy loading already implemented for heavy components
+- **Files modified:**
+  - `src/components/layout/StatCard.tsx` - Wrapped with memo
+  - `src/components/layout/AppHeader.tsx` - Wrapped with memo
 
 ### 3.3 Session Persistence
 - **Severity:** MEDIUM

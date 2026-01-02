@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { MainView } from './types';
 import NotificationBell from '../notifications/NotificationBell';
 
@@ -6,6 +6,7 @@ import NotificationBell from '../notifications/NotificationBell';
 // APP HEADER COMPONENT
 // Extracted from App.tsx for modular architecture
 // Handles navigation, branding, and auth buttons
+// Memoized to prevent unnecessary re-renders
 // ============================================================================
 
 interface AppHeaderProps {
@@ -88,7 +89,7 @@ const styles = {
   },
 };
 
-export function AppHeader({
+export const AppHeader = memo(function AppHeader({
   mainView,
   setMainView,
   token,
@@ -266,6 +267,6 @@ export function AppHeader({
       </div>
     </header>
   );
-}
+});
 
 export default AppHeader;

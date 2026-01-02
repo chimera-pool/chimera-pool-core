@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 // ============================================================================
 // STAT CARD COMPONENT
 // Extracted from App.tsx for modular architecture
 // Displays pool statistics with live indicators
+// Memoized to prevent unnecessary re-renders
 // ============================================================================
 
 interface StatCardProps {
@@ -38,7 +39,7 @@ const styles = {
   },
 };
 
-export function StatCard({ label, value }: StatCardProps) {
+export const StatCard = memo(function StatCard({ label, value }: StatCardProps) {
   const isLiveData = ['Active Miners', 'Pool Hashrate'].includes(label);
   const isHashrate = label === 'Pool Hashrate';
 
@@ -60,6 +61,6 @@ export function StatCard({ label, value }: StatCardProps) {
       </p>
     </div>
   );
-}
+});
 
 export default StatCard;
