@@ -368,9 +368,26 @@ function PoolInfoSection() {
 }
 
 function InfoCard({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const [isHovered, setIsHovered] = React.useState(false);
+  
   return (
-    <div style={styles.infoCard}>
-      <span style={styles.infoIcon}>{icon}</span>
+    <div 
+      style={{
+        ...styles.infoCard,
+        ...(isHovered ? {
+          borderColor: 'rgba(212, 168, 75, 0.5)',
+          transform: 'translateY(-3px)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+        } : {})
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      data-testid={`info-card-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    >
+      <span style={{
+        ...styles.infoIcon,
+        ...(isHovered ? { transform: 'scale(1.15)' } : {})
+      }}>{icon}</span>
       <span style={styles.infoLabel}>{label}</span>
       <span style={styles.infoValue}>{value}</span>
     </div>
@@ -390,10 +407,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   section: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', borderRadius: '16px', padding: '24px', border: '1px solid #4A2C5A', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(10px)' },
   sectionTitle: { fontSize: '1.15rem', color: '#F0EDF4', margin: '0 0 20px', fontWeight: 600, letterSpacing: '0.01em' },
   infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' },
-  infoCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', padding: '18px', borderRadius: '12px', textAlign: 'center', border: '1px solid #4A2C5A', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.2s ease' },
-  infoIcon: { fontSize: '1.5rem' },
-  infoLabel: { color: '#B8B4C8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 },
-  infoValue: { color: '#D4A84B', fontSize: '0.9rem', fontWeight: 600 },
+  infoCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '22px 18px', borderRadius: '14px', textAlign: 'center', border: '1px solid rgba(74, 44, 90, 0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', transition: 'all 0.25s ease', cursor: 'default', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)' },
+  infoIcon: { fontSize: '1.8rem', transition: 'transform 0.25s ease' },
+  infoLabel: { color: '#B8B4C8', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 },
+  infoValue: { color: '#D4A84B', fontSize: '0.95rem', fontWeight: 700, textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)' },
 };
 
 export default App;
