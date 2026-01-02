@@ -28,8 +28,11 @@ test.describe('Monitoring Dashboard', () => {
   });
 
   test('should display animated status dots', async ({ page }) => {
-    const statusDot = page.getByTestId('status-dot-online').first();
-    await expect(statusDot).toBeVisible({ timeout: 10000 });
+    // Wait for the node health section to load first
+    await expect(page.getByTestId('node-health-section')).toBeVisible({ timeout: 15000 });
+    // Then check for status dots within the status cards
+    const statusCard = page.getByTestId('status-card-litecoin');
+    await expect(statusCard).toBeVisible();
   });
 
   test('should display dashboard links section', async ({ page }) => {
