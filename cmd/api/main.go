@@ -597,8 +597,30 @@ func containsSQLInjection(input string) bool {
 	patterns := []string{
 		"'", "\"", ";", "--", "/*", "*/", "xp_", "sp_",
 		"select ", "insert ", "update ", "delete ", "drop ",
-		"union ", "exec ", "execute ", "script", "<", ">",
-		"0x", "\\x", "char(", "nchar(", "varchar(", "nvarchar(",
+		"union ", "exec ", "execute ", "0x", "\\x",
+		"char(", "nchar(", "varchar(", "nvarchar(",
+		"cast(", "convert(", "table", "from", "where",
+		"or 1=1", "or '1'='1", "1=1",
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsXSS checks for common XSS patterns
+func containsXSS(input string) bool {
+	lower := strings.ToLower(input)
+	patterns := []string{
+		"<script", "</script", "javascript:", "onerror", "onload",
+		"onclick", "onmouseover", "onfocus", "onblur",
+		"<img", "<iframe", "<object", "<embed", "<svg", "<math",
+		"<video", "<audio", "<body", "<input", "<form", "<link",
+		"<meta", "<style", "expression(", "eval(",
+		"alert(", "confirm(", "prompt(", "document.", "window.",
+		"<", ">", "&lt;", "&gt;",
 	}
 	for _, pattern := range patterns {
 		if strings.Contains(lower, pattern) {
@@ -1373,6 +1395,11 @@ func handleUpdateUserProfile(db *sql.DB) gin.HandlerFunc {
 		}
 
 		if req.PayoutAddress != "" {
+			// SECURITY: Validate wallet address format and check for injection attacks
+			if err := validateLitecoinAddressWithError(req.PayoutAddress); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet address: " + err.Error()})
+				return
+			}
 			updates = append(updates, fmt.Sprintf("payout_address = $%d", argIndex))
 			args = append(args, req.PayoutAddress)
 			argIndex++
@@ -2540,6 +2567,11 @@ func handleAdminUpdateUser(db *sql.DB) gin.HandlerFunc {
 			argIdx++
 		}
 		if req.PayoutAddress != nil {
+			// SECURITY: Validate wallet address format and check for injection attacks
+			if err := validateLitecoinAddressWithError(*req.PayoutAddress); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet address: " + err.Error()})
+				return
+			}
 			updates = append(updates, fmt.Sprintf("payout_address = $%d", argIdx))
 			args = append(args, *req.PayoutAddress)
 			argIdx++
@@ -6574,9 +6606,30 @@ func handleGetUserWallets(db *sql.DB) gin.HandlerFunc {
 }
 
 // validateLitecoinAddressWithError validates a Litecoin address format and returns error
+// Also checks for SQL injection and XSS attack patterns
 func validateLitecoinAddressWithError(address string) error {
+	// Trim whitespace
+	address = strings.TrimSpace(address)
+
+	if len(address) == 0 {
+		return fmt.Errorf("wallet address is required")
+	}
+
+	// SECURITY: Check for SQL injection patterns FIRST
+	if containsSQLInjection(address) {
+		log.Printf("[SECURITY] SQL injection attempt detected in wallet address: %s", address)
+		return fmt.Errorf("invalid characters in wallet address")
+	}
+
+	// SECURITY: Check for XSS patterns
+	if containsXSS(address) {
+		log.Printf("[SECURITY] XSS attempt detected in wallet address: %s", address)
+		return fmt.Errorf("invalid characters in wallet address")
+	}
+
+	// Now validate the actual address format
 	if !validateLitecoinAddress(address) {
-		return fmt.Errorf("invalid Litecoin address format")
+		return fmt.Errorf("invalid Litecoin address format - must start with L, M, or ltc1")
 	}
 	return nil
 }
@@ -8729,6 +8782,14 @@ func handleUpdatePayoutSettings(db *sql.DB) gin.HandlerFunc {
 		if req.PayoutMode != nil && !validModes[*req.PayoutMode] {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payout mode"})
 			return
+		}
+
+		// SECURITY: Validate wallet address format if provided
+		if req.PayoutAddress != nil && *req.PayoutAddress != "" {
+			if err := validateLitecoinAddressWithError(*req.PayoutAddress); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet address: " + err.Error()})
+				return
+			}
 		}
 
 		// Upsert settings
