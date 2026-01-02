@@ -1490,8 +1490,16 @@ func handleUserMiners(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetInt64("user_id")
 
-		rows, err := db.Query(
-			"SELECT id, name, hashrate, last_seen, is_active FROM miners WHERE user_id = $1",
+		// Query miners with share counts from the shares table
+		rows, err := db.Query(`
+			SELECT 
+				m.id, m.name, m.hashrate, m.last_seen, m.is_active,
+				COALESCE((SELECT COUNT(*) FROM shares s WHERE s.miner_id = m.id), 0) as shares_submitted,
+				COALESCE((SELECT COUNT(*) FROM shares s WHERE s.miner_id = m.id AND s.is_valid = true), 0) as valid_shares,
+				COALESCE((SELECT COUNT(*) FROM shares s WHERE s.miner_id = m.id AND s.is_valid = false), 0) as invalid_shares
+			FROM miners m 
+			WHERE m.user_id = $1
+			ORDER BY m.last_seen DESC`,
 			userID,
 		)
 		if err != nil {
@@ -1507,13 +1515,17 @@ func handleUserMiners(db *sql.DB) gin.HandlerFunc {
 			var hashrate float64
 			var lastSeen time.Time
 			var isActive bool
-			rows.Scan(&id, &name, &hashrate, &lastSeen, &isActive)
+			var sharesSubmitted, validShares, invalidShares int64
+			rows.Scan(&id, &name, &hashrate, &lastSeen, &isActive, &sharesSubmitted, &validShares, &invalidShares)
 			miners = append(miners, gin.H{
-				"id":        id,
-				"name":      name,
-				"hashrate":  hashrate,
-				"last_seen": lastSeen,
-				"is_active": isActive,
+				"id":               id,
+				"name":             name,
+				"hashrate":         hashrate,
+				"last_seen":        lastSeen,
+				"is_active":        isActive,
+				"shares_submitted": sharesSubmitted,
+				"valid_shares":     validShares,
+				"invalid_shares":   invalidShares,
 			})
 		}
 
