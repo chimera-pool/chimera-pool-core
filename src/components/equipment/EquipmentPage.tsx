@@ -50,6 +50,37 @@ interface EquipmentSettings {
   notification_offline_threshold: number; // minutes before alert
   difficulty_mode: 'auto' | 'fixed';
   fixed_difficulty?: number;
+  // New elite controls
+  network_id: string;
+  power_mode: 'performance' | 'balanced' | 'efficiency';
+  miner_group_id?: string;
+  schedule_enabled: boolean;
+  schedule?: MiningSchedule;
+}
+
+interface MiningSchedule {
+  monday: { enabled: boolean; start: string; end: string };
+  tuesday: { enabled: boolean; start: string; end: string };
+  wednesday: { enabled: boolean; start: string; end: string };
+  thursday: { enabled: boolean; start: string; end: string };
+  friday: { enabled: boolean; start: string; end: string };
+  saturday: { enabled: boolean; start: string; end: string };
+  sunday: { enabled: boolean; start: string; end: string };
+}
+
+interface NetworkConfig {
+  id: string;
+  name: string;
+  symbol: string;
+  algorithm: string;
+  is_active: boolean;
+}
+
+interface MinerGroup {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
 }
 
 interface PayoutSplit {
@@ -66,21 +97,39 @@ interface EquipmentWallet {
   label: string;
   is_primary: boolean;
   currency: string;
+  // Enhanced wallet controls
+  wallet_type: 'hot' | 'cold' | 'exchange' | 'staking';
+  status: 'active' | 'inactive' | 'locked';
+  min_payout_threshold: number;
+  allocation_percent: number;
 }
 
 function EquipmentPage({ token, user, showMessage }: { token: string; user: any; showMessage: (type: 'success' | 'error', text: string) => void }) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [wallets, setWallets] = useState<EquipmentWallet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'equipment' | 'wallets' | 'alerts'>('equipment');
+  const [activeTab, setActiveTab] = useState<'equipment' | 'wallets' | 'alerts' | 'networks' | 'groups'>('equipment');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
-  const [newWallet, setNewWallet] = useState({ address: '', label: '', is_primary: false });
+  const [newWallet, setNewWallet] = useState({ address: '', label: '', is_primary: false, wallet_type: 'hot' as const, min_payout_threshold: 0.01 });
   const [editingSplits, setEditingSplits] = useState<{ equipmentId: string; splits: PayoutSplit[] } | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<Equipment | null>(null);
   const [showChartsModal, setShowChartsModal] = useState<Equipment | null>(null);
   const [equipmentSettings, setEquipmentSettings] = useState<EquipmentSettings | null>(null);
   const [chartTimeRange, setChartTimeRange] = useState<'1h' | '6h' | '24h' | '7d' | '30d'>('24h');
+  
+  // Elite control state
+  const [networks, setNetworks] = useState<NetworkConfig[]>([
+    { id: 'litecoin', name: 'Litecoin', symbol: 'LTC', algorithm: 'Scrypt', is_active: true },
+    { id: 'blockdag', name: 'BlockDAG', symbol: 'BDAG', algorithm: 'KHeavyHash', is_active: false },
+    { id: 'dogecoin', name: 'Dogecoin', symbol: 'DOGE', algorithm: 'Scrypt', is_active: false },
+  ]);
+  const [minerGroups, setMinerGroups] = useState<MinerGroup[]>([
+    { id: 'default', name: 'Default', color: '#00d4ff', description: 'All miners' },
+  ]);
+  const [showAddGroupModal, setShowAddGroupModal] = useState(false);
+  const [newGroup, setNewGroup] = useState({ name: '', color: '#D4A84B', description: '' });
+  const [settingsTab, setSettingsTab] = useState<'general' | 'network' | 'wallet' | 'schedule'>('general');
 
   useEffect(() => {
     fetchData();
@@ -251,6 +300,16 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
   // Open settings modal for equipment
   const openSettingsModal = (eq: Equipment) => {
     setShowSettingsModal(eq);
+    setSettingsTab('general');
+    const defaultSchedule = {
+      monday: { enabled: true, start: '00:00', end: '23:59' },
+      tuesday: { enabled: true, start: '00:00', end: '23:59' },
+      wednesday: { enabled: true, start: '00:00', end: '23:59' },
+      thursday: { enabled: true, start: '00:00', end: '23:59' },
+      friday: { enabled: true, start: '00:00', end: '23:59' },
+      saturday: { enabled: true, start: '00:00', end: '23:59' },
+      sunday: { enabled: true, start: '00:00', end: '23:59' },
+    };
     setEquipmentSettings({
       id: eq.id,
       name: eq.name,
@@ -261,7 +320,13 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
       notification_email: true,
       notification_offline_threshold: 5,
       difficulty_mode: 'auto',
-      fixed_difficulty: undefined
+      fixed_difficulty: undefined,
+      // Elite controls
+      network_id: 'litecoin',
+      power_mode: 'performance',
+      miner_group_id: 'default',
+      schedule_enabled: false,
+      schedule: defaultSchedule,
     });
   };
 
@@ -385,22 +450,39 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #2a2a4a', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #2a2a4a', paddingBottom: '10px', flexWrap: 'wrap' }}>
         <button
           style={{...eqStyles.tab, ...(activeTab === 'equipment' ? eqStyles.tabActive : {})}}
           onClick={() => setActiveTab('equipment')}
+          data-testid="equipment-tab"
         >
           🖥️ Equipment ({equipment.length})
         </button>
         <button
           style={{...eqStyles.tab, ...(activeTab === 'wallets' ? eqStyles.tabActive : {})}}
           onClick={() => setActiveTab('wallets')}
+          data-testid="wallets-tab"
         >
           💼 Wallets ({wallets.length})
         </button>
         <button
+          style={{...eqStyles.tab, ...(activeTab === 'networks' ? eqStyles.tabActive : {})}}
+          onClick={() => setActiveTab('networks')}
+          data-testid="networks-tab"
+        >
+          🌐 Networks ({networks.filter(n => n.is_active).length})
+        </button>
+        <button
+          style={{...eqStyles.tab, ...(activeTab === 'groups' ? eqStyles.tabActive : {})}}
+          onClick={() => setActiveTab('groups')}
+          data-testid="groups-tab"
+        >
+          📁 Groups ({minerGroups.length})
+        </button>
+        <button
           style={{...eqStyles.tab, ...(activeTab === 'alerts' ? eqStyles.tabActive : {})}}
           onClick={() => setActiveTab('alerts')}
+          data-testid="alerts-tab"
         >
           🔔 Alerts
         </button>
@@ -666,6 +748,156 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
             </div>
           )}
 
+          {/* Networks Tab */}
+          {activeTab === 'networks' && (
+            <div data-testid="networks-content">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <h3 style={{ color: '#D4A84B', margin: '0 0 4px' }}>Network Configuration</h3>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Select which networks your equipment can mine on</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {networks.map(network => (
+                  <div key={network.id} style={{
+                    ...eqStyles.walletCard,
+                    borderLeft: `4px solid ${network.is_active ? '#4ade80' : '#666'}`,
+                    opacity: network.is_active ? 1 : 0.7
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ 
+                          width: '48px', height: '48px', borderRadius: '12px', 
+                          background: 'linear-gradient(135deg, rgba(212, 168, 75, 0.2) 0%, rgba(123, 94, 167, 0.2) 100%)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '1.5rem'
+                        }}>
+                          {network.symbol === 'LTC' ? '🪙' : network.symbol === 'BDAG' ? '⚡' : '🔷'}
+                        </div>
+                        <div>
+                          <h4 style={{ color: '#e0e0e0', margin: '0 0 4px', fontSize: '1.1rem' }}>{network.name}</h4>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '0.85rem', color: '#888' }}>
+                            <span>Symbol: <span style={{ color: '#D4A84B' }}>{network.symbol}</span></span>
+                            <span>Algorithm: <span style={{ color: '#7B5EA7' }}>{network.algorithm}</span></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ 
+                          padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
+                          backgroundColor: network.is_active ? 'rgba(74, 222, 128, 0.2)' : 'rgba(136, 136, 136, 0.2)',
+                          color: network.is_active ? '#4ade80' : '#888'
+                        }}>
+                          {network.is_active ? '● Active' : '○ Inactive'}
+                        </span>
+                        <button 
+                          style={{...eqStyles.smallBtn, borderColor: network.is_active ? '#ef4444' : '#4ade80', color: network.is_active ? '#ef4444' : '#4ade80'}}
+                          onClick={() => {
+                            setNetworks(networks.map(n => n.id === network.id ? {...n, is_active: !n.is_active} : n));
+                            showMessage('success', `${network.name} ${network.is_active ? 'disabled' : 'enabled'}`);
+                          }}
+                        >
+                          {network.is_active ? 'Disable' : 'Enable'}
+                        </button>
+                      </div>
+                    </div>
+                    {network.is_active && (
+                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(74, 44, 90, 0.3)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                          <div style={{ background: 'rgba(13, 8, 17, 0.6)', padding: '12px', borderRadius: '8px' }}>
+                            <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: '4px' }}>EQUIPMENT MINING</div>
+                            <div style={{ color: '#D4A84B', fontSize: '1.1rem', fontWeight: 600 }}>{equipment.length}</div>
+                          </div>
+                          <div style={{ background: 'rgba(13, 8, 17, 0.6)', padding: '12px', borderRadius: '8px' }}>
+                            <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: '4px' }}>POOL FEE</div>
+                            <div style={{ color: '#4ade80', fontSize: '1.1rem', fontWeight: 600 }}>1.0%</div>
+                          </div>
+                          <div style={{ background: 'rgba(13, 8, 17, 0.6)', padding: '12px', borderRadius: '8px' }}>
+                            <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: '4px' }}>MIN PAYOUT</div>
+                            <div style={{ color: '#00d4ff', fontSize: '1.1rem', fontWeight: 600 }}>0.01 {network.symbol}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(212, 168, 75, 0.1)', borderRadius: '12px', border: '1px solid rgba(212, 168, 75, 0.3)' }}>
+                <h4 style={{ color: '#D4A84B', margin: '0 0 8px', fontSize: '0.95rem' }}>💡 Multi-Network Mining</h4>
+                <p style={{ color: '#B8B4C8', margin: 0, fontSize: '0.85rem' }}>
+                  Enable multiple networks to automatically switch based on profitability, or assign specific equipment to specific networks in the Equipment Settings.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Groups Tab */}
+          {activeTab === 'groups' && (
+            <div data-testid="groups-content">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <h3 style={{ color: '#D4A84B', margin: '0 0 4px' }}>Miner Groups</h3>
+                  <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>Organize your equipment into logical groups for easier management</p>
+                </div>
+                <button style={eqStyles.addBtn} onClick={() => setShowAddGroupModal(true)}>➕ Create Group</button>
+              </div>
+              
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {minerGroups.map(group => (
+                  <div key={group.id} style={{
+                    ...eqStyles.walletCard,
+                    borderLeft: `4px solid ${group.color}`
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ 
+                          width: '40px', height: '40px', borderRadius: '10px', 
+                          backgroundColor: group.color + '30',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: group.color, fontSize: '1.2rem', fontWeight: 700
+                        }}>
+                          {group.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 style={{ color: '#e0e0e0', margin: '0 0 4px', fontSize: '1rem' }}>{group.name}</h4>
+                          {group.description && <p style={{ color: '#888', margin: 0, fontSize: '0.85rem' }}>{group.description}</p>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ color: '#888', fontSize: '0.9rem' }}>
+                          {equipment.length} equipment
+                        </span>
+                        {group.id !== 'default' && (
+                          <button 
+                            style={{...eqStyles.smallBtn, borderColor: '#ef4444', color: '#ef4444'}}
+                            onClick={() => {
+                              setMinerGroups(minerGroups.filter(g => g.id !== group.id));
+                              showMessage('success', `Group "${group.name}" deleted`);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(123, 94, 167, 0.1)', borderRadius: '12px', border: '1px solid rgba(123, 94, 167, 0.3)' }}>
+                <h4 style={{ color: '#7B5EA7', margin: '0 0 8px', fontSize: '0.95rem' }}>📁 Group Benefits</h4>
+                <ul style={{ color: '#B8B4C8', margin: 0, paddingLeft: '20px', fontSize: '0.85rem' }}>
+                  <li>Apply settings to multiple equipment at once</li>
+                  <li>View aggregated statistics per group</li>
+                  <li>Set group-specific wallet allocations</li>
+                  <li>Schedule mining times per group</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* Alerts Tab */}
           {activeTab === 'alerts' && (
             <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#0a0a15', borderRadius: '8px', border: '1px solid #2a2a4a' }}>
@@ -805,116 +1037,244 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
         </div>
       )}
 
-      {/* Equipment Settings Modal */}
+      {/* Equipment Settings Modal - Elite Tabbed Interface */}
       {showSettingsModal && equipmentSettings && (
         <div style={eqStyles.modalOverlay} onClick={() => setShowSettingsModal(null)}>
-          <div style={{...eqStyles.modal, maxWidth: '480px'}} onClick={e => e.stopPropagation()}>
-            <h2 style={{ color: '#f59e0b', marginTop: 0, fontSize: '1.2rem' }}>⚙️ Equipment Settings</h2>
+          <div style={{...eqStyles.modal, maxWidth: '600px'}} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#D4A84B', marginTop: 0, fontSize: '1.3rem' }}>⚙️ Equipment Settings</h2>
             <p style={{ color: '#888', marginBottom: '15px', fontSize: '0.9rem' }}>Configure {showSettingsModal.name}</p>
             
-            <div style={{ display: 'grid', gap: '12px' }}>
-              <div>
-                <label style={eqStyles.label}>Equipment Name</label>
-                <input
-                  style={eqStyles.input}
-                  type="text"
-                  value={equipmentSettings.name}
-                  onChange={e => setEquipmentSettings({...equipmentSettings, name: e.target.value})}
-                />
-              </div>
-              
-              <div>
-                <label style={eqStyles.label}>Worker Name</label>
-                <input
-                  style={eqStyles.input}
-                  type="text"
-                  value={equipmentSettings.worker_name}
-                  onChange={e => setEquipmentSettings({...equipmentSettings, worker_name: e.target.value})}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div>
-                  <label style={eqStyles.label}>Power Limit (W)</label>
-                  <input
-                    style={eqStyles.input}
-                    type="number"
-                    value={equipmentSettings.power_limit}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, power_limit: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div>
-                  <label style={eqStyles.label}>Target Temp (°C)</label>
-                  <input
-                    style={eqStyles.input}
-                    type="number"
-                    value={equipmentSettings.target_temperature}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, target_temperature: parseInt(e.target.value) || 70})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={eqStyles.label}>Difficulty Mode</label>
-                <select
-                  style={{...eqStyles.input, cursor: 'pointer'}}
-                  value={equipmentSettings.difficulty_mode}
-                  onChange={e => setEquipmentSettings({...equipmentSettings, difficulty_mode: e.target.value as 'auto' | 'fixed'})}
+            {/* Settings Tabs */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '2px solid #2a2a4a', paddingBottom: '8px' }}>
+              {(['general', 'network', 'wallet', 'schedule'] as const).map(tab => (
+                <button
+                  key={tab}
+                  style={{
+                    padding: '8px 16px', backgroundColor: settingsTab === tab ? 'rgba(212, 168, 75, 0.2)' : 'transparent',
+                    border: 'none', borderBottom: settingsTab === tab ? '2px solid #D4A84B' : '2px solid transparent',
+                    color: settingsTab === tab ? '#D4A84B' : '#888', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500,
+                    borderRadius: '6px 6px 0 0', transition: 'all 0.2s'
+                  }}
+                  onClick={() => setSettingsTab(tab)}
                 >
-                  <option value="auto">Auto (Recommended)</option>
-                  <option value="fixed">Fixed Difficulty</option>
-                </select>
-              </div>
-
-              {equipmentSettings.difficulty_mode === 'fixed' && (
-                <div>
-                  <label style={eqStyles.label}>Fixed Difficulty</label>
-                  <input
-                    style={eqStyles.input}
-                    type="number"
-                    value={equipmentSettings.fixed_difficulty || ''}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, fixed_difficulty: parseInt(e.target.value) || undefined})}
-                    placeholder="e.g., 1000000"
-                  />
-                </div>
-              )}
-
-              <div style={{ borderTop: '1px solid #2a2a4a', paddingTop: '15px', marginTop: '5px' }}>
-                <h4 style={{ color: '#00d4ff', margin: '0 0 15px' }}>🔔 Notifications</h4>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
-                  <input
-                    type="checkbox"
-                    checked={equipmentSettings.auto_restart}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, auto_restart: e.target.checked})}
-                  />
-                  Auto-restart on error
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
-                  <input
-                    type="checkbox"
-                    checked={equipmentSettings.notification_email}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, notification_email: e.target.checked})}
-                  />
-                  Email notifications when offline
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888' }}>
-                  <span>Alert after</span>
-                  <input
-                    style={{...eqStyles.input, width: '80px', marginBottom: 0, textAlign: 'center'}}
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={equipmentSettings.notification_offline_threshold}
-                    onChange={e => setEquipmentSettings({...equipmentSettings, notification_offline_threshold: parseInt(e.target.value) || 5})}
-                  />
-                  <span>minutes offline</span>
-                </div>
-              </div>
+                  {tab === 'general' && '🔧 General'}
+                  {tab === 'network' && '🌐 Network'}
+                  {tab === 'wallet' && '💼 Wallet'}
+                  {tab === 'schedule' && '📅 Schedule'}
+                </button>
+              ))}
             </div>
+            
+            {/* General Tab */}
+            {settingsTab === 'general' && (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div>
+                  <label style={eqStyles.label}>Equipment Name</label>
+                  <input style={eqStyles.input} type="text" value={equipmentSettings.name}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, name: e.target.value})} />
+                </div>
+                <div>
+                  <label style={eqStyles.label}>Worker Name</label>
+                  <input style={eqStyles.input} type="text" value={equipmentSettings.worker_name}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, worker_name: e.target.value})} />
+                </div>
+                <div>
+                  <label style={eqStyles.label}>Miner Group</label>
+                  <select style={{...eqStyles.input, cursor: 'pointer'}} value={equipmentSettings.miner_group_id}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, miner_group_id: e.target.value})}>
+                    {minerGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={eqStyles.label}>Power Mode</label>
+                  <select style={{...eqStyles.input, cursor: 'pointer'}} value={equipmentSettings.power_mode}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, power_mode: e.target.value as any})}>
+                    <option value="performance">🚀 Performance (Max Hashrate)</option>
+                    <option value="balanced">⚖️ Balanced (Recommended)</option>
+                    <option value="efficiency">🌱 Efficiency (Lower Power)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <label style={eqStyles.label}>Power Limit (W)</label>
+                    <input style={eqStyles.input} type="number" value={equipmentSettings.power_limit}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, power_limit: parseInt(e.target.value) || 0})} />
+                  </div>
+                  <div>
+                    <label style={eqStyles.label}>Target Temp (°C)</label>
+                    <input style={eqStyles.input} type="number" value={equipmentSettings.target_temperature}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, target_temperature: parseInt(e.target.value) || 70})} />
+                  </div>
+                </div>
+                <div>
+                  <label style={eqStyles.label}>Difficulty Mode</label>
+                  <select style={{...eqStyles.input, cursor: 'pointer'}} value={equipmentSettings.difficulty_mode}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, difficulty_mode: e.target.value as 'auto' | 'fixed'})}>
+                    <option value="auto">Auto (Recommended)</option>
+                    <option value="fixed">Fixed Difficulty</option>
+                  </select>
+                </div>
+                {equipmentSettings.difficulty_mode === 'fixed' && (
+                  <div>
+                    <label style={eqStyles.label}>Fixed Difficulty</label>
+                    <input style={eqStyles.input} type="number" value={equipmentSettings.fixed_difficulty || ''}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, fixed_difficulty: parseInt(e.target.value) || undefined})}
+                      placeholder="e.g., 1000000" />
+                  </div>
+                )}
+                <div style={{ borderTop: '1px solid #2a2a4a', paddingTop: '15px', marginTop: '5px' }}>
+                  <h4 style={{ color: '#00d4ff', margin: '0 0 15px', fontSize: '0.95rem' }}>🔔 Notifications</h4>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
+                    <input type="checkbox" checked={equipmentSettings.auto_restart}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, auto_restart: e.target.checked})} />
+                    Auto-restart on error
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888', cursor: 'pointer', marginBottom: '10px' }}>
+                    <input type="checkbox" checked={equipmentSettings.notification_email}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, notification_email: e.target.checked})} />
+                    Email notifications when offline
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#888' }}>
+                    <span>Alert after</span>
+                    <input style={{...eqStyles.input, width: '80px', marginBottom: 0, textAlign: 'center'}} type="number" min="1" max="60"
+                      value={equipmentSettings.notification_offline_threshold}
+                      onChange={e => setEquipmentSettings({...equipmentSettings, notification_offline_threshold: parseInt(e.target.value) || 5})} />
+                    <span>minutes offline</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Network Tab */}
+            {settingsTab === 'network' && (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={eqStyles.label}>Mining Network</label>
+                  <p style={{ color: '#666', fontSize: '0.8rem', margin: '0 0 8px' }}>Select which network this equipment should mine on</p>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {networks.filter(n => n.is_active).map(network => (
+                      <label key={network.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px',
+                        background: equipmentSettings.network_id === network.id ? 'rgba(212, 168, 75, 0.15)' : 'rgba(13, 8, 17, 0.6)',
+                        border: equipmentSettings.network_id === network.id ? '1px solid #D4A84B' : '1px solid rgba(74, 44, 90, 0.3)',
+                        borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s'
+                      }}>
+                        <input type="radio" name="network" value={network.id} checked={equipmentSettings.network_id === network.id}
+                          onChange={e => setEquipmentSettings({...equipmentSettings, network_id: e.target.value})}
+                          style={{ accentColor: '#D4A84B' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ color: '#e0e0e0', fontWeight: 500 }}>{network.name} ({network.symbol})</div>
+                          <div style={{ color: '#888', fontSize: '0.8rem' }}>Algorithm: {network.algorithm}</div>
+                        </div>
+                        {network.symbol === 'LTC' ? '🪙' : network.symbol === 'BDAG' ? '⚡' : '🔷'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: '12px', background: 'rgba(74, 222, 128, 0.1)', borderRadius: '8px', border: '1px solid rgba(74, 222, 128, 0.3)' }}>
+                  <div style={{ color: '#4ade80', fontWeight: 500, marginBottom: '4px' }}>💡 Auto-Switch Available</div>
+                  <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>
+                    Enable "Auto-Switch" in the Networks tab to automatically switch to the most profitable network.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Wallet Tab */}
+            {settingsTab === 'wallet' && (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={eqStyles.label}>Payout Wallet Assignment</label>
+                  <p style={{ color: '#666', fontSize: '0.8rem', margin: '0 0 8px' }}>Choose where this equipment's earnings go</p>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {wallets.length > 0 ? wallets.map(wallet => (
+                      <label key={wallet.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px',
+                        background: 'rgba(13, 8, 17, 0.6)', border: '1px solid rgba(74, 44, 90, 0.3)',
+                        borderRadius: '10px', cursor: 'pointer'
+                      }}>
+                        <input type="checkbox" defaultChecked={wallet.is_primary} style={{ accentColor: '#D4A84B' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ color: '#e0e0e0', fontWeight: 500 }}>{wallet.label || 'Unnamed Wallet'}</div>
+                          <code style={{ color: '#00d4ff', fontSize: '0.75rem' }}>{wallet.wallet_address.slice(0, 20)}...</code>
+                        </div>
+                        <input type="number" min="0" max="100" defaultValue={100} style={{
+                          width: '60px', padding: '6px', background: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)',
+                          borderRadius: '6px', color: '#D4A84B', textAlign: 'center', fontSize: '0.9rem'
+                        }} />
+                        <span style={{ color: '#888' }}>%</span>
+                      </label>
+                    )) : (
+                      <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                        No wallets configured. Add wallets in the Wallets tab.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button style={{...eqStyles.smallBtn, width: '100%'}} onClick={() => { setShowSettingsModal(null); setActiveTab('wallets'); }}>
+                  ➕ Manage Wallets
+                </button>
+              </div>
+            )}
+
+            {/* Schedule Tab */}
+            {settingsTab === 'schedule' && equipmentSettings.schedule && (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#e0e0e0', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={equipmentSettings.schedule_enabled}
+                    onChange={e => setEquipmentSettings({...equipmentSettings, schedule_enabled: e.target.checked})}
+                    style={{ accentColor: '#D4A84B' }} />
+                  <span style={{ fontWeight: 500 }}>Enable Mining Schedule</span>
+                </label>
+                {equipmentSettings.schedule_enabled && (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map(day => (
+                      <div key={day} style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px',
+                        background: 'rgba(13, 8, 17, 0.6)', borderRadius: '8px', border: '1px solid rgba(74, 44, 90, 0.3)'
+                      }}>
+                        <input type="checkbox" checked={equipmentSettings.schedule![day].enabled}
+                          onChange={e => setEquipmentSettings({
+                            ...equipmentSettings,
+                            schedule: {...equipmentSettings.schedule!, [day]: {...equipmentSettings.schedule![day], enabled: e.target.checked}}
+                          })}
+                          style={{ accentColor: '#D4A84B' }} />
+                        <span style={{ width: '80px', color: equipmentSettings.schedule![day].enabled ? '#e0e0e0' : '#666', textTransform: 'capitalize' }}>
+                          {day}
+                        </span>
+                        <input type="time" value={equipmentSettings.schedule![day].start}
+                          disabled={!equipmentSettings.schedule![day].enabled}
+                          onChange={e => setEquipmentSettings({
+                            ...equipmentSettings,
+                            schedule: {...equipmentSettings.schedule!, [day]: {...equipmentSettings.schedule![day], start: e.target.value}}
+                          })}
+                          style={{ padding: '4px 8px', background: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)',
+                            borderRadius: '6px', color: '#e0e0e0', fontSize: '0.85rem' }} />
+                        <span style={{ color: '#666' }}>to</span>
+                        <input type="time" value={equipmentSettings.schedule![day].end}
+                          disabled={!equipmentSettings.schedule![day].enabled}
+                          onChange={e => setEquipmentSettings({
+                            ...equipmentSettings,
+                            schedule: {...equipmentSettings.schedule!, [day]: {...equipmentSettings.schedule![day], end: e.target.value}}
+                          })}
+                          style={{ padding: '4px 8px', background: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)',
+                            borderRadius: '6px', color: '#e0e0e0', fontSize: '0.85rem' }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ padding: '12px', background: 'rgba(212, 168, 75, 0.1)', borderRadius: '8px', border: '1px solid rgba(212, 168, 75, 0.3)' }}>
+                  <div style={{ color: '#D4A84B', fontWeight: 500, marginBottom: '4px' }}>⚡ Power Savings</div>
+                  <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>
+                    Schedule mining during off-peak electricity hours to reduce costs. Equipment will automatically pause outside scheduled times.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button style={eqStyles.cancelBtn} onClick={() => setShowSettingsModal(null)}>Cancel</button>
-              <button style={{...eqStyles.saveBtn, backgroundColor: '#f59e0b'}} onClick={() => { showMessage('success', 'Settings saved'); setShowSettingsModal(null); }}>Save Settings</button>
+              <button style={eqStyles.saveBtn} onClick={() => { showMessage('success', 'Settings saved'); setShowSettingsModal(null); }}>Save Settings</button>
             </div>
           </div>
         </div>
@@ -1054,6 +1414,71 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 
             <div style={{ marginTop: '20px', textAlign: 'center' }}>
               <p style={{ color: '#666', fontSize: '0.85rem' }}>Charts update automatically when equipment is connected</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Group Modal */}
+      {showAddGroupModal && (
+        <div style={eqStyles.modalOverlay} onClick={() => setShowAddGroupModal(false)}>
+          <div style={eqStyles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={{ color: '#D4A84B', marginTop: 0 }}>📁 Create Miner Group</h2>
+            <p style={{ color: '#888', marginBottom: '20px', fontSize: '0.9rem' }}>Organize your equipment into logical groups</p>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label style={eqStyles.label}>Group Name *</label>
+              <input
+                style={eqStyles.input}
+                type="text"
+                placeholder="e.g., Basement Rigs, Office ASICs"
+                value={newGroup.name}
+                onChange={e => setNewGroup({...newGroup, name: e.target.value})}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label style={eqStyles.label}>Description (optional)</label>
+              <input
+                style={eqStyles.input}
+                type="text"
+                placeholder="Brief description of this group"
+                value={newGroup.description}
+                onChange={e => setNewGroup({...newGroup, description: e.target.value})}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={eqStyles.label}>Group Color</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {['#D4A84B', '#00d4ff', '#4ade80', '#ef4444', '#f59e0b', '#7B5EA7', '#ec4899', '#06b6d4'].map(color => (
+                  <button
+                    key={color}
+                    style={{
+                      width: '36px', height: '36px', borderRadius: '8px', backgroundColor: color,
+                      border: newGroup.color === color ? '3px solid #fff' : '2px solid transparent',
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onClick={() => setNewGroup({...newGroup, color})}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button style={eqStyles.cancelBtn} onClick={() => setShowAddGroupModal(false)}>Cancel</button>
+              <button 
+                style={{...eqStyles.saveBtn, opacity: !newGroup.name ? 0.5 : 1}}
+                disabled={!newGroup.name}
+                onClick={() => {
+                  setMinerGroups([...minerGroups, { id: `group-${Date.now()}`, ...newGroup }]);
+                  showMessage('success', `Group "${newGroup.name}" created`);
+                  setNewGroup({ name: '', color: '#D4A84B', description: '' });
+                  setShowAddGroupModal(false);
+                }}
+              >
+                Create Group
+              </button>
             </div>
           </div>
         </div>
