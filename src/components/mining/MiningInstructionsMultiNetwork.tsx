@@ -103,13 +103,15 @@ const NETWORK_CONFIGS: NetworkConfig[] = [
   },
 ];
 
-// Styles
+// Styles - Enhanced with Chimera Elite Theme
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    background: '#111217',
-    borderRadius: '12px',
-    padding: '24px',
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
+    borderRadius: '16px',
+    padding: '28px',
     marginBottom: '24px',
+    border: '1px solid rgba(74, 44, 90, 0.5)',
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
   },
   header: {
     marginBottom: '24px',
@@ -118,7 +120,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '1.5rem',
     color: '#F0EDF4',
     marginBottom: '8px',
-    fontWeight: 600,
+    fontWeight: 700,
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
   },
   subtitle: {
     color: '#9A95A8',
@@ -170,11 +173,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#9A95A8',
   },
   section: {
-    background: '#181B1F',
-    borderRadius: '8px',
-    padding: '20px',
-    marginBottom: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'linear-gradient(180deg, rgba(13, 8, 17, 0.7) 0%, rgba(26, 15, 30, 0.85) 100%)',
+    borderRadius: '12px',
+    padding: '24px',
+    marginBottom: '20px',
+    border: '1px solid rgba(74, 44, 90, 0.4)',
+    transition: 'all 0.3s ease',
   },
   sectionTitle: {
     fontSize: '1.1rem',
@@ -206,9 +210,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 500,
   },
   codeBlock: {
-    background: '#0D0E11',
-    padding: '12px 16px',
-    borderRadius: '6px',
+    background: 'rgba(13, 8, 17, 0.9)',
+    padding: '14px 18px',
+    borderRadius: '10px',
     fontFamily: 'monospace',
     fontSize: '0.85rem',
     color: '#D4A84B',
@@ -217,24 +221,29 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '12px',
     overflowX: 'auto' as const,
+    border: '1px solid rgba(212, 168, 75, 0.2)',
+    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
   },
   copyBtn: {
-    padding: '6px 12px',
+    padding: '8px 14px',
     background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     color: '#1A0F1E',
     cursor: 'pointer',
-    fontSize: '0.75rem',
+    fontSize: '0.8rem',
     fontWeight: 600,
     flexShrink: 0,
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)',
   },
   minerCard: {
-    background: '#1F2228',
-    borderRadius: '8px',
-    padding: '16px',
-    marginBottom: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
+    background: 'linear-gradient(180deg, rgba(31, 20, 40, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)',
+    borderRadius: '12px',
+    padding: '18px',
+    marginBottom: '14px',
+    border: '1px solid rgba(74, 44, 90, 0.4)',
+    transition: 'all 0.25s ease',
   },
   minerName: {
     fontSize: '1rem',
