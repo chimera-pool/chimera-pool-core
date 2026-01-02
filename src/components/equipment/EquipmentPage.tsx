@@ -1063,34 +1063,95 @@ function EquipmentPage({ token, user, showMessage }: { token: string; user: any;
 }
 
 const eqStyles: { [key: string]: React.CSSProperties } = {
-  statCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(74, 44, 90, 0.5)', textAlign: 'center', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)', transition: 'all 0.2s ease' },
-  statIcon: { fontSize: '1.4rem', marginBottom: '8px' },
-  statValue: { fontSize: '1.4rem', fontWeight: 700, color: '#D4A84B', marginBottom: '4px' },
-  statLabel: { color: '#B8B4C8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.03em' },
-  tab: { padding: '12px 20px', backgroundColor: 'transparent', border: 'none', borderBottom: '3px solid transparent', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s', fontWeight: 500 },
-  tabActive: { color: '#D4A84B', borderBottomColor: '#D4A84B' },
-  equipmentCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', borderRadius: '14px', padding: '18px', border: '1px solid rgba(74, 44, 90, 0.4)', borderLeft: '4px solid #7A7490', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)' },
-  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' },
-  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '10px' },
-  quickStat: { background: 'rgba(13, 8, 17, 0.6)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(74, 44, 90, 0.3)' },
-  quickLabel: { display: 'block', color: '#B8B4C8', fontSize: '0.7rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.02em' },
-  quickValue: { display: 'block', color: '#F0EDF4', fontWeight: 600, fontSize: '0.9rem' },
-  expandedDetails: { marginTop: '18px', paddingTop: '18px', borderTop: '1px solid rgba(74, 44, 90, 0.4)' },
-  detailSection: { background: 'rgba(13, 8, 17, 0.6)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(74, 44, 90, 0.3)' },
-  detailTitle: { color: '#D4A84B', margin: '0 0 12px', fontSize: '0.95rem', fontWeight: 600 },
-  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#B8B4C8', fontSize: '0.85rem', flexWrap: 'wrap', gap: '5px' },
-  editSplitsBtn: { marginTop: '10px', padding: '8px 14px', backgroundColor: 'transparent', border: '1px solid #7B5EA7', borderRadius: '8px', color: '#7B5EA7', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' },
-  actionBtn: { padding: '10px 18px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '8px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.2s' },
-  walletCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.7) 100%)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(74, 44, 90, 0.4)' },
-  primaryBadge: { background: 'linear-gradient(135deg, #4ADE80 0%, #22C55E 100%)', color: '#1A0F1E', fontSize: '0.65rem', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 },
-  smallBtn: { padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '6px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' },
-  addBtn: { padding: '10px 20px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '8px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(13, 8, 17, 0.92)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
-  modal: { background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', padding: '28px', borderRadius: '16px', border: '1px solid rgba(212, 168, 75, 0.3)', maxWidth: '440px', width: '100%', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)' },
-  label: { display: 'block', color: '#B8B4C8', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 500 },
-  input: { width: '100%', padding: '12px 14px', backgroundColor: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '10px', color: '#F0EDF4', fontSize: '0.95rem', marginBottom: '14px', boxSizing: 'border-box', transition: 'border-color 0.2s' },
-  cancelBtn: { padding: '12px 22px', backgroundColor: 'transparent', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '10px', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s' },
-  saveBtn: { padding: '12px 22px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(212, 168, 75, 0.3)' },
+  // Phase 3 Enhanced Stat Cards with live indicators
+  statCard: { 
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.8) 0%, rgba(26, 15, 30, 0.9) 100%)', 
+    padding: '20px', 
+    borderRadius: '14px', 
+    border: '1px solid rgba(74, 44, 90, 0.5)', 
+    textAlign: 'center', 
+    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)', 
+    transition: 'all 0.25s ease',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  statIcon: { fontSize: '1.5rem', marginBottom: '10px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' },
+  statValue: { fontSize: '1.5rem', fontWeight: 700, color: '#D4A84B', marginBottom: '6px', textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)', letterSpacing: '-0.02em' },
+  statLabel: { color: '#B8B4C8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 },
+  
+  // Phase 3 Enhanced Tab Navigation
+  tab: { 
+    padding: '14px 24px', 
+    backgroundColor: 'transparent', 
+    border: 'none', 
+    borderBottom: '3px solid transparent', 
+    color: '#B8B4C8', 
+    cursor: 'pointer', 
+    fontSize: '0.95rem', 
+    transition: 'all 0.25s ease', 
+    fontWeight: 500,
+    position: 'relative'
+  },
+  tabActive: { 
+    color: '#D4A84B', 
+    borderBottomColor: '#D4A84B',
+    textShadow: '0 0 20px rgba(212, 168, 75, 0.5)'
+  },
+  
+  // Phase 3 Enhanced Equipment Cards
+  equipmentCard: { 
+    background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', 
+    borderRadius: '16px', 
+    padding: '20px', 
+    border: '1px solid rgba(74, 44, 90, 0.4)', 
+    borderLeft: '4px solid #7A7490', 
+    cursor: 'pointer', 
+    transition: 'all 0.3s ease', 
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+    position: 'relative'
+  },
+  equipmentHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' },
+  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '12px' },
+  quickStat: { 
+    background: 'rgba(13, 8, 17, 0.7)', 
+    padding: '12px', 
+    borderRadius: '10px', 
+    textAlign: 'center', 
+    border: '1px solid rgba(74, 44, 90, 0.3)',
+    transition: 'all 0.2s ease'
+  },
+  quickLabel: { display: 'block', color: '#B8B4C8', fontSize: '0.7rem', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 },
+  quickValue: { display: 'block', color: '#F0EDF4', fontWeight: 600, fontSize: '0.95rem' },
+  
+  // Phase 3 Enhanced Detail Sections
+  expandedDetails: { marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(74, 44, 90, 0.4)' },
+  detailSection: { 
+    background: 'rgba(13, 8, 17, 0.7)', 
+    padding: '16px', 
+    borderRadius: '12px', 
+    border: '1px solid rgba(74, 44, 90, 0.3)',
+    transition: 'all 0.2s ease'
+  },
+  detailTitle: { color: '#D4A84B', margin: '0 0 14px', fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' },
+  detailRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#B8B4C8', fontSize: '0.85rem', flexWrap: 'wrap', gap: '8px' },
+  
+  // Action Buttons
+  editSplitsBtn: { marginTop: '12px', padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #7B5EA7', borderRadius: '10px', color: '#7B5EA7', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' },
+  actionBtn: { padding: '12px 20px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '10px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.25s ease' },
+  
+  // Wallet Cards
+  walletCard: { background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)', padding: '20px', borderRadius: '14px', border: '1px solid rgba(74, 44, 90, 0.4)', transition: 'all 0.2s ease' },
+  primaryBadge: { background: 'linear-gradient(135deg, #4ADE80 0%, #22C55E 100%)', color: '#1A0F1E', fontSize: '0.7rem', padding: '4px 10px', borderRadius: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' },
+  smallBtn: { padding: '8px 14px', backgroundColor: 'transparent', border: '1px solid #D4A84B', borderRadius: '8px', color: '#D4A84B', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' },
+  addBtn: { padding: '12px 24px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '10px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 12px rgba(212, 168, 75, 0.3)', transition: 'all 0.25s ease' },
+  
+  // Modals
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(13, 8, 17, 0.95)', backdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
+  modal: { background: 'linear-gradient(180deg, #2D1F3D 0%, #1A0F1E 100%)', padding: '30px', borderRadius: '18px', border: '1px solid rgba(212, 168, 75, 0.3)', maxWidth: '480px', width: '100%', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 32px 64px rgba(0, 0, 0, 0.6)' },
+  label: { display: 'block', color: '#B8B4C8', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 },
+  input: { width: '100%', padding: '14px 16px', backgroundColor: 'rgba(13, 8, 17, 0.8)', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', color: '#F0EDF4', fontSize: '1rem', marginBottom: '16px', boxSizing: 'border-box', transition: 'border-color 0.2s, box-shadow 0.2s' },
+  cancelBtn: { padding: '14px 24px', backgroundColor: 'transparent', border: '1px solid rgba(74, 44, 90, 0.5)', borderRadius: '12px', color: '#B8B4C8', cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.2s' },
+  saveBtn: { padding: '14px 24px', background: 'linear-gradient(135deg, #D4A84B 0%, #B8923A 100%)', border: 'none', borderRadius: '12px', color: '#1A0F1E', fontWeight: 600, cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 12px rgba(212, 168, 75, 0.3)', transition: 'all 0.25s ease' },
 };
 
 export default EquipmentPage;
