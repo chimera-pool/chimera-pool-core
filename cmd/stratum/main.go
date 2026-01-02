@@ -1525,6 +1525,22 @@ func (s *StratumServer) handleSubmit(miner *Miner, req StratumRequest) error {
 		return s.sendResponse(miner, req.ID, false, "Authorization error - please reconnect")
 	}
 
+	// SECURITY: Validate minimum difficulty - reject zero/low difficulty shares
+	// This prevents attackers from claiming rewards without performing actual mining work
+	const minDifficulty = 0.001 // Minimum acceptable difficulty (adjust based on network)
+	if miner.Difficulty < minDifficulty {
+		log.Printf("[SECURITY] Share rejected from %s: difficulty %.6f below minimum %.6f",
+			miner.ID, miner.Difficulty, minDifficulty)
+		miner.SharesInvalid++
+		// Record invalid share in database for tracking
+		s.db.Exec(`
+			INSERT INTO shares (miner_id, user_id, difficulty, is_valid, nonce, hash, timestamp, network_id) 
+			VALUES ($1, $2, $3, false, $4, $5, NOW(), $6)`,
+			0, miner.UserID, miner.Difficulty, "rejected-low-diff", "invalid", s.activeNetworkID,
+		)
+		return s.sendResponse(miner, req.ID, false, "Share difficulty too low")
+	}
+
 	// Calculate time since last share for vardiff
 	now := time.Now()
 	shareTime := time.Since(miner.LastShare)
