@@ -182,6 +182,8 @@ const styles: { [key: string]: React.CSSProperties } = {
 const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
   const [stats, setStats] = useState<MonitoringStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
@@ -236,10 +238,35 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
     window.open('/grafana', '_blank');
   };
 
+  // Animated status dot component
+  const StatusDot: React.FC<{ status: 'online' | 'offline' | 'warning' }> = ({ status }) => {
+    const dotColors = {
+      online: '#4ADE80',
+      offline: '#EF4444',
+      warning: '#FBBF24',
+    };
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          backgroundColor: dotColors[status],
+          boxShadow: `0 0 8px ${dotColors[status]}80`,
+          animation: status === 'online' ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+          marginRight: '8px',
+        }}
+        data-testid={`status-dot-${status}`}
+      />
+    );
+  };
+
   if (loading) {
     return (
-      <div style={styles.container}>
+      <div style={styles.container} data-testid="monitoring-dashboard-loading">
         <div style={{ textAlign: 'center', color: colors.textSecondary, padding: '40px' }}>
+          <div style={{ marginBottom: '12px', fontSize: '1.5rem' }}>📊</div>
           Loading monitoring data...
         </div>
       </div>
@@ -247,7 +274,16 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} data-testid="monitoring-dashboard">
+      {/* CSS for animations */}
+      <style>
+        {`
+          @keyframes pulse-glow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+          }
+        `}
+      </style>
       <div style={styles.header}>
         <h2 style={styles.title}>
           📊 Pool Monitoring
@@ -258,86 +294,101 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({ token }) => {
       </div>
 
       {/* Node Status - Unique monitoring data not shown elsewhere */}
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '20px' }} data-testid="node-health-section">
         <div style={styles.statusTitle}>🔗 Node Health</div>
         <div style={styles.statusGrid}>
-          <div style={styles.statusCard} className="status-card-enhanced">
-            <span style={styles.statusName}>Litecoin Node</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Healthy</span>
+          <div 
+            style={{
+              ...styles.statusCard,
+              ...(hoveredCard === 'litecoin' ? { borderColor: 'rgba(212, 168, 75, 0.5)', transform: 'translateY(-2px)', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)' } : {})
+            }}
+            onMouseEnter={() => setHoveredCard('litecoin')}
+            onMouseLeave={() => setHoveredCard(null)}
+            data-testid="status-card-litecoin"
+          >
+            <span style={styles.statusName}>
+              <StatusDot status="online" />
+              Litecoin Node
+            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Healthy</span>
           </div>
-          <div style={styles.statusCard} className="status-card-enhanced">
-            <span style={styles.statusName}>Stratum Server</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Running</span>
+          <div 
+            style={{
+              ...styles.statusCard,
+              ...(hoveredCard === 'stratum' ? { borderColor: 'rgba(212, 168, 75, 0.5)', transform: 'translateY(-2px)', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)' } : {})
+            }}
+            onMouseEnter={() => setHoveredCard('stratum')}
+            onMouseLeave={() => setHoveredCard(null)}
+            data-testid="status-card-stratum"
+          >
+            <span style={styles.statusName}>
+              <StatusDot status="online" />
+              Stratum Server
+            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Running</span>
           </div>
-          <div style={styles.statusCard} className="status-card-enhanced">
-            <span style={styles.statusName}>Alert Manager</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Active</span>
+          <div 
+            style={{
+              ...styles.statusCard,
+              ...(hoveredCard === 'alertmanager' ? { borderColor: 'rgba(212, 168, 75, 0.5)', transform: 'translateY(-2px)', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)' } : {})
+            }}
+            onMouseEnter={() => setHoveredCard('alertmanager')}
+            onMouseLeave={() => setHoveredCard(null)}
+            data-testid="status-card-alertmanager"
+          >
+            <span style={styles.statusName}>
+              <StatusDot status="online" />
+              Alert Manager
+            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Active</span>
           </div>
-          <div style={styles.statusCard} className="status-card-enhanced">
-            <span style={styles.statusName}>Prometheus</span>
-            <span style={{ ...styles.statusBadge, ...styles.online }} className="status-pulse">Collecting</span>
+          <div 
+            style={{
+              ...styles.statusCard,
+              ...(hoveredCard === 'prometheus' ? { borderColor: 'rgba(212, 168, 75, 0.5)', transform: 'translateY(-2px)', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)' } : {})
+            }}
+            onMouseEnter={() => setHoveredCard('prometheus')}
+            onMouseLeave={() => setHoveredCard(null)}
+            data-testid="status-card-prometheus"
+          >
+            <span style={styles.statusName}>
+              <StatusDot status="online" />
+              Prometheus
+            </span>
+            <span style={{ ...styles.statusBadge, ...styles.online }}>Collecting</span>
           </div>
         </div>
       </div>
 
       {/* Quick Links to Grafana Dashboards */}
-      <div style={styles.dashboardLinks}>
-        <a 
-          href="/grafana/d/chimera-pool-overview/chimera-pool-overview" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-        >
-          📊 Pool Overview
-        </a>
-        <a 
-          href="/grafana/d/chimera-pool-workers/chimera-pool-workers" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-        >
-          👷 Workers
-        </a>
-        <a 
-          href="/grafana/d/chimera-pool-payouts/chimera-pool-payouts" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-        >
-          💰 Payouts
-        </a>
-        <a 
-          href="/grafana/d/chimera-pool-alerts/chimera-pool-alerts" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-        >
-          🔔 Alerts
-        </a>
-        <a 
-          href="http://206.162.80.230:9093" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-          title="Alert routing and notification management"
-        >
-          ⚠️ AlertManager
-        </a>
-        <a 
-          href="http://206.162.80.230:9090" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={styles.dashboardLink}
-          className="dashboard-link-enhanced"
-          title="Time-series metrics database for pool monitoring"
-        >
-          📈 Prometheus
-        </a>
+      <div style={styles.dashboardLinks} data-testid="dashboard-links">
+        {[
+          { href: '/grafana/d/chimera-pool-overview/chimera-pool-overview', icon: '📊', label: 'Pool Overview', id: 'overview' },
+          { href: '/grafana/d/chimera-pool-workers/chimera-pool-workers', icon: '👷', label: 'Workers', id: 'workers' },
+          { href: '/grafana/d/chimera-pool-payouts/chimera-pool-payouts', icon: '💰', label: 'Payouts', id: 'payouts' },
+          { href: '/grafana/d/chimera-pool-alerts/chimera-pool-alerts', icon: '🔔', label: 'Alerts', id: 'alerts' },
+          { href: 'http://206.162.80.230:9093', icon: '⚠️', label: 'AlertManager', id: 'alertmanager', title: 'Alert routing and notification management' },
+          { href: 'http://206.162.80.230:9090', icon: '📈', label: 'Prometheus', id: 'prometheus', title: 'Time-series metrics database for pool monitoring' },
+        ].map((link) => (
+          <a 
+            key={link.id}
+            href={link.href}
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              ...styles.dashboardLink,
+              ...(hoveredLink === link.id ? styles.dashboardLinkHover : {})
+            }}
+            onMouseEnter={() => setHoveredLink(link.id)}
+            onMouseLeave={() => setHoveredLink(null)}
+            title={link.title}
+            data-testid={`dashboard-link-${link.id}`}
+            aria-label={`Open ${link.label} dashboard`}
+          >
+            <span style={{ fontSize: '1.1rem' }}>{link.icon}</span>
+            {link.label}
+          </a>
+        ))}
       </div>
     </div>
   );

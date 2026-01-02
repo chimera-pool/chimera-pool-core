@@ -108,39 +108,70 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
     return icons[category] || '📊';
   };
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Simulate loading state for shimmer effect
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, [selectedChartId]);
+
   const containerStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: height,
     background: 'linear-gradient(180deg, rgba(45, 31, 61, 0.6) 0%, rgba(26, 15, 30, 0.8) 100%)',
-    borderRadius: '12px',
-    border: '1px solid rgba(74, 44, 90, 0.5)',
+    borderRadius: '16px',
+    border: isHovered ? '1px solid rgba(212, 168, 75, 0.4)' : '1px solid rgba(74, 44, 90, 0.5)',
     overflow: 'hidden',
     transition: 'all 0.3s ease',
+    boxShadow: isHovered 
+      ? '0 8px 32px rgba(212, 168, 75, 0.15), 0 4px 16px rgba(0, 0, 0, 0.3)' 
+      : '0 4px 20px rgba(0, 0, 0, 0.2)',
+    transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
   };
 
   const headerStyle: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '14px 16px',
+    padding: '16px 20px',
     borderBottom: '1px solid rgba(74, 44, 90, 0.4)',
-    background: 'rgba(45, 31, 61, 0.3)',
+    background: 'linear-gradient(90deg, rgba(45, 31, 61, 0.5) 0%, rgba(26, 15, 30, 0.6) 100%)',
   };
 
   const titleStyle: React.CSSProperties = {
     color: '#F0EDF4',
-    fontSize: '0.9rem',
-    fontWeight: 600,
+    fontSize: '1rem',
+    fontWeight: 700,
     margin: 0,
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '12px',
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
   };
 
   const categoryIconStyle: React.CSSProperties = {
-    fontSize: '1rem',
-    opacity: 0.9,
+    fontSize: '1.2rem',
+    opacity: 1,
+    filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
+  };
+
+  const shimmerStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(90deg, transparent 0%, rgba(212, 168, 75, 0.1) 50%, transparent 100%)',
+    animation: 'shimmer 1.5s infinite',
+    pointerEvents: 'none',
+  };
+
+  const tooltipStyle: React.CSSProperties = {
+    position: 'relative',
+    cursor: 'help',
   };
 
   const statusIndicatorStyle: React.CSSProperties = {
@@ -159,7 +190,13 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
 
   if (!selectedChart) {
     return (
-      <div data-testid="chart-slot" className={className} style={containerStyle}>
+      <div 
+        data-testid="chart-slot" 
+        className={className} 
+        style={containerStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div style={{ ...chartContainerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(204, 204, 220, 0.5)' }}>
           No chart selected
         </div>
@@ -168,7 +205,25 @@ export const ChartSlot: React.FC<IChartSlotProps> = ({
   }
 
   return (
-    <div data-testid="chart-slot" className={className} style={containerStyle}>
+    <div 
+      data-testid="chart-slot" 
+      className={className} 
+      style={containerStyle}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Shimmer loading overlay */}
+      {isLoading && (
+        <style>
+          {`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+          `}
+        </style>
+      )}
+      {isLoading && <div style={shimmerStyle} data-testid="chart-loading-shimmer" />}
       {/* Header with title and selector */}
       <div style={headerStyle}>
         <h3 style={titleStyle}>
