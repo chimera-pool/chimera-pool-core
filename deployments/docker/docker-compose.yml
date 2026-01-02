@@ -13,6 +13,7 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
+    shm_size: '256mb'
     restart: unless-stopped
     networks:
       default:

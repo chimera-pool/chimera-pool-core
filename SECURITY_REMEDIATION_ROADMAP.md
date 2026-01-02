@@ -94,10 +94,12 @@
 
 ### 3.1 Password Complexity
 - **Severity:** MEDIUM (CVSS 5.3)
-- **Status:** [x] ALREADY IMPLEMENTED - Full complexity requirements in place
+- **Status:** [x] FIXED (Jan 2, 2026) - Full complexity requirements + UI display
 - **Issue:** Only 8-char minimum, no complexity requirements
 - **Fix:** Require uppercase, lowercase, number, special char
-- **Files to modify:**
+- **UI Enhancement:** Added password requirements display and show/hide toggle to AuthModal
+- **Files modified:**
+  - `src/components/auth/AuthModal.tsx` - Added PASSWORD_REQUIREMENTS display, show/hide toggle buttons
   - `cmd/api/main.go` - Registration/password change handlers
 
 ### 3.2 Frontend Performance

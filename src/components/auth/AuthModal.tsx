@@ -16,6 +16,15 @@ export interface AuthModalProps {
   resetToken: string | null;
 }
 
+// Password requirements for display
+const PASSWORD_REQUIREMENTS = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter (A-Z)', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter (a-z)', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One number (0-9)', test: (p: string) => /[0-9]/.test(p) },
+  { label: 'One special character (!@#$%^&*)', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
+];
+
 const styles: { [key: string]: React.CSSProperties } = {
   modalOverlay: {
     position: 'fixed',
@@ -109,14 +118,55 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   passwordToggle: {
     position: 'absolute',
-    right: '10px',
-    top: '50%',
-    transform: 'translateY(-50%)',
+    right: '12px',
+    top: '12px',
     background: 'none',
     border: 'none',
     color: colors.textSecondary,
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '18px',
+    padding: '4px',
+    lineHeight: 1,
+  },
+  passwordRequirements: {
+    backgroundColor: 'rgba(26, 15, 30, 0.8)',
+    border: `1px solid ${colors.border}`,
+    borderRadius: '6px',
+    padding: '12px',
+    marginBottom: '15px',
+    fontSize: '0.85rem',
+  },
+  requirementsTitle: {
+    color: colors.textSecondary,
+    marginBottom: '8px',
+    fontWeight: 'bold',
+  },
+  requirementItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '4px',
+    color: colors.textSecondary,
+  },
+  requirementMet: {
+    color: colors.success,
+  },
+  requirementNotMet: {
+    color: colors.textSecondary,
+  },
+  inputWithToggle: {
+    position: 'relative',
+    marginBottom: '15px',
+  },
+  inputNoMargin: {
+    width: '100%',
+    padding: '12px 40px 12px 16px',
+    backgroundColor: colors.bgInput,
+    border: `1px solid ${colors.border}`,
+    borderRadius: '6px',
+    color: colors.textPrimary,
+    fontSize: '1rem',
+    boxSizing: 'border-box',
   },
 };
 
@@ -130,6 +180,9 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
@@ -275,17 +328,28 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               data-testid="login-email-input"
               aria-label="Email Address"
             />
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange('password')}
-              required
-              autoComplete="current-password"
-              data-testid="login-password-input"
-              aria-label="Password"
-            />
+            <div style={styles.inputWithToggle as React.CSSProperties}>
+              <input
+                style={styles.inputNoMargin as React.CSSProperties}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                required
+                autoComplete="current-password"
+                data-testid="login-password-input"
+                aria-label="Password"
+              />
+              <button
+                type="button"
+                style={styles.passwordToggle as React.CSSProperties}
+                onClick={() => setShowPassword(!showPassword)}
+                data-testid="login-password-toggle"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="login-submit-btn">
               {loading ? 'Logging in...' : 'Login'}
             </button>
@@ -326,29 +390,68 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               data-testid="register-email-input"
               aria-label="Email"
             />
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="Password (min 8 characters)"
-              value={formData.password}
-              onChange={handleInputChange('password')}
-              minLength={8}
-              required
-              autoComplete="new-password"
-              data-testid="register-password-input"
-              aria-label="Password"
-            />
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange('confirmPassword')}
-              required
-              autoComplete="new-password"
-              data-testid="register-confirm-password-input"
-              aria-label="Confirm Password"
-            />
+            <div style={styles.inputWithToggle as React.CSSProperties}>
+              <input
+                style={styles.inputNoMargin as React.CSSProperties}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                minLength={8}
+                required
+                autoComplete="new-password"
+                data-testid="register-password-input"
+                aria-label="Password"
+              />
+              <button
+                type="button"
+                style={styles.passwordToggle as React.CSSProperties}
+                onClick={() => setShowPassword(!showPassword)}
+                data-testid="register-password-toggle"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            {/* Password Requirements */}
+            <div style={styles.passwordRequirements as React.CSSProperties} data-testid="password-requirements">
+              <div style={styles.requirementsTitle as React.CSSProperties}>Password Requirements:</div>
+              {PASSWORD_REQUIREMENTS.map((req, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    ...styles.requirementItem,
+                    ...(req.test(formData.password) ? styles.requirementMet : styles.requirementNotMet)
+                  } as React.CSSProperties}
+                  data-testid={`password-requirement-${idx}`}
+                >
+                  <span>{req.test(formData.password) ? '✓' : '○'}</span>
+                  <span>{req.label}</span>
+                </div>
+              ))}
+            </div>
+            <div style={styles.inputWithToggle as React.CSSProperties}>
+              <input
+                style={styles.inputNoMargin as React.CSSProperties}
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange('confirmPassword')}
+                required
+                autoComplete="new-password"
+                data-testid="register-confirm-password-input"
+                aria-label="Confirm Password"
+              />
+              <button
+                type="button"
+                style={styles.passwordToggle as React.CSSProperties}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                data-testid="register-confirm-password-toggle"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="register-submit-btn">
               {loading ? 'Creating...' : 'Create Account'}
             </button>
@@ -396,29 +499,68 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
               Enter your new password below.
             </p>
             {error && <div style={styles.errorMsg as React.CSSProperties} data-testid="reset-password-error-message">{error}</div>}
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="New Password (min 8 characters)"
-              value={formData.newPassword}
-              onChange={handleInputChange('newPassword')}
-              minLength={8}
-              required
-              autoComplete="new-password"
-              data-testid="reset-password-new-input"
-              aria-label="New Password"
-            />
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="Confirm New Password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange('confirmPassword')}
-              required
-              autoComplete="new-password"
-              data-testid="reset-password-confirm-input"
-              aria-label="Confirm New Password"
-            />
+            <div style={styles.inputWithToggle as React.CSSProperties}>
+              <input
+                style={styles.inputNoMargin as React.CSSProperties}
+                type={showNewPassword ? 'text' : 'password'}
+                placeholder="New Password"
+                value={formData.newPassword}
+                onChange={handleInputChange('newPassword')}
+                minLength={8}
+                required
+                autoComplete="new-password"
+                data-testid="reset-password-new-input"
+                aria-label="New Password"
+              />
+              <button
+                type="button"
+                style={styles.passwordToggle as React.CSSProperties}
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                data-testid="reset-password-new-toggle"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+              >
+                {showNewPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            {/* Password Requirements */}
+            <div style={styles.passwordRequirements as React.CSSProperties} data-testid="reset-password-requirements">
+              <div style={styles.requirementsTitle as React.CSSProperties}>Password Requirements:</div>
+              {PASSWORD_REQUIREMENTS.map((req, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    ...styles.requirementItem,
+                    ...(req.test(formData.newPassword) ? styles.requirementMet : styles.requirementNotMet)
+                  } as React.CSSProperties}
+                  data-testid={`reset-password-requirement-${idx}`}
+                >
+                  <span>{req.test(formData.newPassword) ? '✓' : '○'}</span>
+                  <span>{req.label}</span>
+                </div>
+              ))}
+            </div>
+            <div style={styles.inputWithToggle as React.CSSProperties}>
+              <input
+                style={styles.inputNoMargin as React.CSSProperties}
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm New Password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange('confirmPassword')}
+                required
+                autoComplete="new-password"
+                data-testid="reset-password-confirm-input"
+                aria-label="Confirm New Password"
+              />
+              <button
+                type="button"
+                style={styles.passwordToggle as React.CSSProperties}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                data-testid="reset-password-confirm-toggle"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="reset-password-submit-btn">
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>

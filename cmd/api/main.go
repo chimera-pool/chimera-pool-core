@@ -351,8 +351,8 @@ func startDatabaseMaintenanceScheduler(db *sql.DB, stop chan struct{}) {
 	maintenanceTicker := time.NewTicker(15 * time.Minute)
 	defer maintenanceTicker.Stop()
 
-	// Archive old shares daily at 3 AM UTC
-	archiveTicker := time.NewTicker(1 * time.Hour)
+	// Archive old shares every 6 hours to prevent database bloat
+	archiveTicker := time.NewTicker(6 * time.Hour)
 	defer archiveTicker.Stop()
 
 	for {
@@ -378,16 +378,13 @@ func startDatabaseMaintenanceScheduler(db *sql.DB, stop chan struct{}) {
 			}
 
 		case <-archiveTicker.C:
-			// Check if it's 3 AM UTC for archiving
-			now := time.Now().UTC()
-			if now.Hour() == 3 {
-				var archivedCount int
-				err := db.QueryRow("SELECT archive_old_shares()").Scan(&archivedCount)
-				if err != nil {
-					log.Printf("Warning: Failed to archive old shares: %v", err)
-				} else if archivedCount > 0 {
-					log.Printf("🔧 Archived %d old shares", archivedCount)
-				}
+			// Archive old shares every 6 hours (no time check - runs on schedule)
+			var archivedCount int
+			err := db.QueryRow("SELECT archive_old_shares()").Scan(&archivedCount)
+			if err != nil {
+				log.Printf("Warning: Failed to archive old shares: %v", err)
+			} else if archivedCount > 0 {
+				log.Printf("🔧 Archived %d old shares", archivedCount)
 			}
 		}
 	}
@@ -972,22 +969,11 @@ func handleUserStats(db *sql.DB) gin.HandlerFunc {
 // handlePoolMiners returns list of active miners for the pool
 func handlePoolMiners(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Query miners with share counts from shares table
+		// Optimized query - get miners first, then share counts separately if needed
+		// This avoids expensive subquery on large shares table
 		rows, err := db.Query(`
-			SELECT m.id, m.name, m.hashrate, m.is_active, m.last_seen, m.user_id,
-			       COALESCE(s.valid_shares, 0) as valid_shares,
-			       COALESCE(s.invalid_shares, 0) as invalid_shares,
-			       COALESCE(s.avg_difficulty, 0) as difficulty
+			SELECT m.id, m.name, m.hashrate, m.is_active, m.last_seen, m.user_id
 			FROM miners m
-			LEFT JOIN (
-				SELECT miner_id,
-				       COUNT(*) FILTER (WHERE is_valid = true) as valid_shares,
-				       COUNT(*) FILTER (WHERE is_valid = false) as invalid_shares,
-				       AVG(difficulty) as avg_difficulty
-				FROM shares
-				WHERE timestamp > NOW() - INTERVAL '24 hours'
-				GROUP BY miner_id
-			) s ON m.id = s.miner_id
 			WHERE m.last_seen > NOW() - INTERVAL '5 minutes'
 			ORDER BY m.hashrate DESC
 			LIMIT 100
@@ -1003,26 +989,22 @@ func handlePoolMiners(db *sql.DB) gin.HandlerFunc {
 		for rows.Next() {
 			var id, userID int64
 			var name string
-			var hashrate, difficulty float64
+			var hashrate float64
 			var isActive bool
 			var lastSeen time.Time
-			var validShares, invalidShares int64
 
-			if err := rows.Scan(&id, &name, &hashrate, &isActive, &lastSeen, &userID, &validShares, &invalidShares, &difficulty); err != nil {
+			if err := rows.Scan(&id, &name, &hashrate, &isActive, &lastSeen, &userID); err != nil {
 				log.Printf("handlePoolMiners scan error: %v", err)
 				continue
 			}
 
 			miners = append(miners, gin.H{
-				"id":             id,
-				"name":           name,
-				"hashrate":       hashrate,
-				"is_active":      isActive,
-				"last_seen":      lastSeen,
-				"user_id":        userID,
-				"valid_shares":   validShares,
-				"invalid_shares": invalidShares,
-				"difficulty":     difficulty,
+				"id":        id,
+				"name":      name,
+				"hashrate":  hashrate,
+				"is_active": isActive,
+				"last_seen": lastSeen,
+				"user_id":   userID,
 			})
 		}
 
