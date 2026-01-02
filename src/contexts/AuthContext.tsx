@@ -34,10 +34,21 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper to get token from either localStorage (persistent) or sessionStorage (session-only)
+const getStoredToken = (): string | null => {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+};
+
+// Helper to clear all stored tokens
+const clearStoredTokens = () => {
+  localStorage.removeItem('token');
+  sessionStorage.removeItem('token');
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
-  const [isLoading, setIsLoading] = useState<boolean>(!!localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [isLoading, setIsLoading] = useState<boolean>(!!getStoredToken());
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = !!token && !!user;
@@ -65,13 +76,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         // Token/cookie invalid, clear auth state
-        localStorage.removeItem('token');
+        clearStoredTokens();
         setToken(null);
         setUser(null);
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
-      localStorage.removeItem('token');
+      clearStoredTokens();
       setToken(null);
       setUser(null);
     } finally {
@@ -79,9 +90,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [token]);
 
-  // Initialize auth state from localStorage
+  // Initialize auth state from storage (localStorage or sessionStorage)
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
+    const storedToken = getStoredToken();
     if (storedToken) {
       fetchProfile(storedToken);
     }
@@ -163,7 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Logout request failed:', err);
     } finally {
       // Always clear local state regardless of server response
-      localStorage.removeItem('token');
+      clearStoredTokens(); // Clear both localStorage and sessionStorage
       setToken(null);
       setUser(null);
       setError(null);

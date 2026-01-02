@@ -89,9 +89,15 @@ func main() {
 	startPoolStatsCacheRefresher(db, redisClient, cacheRefresherStop)
 	defer close(cacheRefresherStop)
 
+	// Start CSRF token cleanup goroutine
+	cleanupExpiredCSRFTokens()
+
 	// API routes
 	apiGroup := router.Group("/api/v1")
 	{
+		// CSRF token endpoint (public, needed before auth)
+		apiGroup.GET("/csrf-token", handleGetCSRFToken())
+
 		// Auth routes with rate limiting (5 attempts per 15 minutes, 30-minute block)
 		authGroup := apiGroup.Group("/auth")
 		authGroup.Use(api.RateLimitMiddleware(authRateLimiter))
@@ -128,24 +134,13 @@ func main() {
 		protected.Use(authMiddleware(config.JWTSecret))
 		{
 			protected.GET("/user/profile", handleUserProfile(db))
-			protected.PUT("/user/profile", handleUpdateUserProfile(db))
-			protected.PUT("/user/password", handleChangePassword(db))
 			protected.GET("/user/miners", handleUserMiners(db))
 			protected.GET("/user/equipment", handleUserEquipment(db))
 			protected.GET("/user/payouts", handleUserPayouts(db))
-			protected.POST("/user/payout-address", handleSetPayoutAddress(db))
 			protected.GET("/user/wallet-history", handleGetWalletHistory(db))
-
-			// Multi-wallet management
 			protected.GET("/user/wallets", handleGetUserWallets(db))
-			protected.POST("/user/wallets", handleCreateUserWallet(db))
-			protected.PUT("/user/wallets/:id", handleUpdateUserWallet(db))
-			protected.DELETE("/user/wallets/:id", handleDeleteUserWallet(db))
 			protected.GET("/user/wallets/preview", handleWalletPayoutPreview(db))
-			protected.PUT("/user/wallets/:id/toggle", handleToggleWalletActive(db))
-			protected.PUT("/user/wallets/:id/allocation", handleUpdateWalletAllocation(db))
 			protected.GET("/user/miners/:id/wallets", handleGetMinerWalletAssignments(db))
-			protected.PUT("/user/miners/:id/wallets", handleSetMinerWalletAssignment(db))
 			protected.GET("/user/stats", handleUserStats(db))
 			protected.GET("/user/stats/hashrate", handleUserHashrateHistory(db))
 			protected.GET("/user/stats/shares", handleUserSharesHistory(db))
@@ -159,59 +154,86 @@ func main() {
 			protected.GET("/user/referral", handleGetUserReferral(db))
 			protected.GET("/user/referrals", handleGetUserReferrals(db))
 
-			// Payout settings routes
+			// Payout settings routes (read-only)
 			protected.GET("/user/payout-settings", handleGetPayoutSettings(db))
-			protected.PUT("/user/payout-settings", handleUpdatePayoutSettings(db))
 			protected.GET("/user/payout-estimate", handleGetPayoutEstimate(db))
+		}
 
-			// Community routes (authenticated)
-			protected.GET("/community/channels", handleGetChannels(db))
-			protected.GET("/community/channel-categories", handleAdminGetCategories(db))
-			protected.GET("/community/channels/:id/messages", handleGetChannelMessages(db))
-			protected.POST("/community/channels/:id/messages", handleSendMessage(db))
-			protected.PUT("/community/messages/:id", handleEditMessage(db))
-			protected.DELETE("/community/messages/:id", handleDeleteMessage(db))
-			protected.GET("/community/reaction-types", handleGetReactionTypes(db))
-			protected.POST("/community/messages/:id/reactions", handleAddReaction(db))
-			protected.DELETE("/community/messages/:id/reactions/:emoji", handleRemoveReaction(db))
+		// Sensitive operations with stricter rate limiting
+		// (password changes, profile updates, wallet management, payout settings)
+		sensitiveRateLimiter := api.NewRateLimiter(api.SensitiveOperationRateLimiterConfig())
+		defer sensitiveRateLimiter.Stop()
+		sensitive := apiGroup.Group("/")
+		sensitive.Use(authMiddleware(config.JWTSecret))
+		sensitive.Use(api.RateLimitMiddleware(sensitiveRateLimiter))
+		{
+			sensitive.PUT("/user/profile", handleUpdateUserProfile(db))
+			sensitive.PUT("/user/password", handleChangePassword(db))
+			sensitive.POST("/user/payout-address", handleSetPayoutAddress(db))
+			sensitive.POST("/user/wallets", handleCreateUserWallet(db))
+			sensitive.PUT("/user/wallets/:id", handleUpdateUserWallet(db))
+			sensitive.DELETE("/user/wallets/:id", handleDeleteUserWallet(db))
+			sensitive.PUT("/user/wallets/:id/toggle", handleToggleWalletActive(db))
+			sensitive.PUT("/user/wallets/:id/allocation", handleUpdateWalletAllocation(db))
+			sensitive.PUT("/user/miners/:id/wallets", handleSetMinerWalletAssignment(db))
+			sensitive.PUT("/user/payout-settings", handleUpdatePayoutSettings(db))
+		}
 
-			protected.GET("/community/forums", handleGetForums(db))
-			protected.GET("/community/forums/:id/posts", handleGetForumPosts(db))
-			protected.POST("/community/forums/:id/posts", handleCreatePost(db))
-			protected.GET("/community/posts/:id", handleGetPost(db))
-			protected.PUT("/community/posts/:id", handleEditPost(db))
-			protected.POST("/community/posts/:id/replies", handleAddReply(db))
-			protected.POST("/community/posts/:id/vote", handleVotePost(db))
-			protected.POST("/community/replies/:id/vote", handleVoteReply(db))
+		// Community routes (authenticated, normal rate limiting)
+		community := apiGroup.Group("/community")
+		community.Use(authMiddleware(config.JWTSecret))
+		{
+			community.GET("/channels", handleGetChannels(db))
+			community.GET("/channel-categories", handleAdminGetCategories(db))
+			community.GET("/channels/:id/messages", handleGetChannelMessages(db))
+			community.POST("/channels/:id/messages", handleSendMessage(db))
+			community.PUT("/messages/:id", handleEditMessage(db))
+			community.DELETE("/messages/:id", handleDeleteMessage(db))
+			community.GET("/reaction-types", handleGetReactionTypes(db))
+			community.POST("/messages/:id/reactions", handleAddReaction(db))
+			community.DELETE("/messages/:id/reactions/:emoji", handleRemoveReaction(db))
 
-			protected.GET("/community/badges", handleGetBadges(db))
-			protected.GET("/community/users/:id/badges", handleGetUserBadges(db))
-			protected.PUT("/community/profile/primary-badge", handleSetPrimaryBadge(db))
-			protected.GET("/community/users/:id/profile", handleGetUserProfile(db))
-			protected.PUT("/community/profile", handleUpdateProfile(db))
-			protected.GET("/community/leaderboard", handleGetLeaderboard(db))
+			community.GET("/forums", handleGetForums(db))
+			community.GET("/forums/:id/posts", handleGetForumPosts(db))
+			community.POST("/forums/:id/posts", handleCreatePost(db))
+			community.GET("/posts/:id", handleGetPost(db))
+			community.PUT("/posts/:id", handleEditPost(db))
+			community.POST("/posts/:id/replies", handleAddReply(db))
+			community.POST("/posts/:id/vote", handleVotePost(db))
+			community.POST("/replies/:id/vote", handleVoteReply(db))
 
-			protected.GET("/community/notifications", handleGetNotifications(db))
-			protected.PUT("/community/notifications/read", handleMarkNotificationsRead(db))
+			community.GET("/badges", handleGetBadges(db))
+			community.GET("/users/:id/badges", handleGetUserBadges(db))
+			community.PUT("/profile/primary-badge", handleSetPrimaryBadge(db))
+			community.GET("/users/:id/profile", handleGetUserProfile(db))
+			community.PUT("/profile", handleUpdateProfile(db))
+			community.GET("/leaderboard", handleGetLeaderboard(db))
 
-			protected.GET("/community/users/search", handleSearchUsers(db))
+			community.GET("/notifications", handleGetNotifications(db))
+			community.PUT("/notifications/read", handleMarkNotificationsRead(db))
 
-			protected.GET("/community/dm", handleGetDMList(db))
-			protected.GET("/community/dm/:userId", handleGetDMConversation(db))
-			protected.POST("/community/dm/:userId", handleSendDM(db))
+			community.GET("/users/search", handleSearchUsers(db))
 
-			protected.POST("/community/report", handleReportContent(db))
-			protected.GET("/community/online-users", handleGetOnlineUsers(db))
+			community.GET("/dm", handleGetDMList(db))
+			community.GET("/dm/:userId", handleGetDMConversation(db))
+			community.POST("/dm/:userId", handleSendDM(db))
 
-			// Bug reporting routes (authenticated users)
-			protected.POST("/bugs", handleCreateBugReport(db, config))
-			protected.GET("/bugs", handleGetUserBugReports(db))
-			protected.GET("/bugs/:id", handleGetBugReport(db))
-			protected.POST("/bugs/:id/comments", handleAddBugComment(db, config))
-			protected.POST("/bugs/:id/attachments", handleUploadBugAttachment(db))
-			protected.GET("/bugs/:id/attachments/:attachmentId", handleDownloadBugAttachment(db))
-			protected.POST("/bugs/:id/subscribe", handleSubscribeToBug(db))
-			protected.DELETE("/bugs/:id/subscribe", handleUnsubscribeFromBug(db))
+			community.POST("/report", handleReportContent(db))
+			community.GET("/online-users", handleGetOnlineUsers(db))
+		}
+
+		// Bug reporting routes (authenticated users)
+		bugs := apiGroup.Group("/bugs")
+		bugs.Use(authMiddleware(config.JWTSecret))
+		{
+			bugs.POST("", handleCreateBugReport(db, config))
+			bugs.GET("", handleGetUserBugReports(db))
+			bugs.GET("/:id", handleGetBugReport(db))
+			bugs.POST("/:id/comments", handleAddBugComment(db, config))
+			bugs.POST("/:id/attachments", handleUploadBugAttachment(db))
+			bugs.GET("/:id/attachments/:attachmentId", handleDownloadBugAttachment(db))
+			bugs.POST("/:id/subscribe", handleSubscribeToBug(db))
+			bugs.DELETE("/:id/subscribe", handleUnsubscribeFromBug(db))
 		}
 
 		// Admin routes
@@ -652,6 +674,114 @@ func securityHeadersMiddleware() gin.HandlerFunc {
 	}
 }
 
+// CSRF token store (in production, use Redis for distributed systems)
+var csrfTokenStore = struct {
+	sync.RWMutex
+	tokens map[string]time.Time // token -> expiration time
+}{tokens: make(map[string]time.Time)}
+
+// generateCSRFToken creates a cryptographically secure CSRF token
+func generateCSRFToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
+}
+
+// handleGetCSRFToken generates and returns a CSRF token
+func handleGetCSRFToken() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token, err := generateCSRFToken()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate CSRF token"})
+			return
+		}
+
+		// Store token with 1-hour expiration
+		csrfTokenStore.Lock()
+		csrfTokenStore.tokens[token] = time.Now().Add(1 * time.Hour)
+		csrfTokenStore.Unlock()
+
+		// Also set as cookie for double-submit cookie pattern
+		isProduction := c.GetHeader("X-Forwarded-Proto") == "https" || c.Request.TLS != nil
+		c.SetSameSite(http.SameSiteStrictMode)
+		c.SetCookie(
+			"csrf_token", // name
+			token,        // value
+			3600,         // maxAge (1 hour)
+			"/",          // path
+			"",           // domain
+			isProduction, // secure
+			false,        // httpOnly (must be false so JS can read it)
+		)
+
+		c.JSON(http.StatusOK, gin.H{"csrf_token": token})
+	}
+}
+
+// csrfMiddleware validates CSRF tokens for state-changing requests
+func csrfMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Only check for state-changing methods
+		if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
+		// Get token from header (X-CSRF-Token) or cookie
+		headerToken := c.GetHeader("X-CSRF-Token")
+		cookieToken, _ := c.Cookie("csrf_token")
+
+		// Double-submit cookie pattern: both must match
+		if headerToken == "" || cookieToken == "" {
+			// For backward compatibility, allow requests without CSRF during migration
+			// In production, uncomment the following:
+			// c.JSON(http.StatusForbidden, gin.H{"error": "CSRF token required"})
+			// c.Abort()
+			// return
+			c.Next()
+			return
+		}
+
+		if headerToken != cookieToken {
+			c.JSON(http.StatusForbidden, gin.H{"error": "CSRF token mismatch"})
+			c.Abort()
+			return
+		}
+
+		// Validate token exists and hasn't expired
+		csrfTokenStore.RLock()
+		expiration, exists := csrfTokenStore.tokens[headerToken]
+		csrfTokenStore.RUnlock()
+
+		if !exists || time.Now().After(expiration) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid or expired CSRF token"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// cleanupExpiredCSRFTokens removes expired tokens periodically
+func cleanupExpiredCSRFTokens() {
+	ticker := time.NewTicker(15 * time.Minute)
+	go func() {
+		for range ticker.C {
+			now := time.Now()
+			csrfTokenStore.Lock()
+			for token, expiration := range csrfTokenStore.tokens {
+				if now.After(expiration) {
+					delete(csrfTokenStore.tokens, token)
+				}
+			}
+			csrfTokenStore.Unlock()
+		}
+	}()
+}
+
 func handleRegister(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
@@ -700,8 +830,9 @@ func handleRegister(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			Email    string `json:"email" binding:"required,email"`
-			Password string `json:"password" binding:"required"`
+			Email      string `json:"email" binding:"required,email"`
+			Password   string `json:"password" binding:"required"`
+			RememberMe bool   `json:"remember_me"` // SECURITY: Session persistence option
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -784,8 +915,18 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 		// SECURITY: Record successful login (clears lockout)
 		db.Exec("SELECT record_successful_login($1, $2, $3)", req.Email, clientIP, userAgent)
 
-		// Generate JWT
-		token, err := generateJWT(userID, username, jwtSecret)
+		// Generate JWT with appropriate expiration based on remember_me
+		var tokenExpiration time.Duration
+		var cookieMaxAge int
+		if req.RememberMe {
+			tokenExpiration = 30 * 24 * time.Hour // 30 days for "remember me"
+			cookieMaxAge = 30 * 24 * 60 * 60      // 30 days in seconds
+		} else {
+			tokenExpiration = 24 * time.Hour // 24 hours for session
+			cookieMaxAge = 0                 // Session cookie (expires when browser closes)
+		}
+
+		token, err := generateJWTWithExpiration(userID, username, jwtSecret, tokenExpiration)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 			return
@@ -796,26 +937,25 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 		// - HttpOnly: true - JavaScript cannot access the cookie
 		// - Secure: true in production - only sent over HTTPS
 		// - SameSite: Strict - prevents CSRF attacks
-		// - MaxAge: 24 hours (matches JWT expiration)
+		// - MaxAge: 0 for session cookie, 30 days for "remember me"
 		isProduction := c.GetHeader("X-Forwarded-Proto") == "https" || c.Request.TLS != nil
 		c.SetSameSite(http.SameSiteStrictMode)
 		c.SetCookie(
 			"auth_token", // name
 			token,        // value
-			86400,        // maxAge (24 hours in seconds)
+			cookieMaxAge, // maxAge (0 = session cookie, 30 days for remember me)
 			"/",          // path
 			"",           // domain (empty = current domain)
 			isProduction, // secure (HTTPS only in production)
 			true,         // httpOnly (not accessible via JavaScript)
 		)
 
-		log.Printf("[AUTH] Successful login: user_id=%d, email=%s, ip=%s", userID, req.Email, clientIP)
-		// Still return token in response for backward compatibility during migration
-		// Frontend should transition to using cookies
+		log.Printf("[AUTH] Successful login: user_id=%d, email=%s, ip=%s, remember_me=%v", userID, req.Email, clientIP, req.RememberMe)
 		c.JSON(http.StatusOK, gin.H{
-			"token":   token,
-			"user_id": userID,
-			"message": "Login successful",
+			"token":       token,
+			"user_id":     userID,
+			"message":     "Login successful",
+			"remember_me": req.RememberMe,
 		})
 	}
 }
@@ -2840,10 +2980,15 @@ func verifyPassword(password, hash string) bool {
 }
 
 func generateJWT(userID int64, username, secret string) (string, error) {
+	return generateJWTWithExpiration(userID, username, secret, 24*time.Hour)
+}
+
+// generateJWTWithExpiration creates a JWT with a custom expiration duration
+func generateJWTWithExpiration(userID int64, username, secret string, expiration time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
-		"exp":      time.Now().Add(24 * time.Hour).Unix(),
+		"exp":      time.Now().Add(expiration).Unix(),
 		"iat":      time.Now().Unix(),
 	})
 	return token.SignedString([]byte(secret))

@@ -252,3 +252,36 @@ func AuthRateLimitMiddleware() gin.HandlerFunc {
 	rl := NewRateLimiter(AuthRateLimiterConfig())
 	return RateLimitMiddleware(rl)
 }
+
+// SensitiveOperationRateLimiterConfig returns config for sensitive operations
+// (password changes, wallet updates, payout settings)
+func SensitiveOperationRateLimiterConfig() RateLimiterConfig {
+	return RateLimiterConfig{
+		MaxAttempts:     10,               // Stricter limit for sensitive ops
+		WindowSize:      10 * time.Minute, // 10-minute window
+		BlockDuration:   15 * time.Minute, // 15-minute block
+		CleanupInterval: 2 * time.Minute,
+	}
+}
+
+// APIRateLimiterConfig returns config for general API endpoints
+func APIRateLimiterConfig() RateLimiterConfig {
+	return RateLimiterConfig{
+		MaxAttempts:     100,             // Higher limit for general API
+		WindowSize:      1 * time.Minute, // Per-minute rate limiting
+		BlockDuration:   1 * time.Minute, // Short block
+		CleanupInterval: 30 * time.Second,
+	}
+}
+
+// SensitiveRateLimitMiddleware returns a rate limiter for sensitive operations
+func SensitiveRateLimitMiddleware() gin.HandlerFunc {
+	rl := NewRateLimiter(SensitiveOperationRateLimiterConfig())
+	return RateLimitMiddleware(rl)
+}
+
+// APIRateLimitMiddleware returns a rate limiter for general API endpoints
+func APIRateLimitMiddleware() gin.HandlerFunc {
+	rl := NewRateLimiter(APIRateLimiterConfig())
+	return RateLimitMiddleware(rl)
+}

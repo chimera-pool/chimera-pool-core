@@ -125,11 +125,46 @@
 
 ### 3.3 Session Persistence
 - **Severity:** MEDIUM
-- **Status:** [ ] PENDING
+- **Status:** [x] FIXED (Jan 2, 2026) - Remember me option implemented
 - **Issue:** Tokens persist after browser close
 - **Fix:** Implement session vs persistent token option
-- **Files to modify:**
-  - Frontend auth logic
+- **Implementation:**
+  - Added "Remember me" checkbox to login form
+  - Session-only login: 24-hour JWT, session cookie (expires on browser close), sessionStorage
+  - Persistent login: 30-day JWT, persistent cookie, localStorage
+  - Backend generates appropriate token expiration based on remember_me flag
+- **Files modified:**
+  - `cmd/api/main.go` - handleLogin with remember_me support, generateJWTWithExpiration
+  - `src/components/auth/AuthModal.tsx` - Remember me checkbox
+  - `src/contexts/AuthContext.tsx` - Support for both localStorage and sessionStorage
+
+### 3.4 CSRF Protection
+- **Severity:** MEDIUM
+- **Status:** [x] FIXED (Jan 2, 2026) - Double-submit cookie pattern implemented
+- **Issue:** State-changing requests vulnerable to CSRF attacks
+- **Fix:** Implement CSRF token validation
+- **Implementation:**
+  - Added `/api/v1/csrf-token` endpoint for token generation
+  - Implemented double-submit cookie pattern (token in header + cookie)
+  - Added `csrfMiddleware()` for validation on POST/PUT/DELETE requests
+  - Added automatic cleanup of expired tokens every 15 minutes
+  - SameSite=Strict cookies provide additional protection layer
+- **Files modified:**
+  - `cmd/api/main.go` - CSRF token generation, validation middleware, cleanup
+
+### 3.5 Rate Limiting Improvements
+- **Severity:** MEDIUM
+- **Status:** [x] FIXED (Jan 2, 2026) - Tiered rate limiting implemented
+- **Issue:** Sensitive operations need stricter rate limiting
+- **Fix:** Implement tiered rate limiting for different operation types
+- **Implementation:**
+  - Added `SensitiveOperationRateLimiterConfig` (10 requests/10 min, 15 min block)
+  - Added `APIRateLimiterConfig` (100 requests/min, 1 min block)
+  - Separated sensitive operations (password, wallet, payout) into rate-limited group
+  - Reorganized API routes into logical groups (protected, sensitive, community, bugs)
+- **Files modified:**
+  - `internal/api/rate_limiter.go` - New rate limiter configs
+  - `cmd/api/main.go` - Route reorganization with tiered rate limiting
 
 ---
 

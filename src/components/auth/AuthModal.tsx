@@ -183,6 +183,7 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false); // SECURITY: Session persistence option
 
   const handleInputChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
@@ -197,12 +198,23 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password }),
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password,
+          remember_me: rememberMe // SECURITY: Session persistence option
+        }),
         credentials: 'include', // SECURITY: Accept HTTP-only cookies
       });
       const data = await response.json();
       if (response.ok) {
-        localStorage.setItem('token', data.token);
+        // Only store in localStorage if "Remember me" is checked
+        if (rememberMe) {
+          localStorage.setItem('token', data.token);
+        } else {
+          // Use sessionStorage for session-only persistence
+          sessionStorage.setItem('token', data.token);
+          localStorage.removeItem('token'); // Clear any existing persistent token
+        }
         setToken(data.token);
         setView(null);
         showMessage('success', 'Login successful!');
@@ -352,6 +364,17 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
                 {showPassword ? '🙈' : '👁️'}
               </button>
             </div>
+            {/* SECURITY: Remember me option for session persistence */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', color: colors.textSecondary, fontSize: '0.9rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                data-testid="login-remember-me-checkbox"
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              Remember me (stay logged in)
+            </label>
             <button style={styles.submitBtn} type="submit" disabled={loading} data-testid="login-submit-btn">
               {loading ? 'Logging in...' : 'Login'}
             </button>
