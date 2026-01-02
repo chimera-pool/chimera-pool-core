@@ -197,7 +197,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password })
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+        credentials: 'include', // SECURITY: Accept HTTP-only cookies
       });
       const data = await response.json();
       if (response.ok) {
@@ -231,7 +232,8 @@ export function AuthModal({ view, setView, setToken, showMessage, resetToken }: 
           username: formData.username,
           email: formData.email,
           password: formData.password
-        })
+        }),
+        credentials: 'include', // SECURITY: Accept HTTP-only cookies
       });
       const data = await response.json();
       if (response.ok) {

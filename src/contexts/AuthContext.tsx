@@ -42,18 +42,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!token && !!user;
 
-  // Fetch user profile when token exists
-  const fetchProfile = useCallback(async (authToken: string) => {
+  // Fetch user profile - supports both cookie and token auth
+  const fetchProfile = useCallback(async (authToken?: string) => {
     try {
+      const headers: HeadersInit = {};
+      // Include Authorization header if token provided (backward compatibility)
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch('/api/v1/user/profile', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers,
+        credentials: 'include', // SECURITY: Include HTTP-only cookies
       });
       
       if (response.ok) {
         const data = await response.json();
         setUser(data);
+        // If we got a valid response, we're authenticated
+        if (!token && authToken) {
+          setToken(authToken);
+        }
       } else {
-        // Token invalid, clear auth state
+        // Token/cookie invalid, clear auth state
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
@@ -66,7 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token]);
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -84,14 +95,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // SECURITY: Accept HTTP-only cookies from server
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
+        // Store token in localStorage for backward compatibility
+        // Server also sets HTTP-only cookie for enhanced security
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          setToken(data.token);
+        }
         await fetchProfile(data.token);
       } else {
         setError(data.error || 'Login failed');
@@ -136,26 +152,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [fetchProfile, error]);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setError(null);
+  const logout = useCallback(async () => {
+    try {
+      // Call server logout to clear HTTP-only cookie
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        credentials: 'include', // SECURITY: Include cookie to be cleared
+      });
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    } finally {
+      // Always clear local state regardless of server response
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      setError(null);
+    }
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<User>) => {
-    if (!token) {
+    if (!token && !user) {
       throw new Error('Not authenticated');
     }
 
     try {
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('/api/v1/user/profile', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
+        headers,
+        body: JSON.stringify(data),
+        credentials: 'include', // SECURITY: Include HTTP-only cookies
       });
 
       const result = await response.json();
@@ -174,18 +204,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [token]);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
-    if (!token) {
+    if (!token && !user) {
       throw new Error('Not authenticated');
     }
 
     try {
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('/api/v1/user/password', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+        headers,
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+        credentials: 'include', // SECURITY: Include HTTP-only cookies
       });
 
       if (!response.ok) {

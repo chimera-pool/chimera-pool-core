@@ -98,6 +98,7 @@ func main() {
 		{
 			authGroup.POST("/register", handleRegister(db, config.JWTSecret))
 			authGroup.POST("/login", handleLogin(db, config.JWTSecret))
+			authGroup.POST("/logout", handleLogout())
 			// Email service configured - password reset enabled
 			authGroup.POST("/forgot-password", handleForgotPassword(db, config))
 			authGroup.POST("/reset-password", handleResetPassword(db))
@@ -790,11 +791,50 @@ func handleLogin(db *sql.DB, jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
+		// SECURITY: Set JWT as HTTP-only cookie (prevents XSS token theft)
+		// Cookie settings:
+		// - HttpOnly: true - JavaScript cannot access the cookie
+		// - Secure: true in production - only sent over HTTPS
+		// - SameSite: Strict - prevents CSRF attacks
+		// - MaxAge: 24 hours (matches JWT expiration)
+		isProduction := c.GetHeader("X-Forwarded-Proto") == "https" || c.Request.TLS != nil
+		c.SetSameSite(http.SameSiteStrictMode)
+		c.SetCookie(
+			"auth_token", // name
+			token,        // value
+			86400,        // maxAge (24 hours in seconds)
+			"/",          // path
+			"",           // domain (empty = current domain)
+			isProduction, // secure (HTTPS only in production)
+			true,         // httpOnly (not accessible via JavaScript)
+		)
+
 		log.Printf("[AUTH] Successful login: user_id=%d, email=%s, ip=%s", userID, req.Email, clientIP)
+		// Still return token in response for backward compatibility during migration
+		// Frontend should transition to using cookies
 		c.JSON(http.StatusOK, gin.H{
 			"token":   token,
 			"user_id": userID,
+			"message": "Login successful",
 		})
+	}
+}
+
+// handleLogout clears the HTTP-only auth cookie
+func handleLogout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Clear the auth cookie by setting it with a negative MaxAge
+		c.SetSameSite(http.SameSiteStrictMode)
+		c.SetCookie(
+			"auth_token", // name
+			"",           // value (empty)
+			-1,           // maxAge (negative = delete)
+			"/",          // path
+			"",           // domain
+			false,        // secure
+			true,         // httpOnly
+		)
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 	}
 }
 
@@ -2747,28 +2787,37 @@ func joinStrings(strs []string, sep string) string {
 	return result
 }
 
-// Auth middleware
+// Auth middleware - supports both HTTP-only cookie and Authorization header
 func authMiddleware(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			c.Abort()
-			return
-		}
+		var tokenString string
 
-		// Extract token from "Bearer <token>"
-		tokenString := ""
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			tokenString = authHeader[7:]
+		// SECURITY: First try HTTP-only cookie (preferred, more secure)
+		if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+			tokenString = cookie
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
-			c.Abort()
-			return
+			// Fallback to Authorization header for backward compatibility
+			authHeader := c.GetHeader("Authorization")
+			if authHeader == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
+				c.Abort()
+				return
+			}
+
+			// Extract token from "Bearer <token>"
+			if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				tokenString = authHeader[7:]
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
+				c.Abort()
+				return
+			}
 		}
 
 		userID, _, err := validateJWT(tokenString, jwtSecret)
 		if err != nil {
+			// Clear invalid cookie if present
+			c.SetCookie("auth_token", "", -1, "/", "", false, true)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
