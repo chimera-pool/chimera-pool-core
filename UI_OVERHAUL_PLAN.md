@@ -65,10 +65,10 @@ This plan outlines the comprehensive UI overhaul for Chimera Pool mining softwar
 - [x] Add animated "connect miner" illustration
 - [x] Style links as branded buttons
 
-### 2.4 Multi-Wallet Payout Settings
-- [ ] Enhance wallet card design
-- [ ] Add progress visualization for allocation
-- [ ] Improve "+ Add Wallet" button prominence
+### 2.4 ✅ Multi-Wallet Payout Settings (Completed Jan 1, 2026)
+- [x] Enhance wallet card design
+- [x] Add progress visualization for allocation
+- [x] Improve "+ Add Wallet" button prominence
 
 ### 2.5 Global Miner Network Map
 - [ ] Enhance map styling with brand colors
