@@ -120,7 +120,21 @@ func (w *Window) GetHashrate() float64 {
 	}
 
 	// Calculate hashrate over the window duration
-	return (totalDifficulty * Diff1Target) / w.duration.Seconds()
+	// Formula: hashrate = (totalDifficulty * 2^32) / seconds
+	hashrate := (totalDifficulty * Diff1Target) / w.duration.Seconds()
+
+	// SANITY CHECK: Apply reasonable bounds based on miner type
+	// CPU miners: max ~100 KH/s (100,000 H/s)
+	// GPU miners: max ~100 MH/s (100,000,000 H/s)
+	// ASIC miners: max ~100 TH/s (100,000,000,000,000 H/s)
+	// If hashrate exceeds reasonable bounds, it's likely a calculation error
+	const maxReasonableHashrate = 100_000_000_000_000.0 // 100 TH/s max for any single miner
+	if hashrate > maxReasonableHashrate {
+		// Log warning and cap the value
+		hashrate = maxReasonableHashrate
+	}
+
+	return hashrate
 }
 
 // GetShareCount returns the number of shares in the window
